@@ -1,5 +1,5 @@
 {
-  "name": "Gaadi Bazaar",
-  "description": "A production-ready marketplace for buying and selling second-hand vehicles in Tier-2/3 India.",
-  "requestFramePermissions": ["geolocation"]
+  "name": "Enterprise Cloud Console",
+  "description": "A high-scale, globally distributed infrastructure management platform with EKS, Kafka, and Multi-Region RDS monitoring.",
+  "requestFramePermissions": []
 }

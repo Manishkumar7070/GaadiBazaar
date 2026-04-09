@@ -1,0 +1,32 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: prometheus-external
+  namespace: istio-system
+spec:
+  hosts:
+  - prometheus-operated.monitoring.svc.cluster.local
+  ports:
+  - number: 9090
+    name: http
+    protocol: HTTP
+  resolution: DNS
+  location: MESH_INTERNAL
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istio-proxies-monitor
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      istio: proxy
+  namespaceSelector:
+    any: true
+  endpoints:
+  - port: http-envoy-prom
+    path: /stats/prometheus
+    interval: 15s

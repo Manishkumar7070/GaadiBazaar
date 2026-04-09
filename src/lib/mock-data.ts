@@ -54,15 +54,6 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Bhopal',
     state: 'Madhya Pradesh',
     images: ['https://images.unsplash.com/photo-1567818735868-e71b99932e29?q=80&w=1000&auto=format&fit=crop', 'https://picsum.photos/seed/car1-2/800/600'],
-    interiorImages: [
-      'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=1000&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1000&auto=format&fit=crop'
-    ],
-    exteriorImages: [
-      'https://images.unsplash.com/photo-1567818735868-e71b99932e29?q=80&w=1000&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1502877338535-766e1452684a?q=80&w=1000&auto=format&fit=crop'
-    ],
-    threeSixtyImages: Array.from({ length: 12 }).map((_, i) => `https://picsum.photos/seed/swift360-${i}/800/600`),
     status: 'active',
     isFeatured: true,
     isVerified: true,
@@ -89,13 +80,6 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Patna',
     state: 'Bihar',
     images: ['https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=1000&auto=format&fit=crop'],
-    interiorImages: [
-      'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=1000&auto=format&fit=crop'
-    ],
-    exteriorImages: [
-      'https://images.unsplash.com/photo-1558981806-ec527fa84c39?q=80&w=1000&auto=format&fit=crop'
-    ],
-    threeSixtyImages: Array.from({ length: 12 }).map((_, i) => `https://picsum.photos/seed/re360-${i}/800/600`),
     status: 'active',
     isFeatured: false,
     isVerified: true,
@@ -128,12 +112,6 @@ export const MOCK_VEHICLES: Vehicle[] = [
     createdAt: new Date().toISOString(),
     registrationNumber: 'CG04-MN-9012',
     mileage: '18 kmpl',
-    interiorImages: [
-      'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=1000&auto=format&fit=crop'
-    ],
-    exteriorImages: [
-      'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?q=80&w=1000&auto=format&fit=crop'
-    ],
   },
   {
     id: 'v4',
@@ -152,14 +130,6 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Bhopal',
     state: 'Madhya Pradesh',
     images: ['https://images.unsplash.com/photo-1606152421802-db97b9c7a11b?q=80&w=1000&auto=format&fit=crop', 'https://images.unsplash.com/photo-1594070319944-7c0c63146b77?q=80&w=1000&auto=format&fit=crop'],
-    interiorImages: [
-      'https://images.unsplash.com/photo-1592198084033-aade902d1aae?q=80&w=1000&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1583121274602-3e2820c69888?q=80&w=1000&auto=format&fit=crop'
-    ],
-    exteriorImages: [
-      'https://images.unsplash.com/photo-1606152421802-db97b9c7a11b?q=80&w=1000&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1594070319944-7c0c63146b77?q=80&w=1000&auto=format&fit=crop'
-    ],
     status: 'active',
     isFeatured: false,
     isVerified: true,
@@ -185,12 +155,6 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Patna',
     state: 'Bihar',
     images: ['https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=1000&auto=format&fit=crop'],
-    interiorImages: [
-      'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=1000&auto=format&fit=crop'
-    ],
-    exteriorImages: [
-      'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=1000&auto=format&fit=crop'
-    ],
     status: 'active',
     isFeatured: true,
     isVerified: true,
@@ -216,12 +180,6 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Bhopal',
     state: 'Madhya Pradesh',
     images: ['https://images.unsplash.com/photo-1606611013016-969c19ba27bb?q=80&w=1000&auto=format&fit=crop'],
-    interiorImages: [
-      'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=1000&auto=format&fit=crop'
-    ],
-    exteriorImages: [
-      'https://images.unsplash.com/photo-1606611013016-969c19ba27bb?q=80&w=1000&auto=format&fit=crop'
-    ],
     status: 'active',
     isFeatured: true,
     isVerified: true,

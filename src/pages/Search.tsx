@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Filter, MapPin, Bookmark, Save } from 'lucide-react';
+import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MOCK_VEHICLES } from '@/lib/mock-data';
 import VehicleCard from '@/components/vehicles/VehicleCard';
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationEllipsis, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from '@/components/ui/pagination';
 import { 
   Dialog, 
   DialogContent, 
@@ -15,15 +24,19 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog';
 import { SavedSearch, SearchFilters } from '@/types';
+import { cn } from '@/lib/utils';
 
 const SearchPage = () => {
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   
   const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(initialQuery);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [searchName, setSearchName] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
   
   const [filters, setFilters] = useState<SearchFilters>({
     brand: initialQuery,
@@ -32,6 +45,16 @@ const SearchPage = () => {
     vehicleType: undefined,
     city: undefined,
   });
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     const q = searchParams.get('q');
@@ -50,7 +73,12 @@ const SearchPage = () => {
         maxPrice: max ? parseInt(max) : undefined,
       });
     }
+    setCurrentPage(1);
   }, [searchParams]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters]);
 
   const handleSaveSearch = () => {
     if (!searchName.trim()) return;
@@ -75,9 +103,9 @@ const SearchPage = () => {
   };
 
   const filteredVehicles = MOCK_VEHICLES.filter(v => {
-    const matchesQuery = !searchQuery || 
-      v.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      v.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesQuery = !debouncedSearchQuery || 
+      v.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
+      v.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     
     const matchesType = !filters.vehicleType || v.vehicleType === filters.vehicleType;
     const matchesMinPrice = !filters.minPrice || v.price >= filters.minPrice;
@@ -86,6 +114,17 @@ const SearchPage = () => {
 
     return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity;
   });
+
+  const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
+  const paginatedVehicles = filteredVehicles.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="space-y-6">
@@ -102,10 +141,8 @@ const SearchPage = () => {
           </div>
           
           <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl text-primary border-primary/20 hover:bg-primary/5">
-                <Bookmark size={20} />
-              </Button>
+            <DialogTrigger render={<Button variant="outline" size="icon" className="h-12 w-12 rounded-xl text-primary border-primary/20 hover:bg-primary/5" />}>
+              <Bookmark size={20} />
             </DialogTrigger>
             <DialogContent className="rounded-3xl">
               <DialogHeader>
@@ -144,10 +181,8 @@ const SearchPage = () => {
           </Dialog>
 
           <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl">
-                <Filter size={20} />
-              </Button>
+            <DialogTrigger render={<Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" />}>
+              <Filter size={20} />
             </DialogTrigger>
             <DialogContent className="rounded-3xl max-w-md">
               <DialogHeader>
@@ -156,18 +191,30 @@ const SearchPage = () => {
               <div className="py-4 space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-bold">Vehicle Type</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['car', 'bike', 'commercial'].map((type) => (
-                      <Button
-                        key={type}
-                        variant={filters.vehicleType === type ? 'default' : 'outline'}
-                        size="sm"
-                        className="rounded-full capitalize"
-                        onClick={() => setFilters(prev => ({ ...prev, vehicleType: prev.vehicleType === type ? undefined : type as any }))}
-                      >
-                        {type}
-                      </Button>
-                    ))}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'car', label: 'Cars', icon: Car },
+                      { id: 'bike', label: 'Bikes', icon: Bike },
+                      { id: 'scooter', label: 'Scooters', icon: Zap },
+                      { id: 'commercial', label: 'Commercial', icon: Truck },
+                    ].map((type) => {
+                      const Icon = type.icon;
+                      const isActive = filters.vehicleType === type.id;
+                      return (
+                        <Button
+                          key={type.id}
+                          variant={isActive ? 'default' : 'outline'}
+                          className={cn(
+                            "h-12 rounded-xl justify-start gap-3 px-4",
+                            isActive ? "bg-primary border-primary" : "hover:bg-primary/5 hover:border-primary/20"
+                          )}
+                          onClick={() => setFilters(prev => ({ ...prev, vehicleType: prev.vehicleType === type.id ? undefined : type.id as any }))}
+                        >
+                          <Icon size={18} className={isActive ? "text-white" : "text-slate-400"} />
+                          <span className="font-bold">{type.label}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -230,8 +277,8 @@ const SearchPage = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVehicles.length > 0 ? (
-          filteredVehicles.map((vehicle) => (
+        {paginatedVehicles.length > 0 ? (
+          paginatedVehicles.map((vehicle) => (
             <VehicleCard key={vehicle.id} vehicle={vehicle} />
           ))
         ) : (
@@ -250,6 +297,71 @@ const SearchPage = () => {
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="py-10">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) handlePageChange(currentPage - 1);
+                  }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const page = i + 1;
+                // Simple pagination logic: show first, last, and current +/- 1
+                if (
+                  page === 1 || 
+                  page === totalPages || 
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink 
+                        href="#" 
+                        isActive={currentPage === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(page);
+                        }}
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (
+                  page === currentPage - 2 || 
+                  page === currentPage + 2
+                ) {
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
+                }
+                return null;
+              })}
+
+              <PaginationItem>
+                <PaginationNext 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                  }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 };

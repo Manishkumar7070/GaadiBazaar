@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-v2
+  labels:
+    app: user-service
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: v2
+    spec:
+      containers:
+      - name: user-service
+        image: enterprise-app-user:v2 # Canary version
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DB_HOST
+          value: "rds-endpoint-placeholder"
+        - name: DB_PORT
+          value: "5432"
+        - name: KAFKA_BROKERS
+          value: "msk-endpoint-placeholder:9092"
+        - name: DB_USER
+          value: "dbadmin"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: db-password
+        - name: DB_NAME
+          value: "appdb"
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"

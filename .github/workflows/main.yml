@@ -1,0 +1,88 @@
+name: Production Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Lint and Type Check
+        run: npm run lint
+        
+      - name: Build Application
+        run: npm run build
+
+  deploy-infrastructure:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+          
+      - name: Terraform Init
+        working-directory: ./infrastructure/terraform
+        run: terraform init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
+      - name: Terraform Plan
+        working-directory: ./infrastructure/terraform
+        run: terraform plan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  # Placeholder for Docker Build & EKS Deploy
+  containerize-and-deploy:
+    needs: deploy-infrastructure
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build Auth Service
+          docker build -t $ECR_REGISTRY/auth-service:$IMAGE_TAG ./services/auth
+          docker push $ECR_REGISTRY/auth-service:$IMAGE_TAG
+          
+          # Build User Service
+          docker build -t $ECR_REGISTRY/user-service:$IMAGE_TAG ./services/user
+          docker push $ECR_REGISTRY/user-service:$IMAGE_TAG
+          
+          # Build Notification Service
+          docker build -t $ECR_REGISTRY/notification-service:$IMAGE_TAG ./services/notification
+          docker push $ECR_REGISTRY/notification-service:$IMAGE_TAG

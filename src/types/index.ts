@@ -49,9 +49,6 @@ export interface Vehicle {
   city: string;
   state: string;
   images: string[];
-  interiorImages?: string[];
-  exteriorImages?: string[];
-  threeSixtyImages?: string[];
   status: VehicleStatus;
   isFeatured: boolean;
   isVerified: boolean;

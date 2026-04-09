@@ -3,8 +3,6 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { createClient } from "@supabase/supabase-js";
-import twilio from "twilio";
 
 dotenv.config();
 
@@ -17,94 +15,59 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Supabase Client (Server-side)
-  const supabaseUrl = process.env.SUPABASE_URL || "";
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-  // Twilio Client
-  const twilioClient = twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-  );
-
-  // API Routes
+  // --- Mock Infrastructure API ---
+  
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ 
+      status: "ok", 
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || "development"
+    });
   });
 
-  // OTP Send Route
-  app.post("/api/auth/send-otp", async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email is required" });
+  app.get("/api/infra/status", (req, res) => {
+    res.json({
+      eks: { status: "Healthy", nodes: 12, version: "1.28" },
+      rds: { status: "Healthy", connections: 1240, region: "us-east-1" },
+      kafka: { status: "Healthy", throughput: "45.2 MB/s", topics: 24 },
+      istio: { status: "Healthy", mTLS: "Strict", meshHealth: "99.98%" },
+      cloudfront: { status: "Healthy", edgeLocations: 412 }
+    });
+  });
 
-    try {
-      // Using Twilio Verify Service if SID is provided
-      if (process.env.TWILIO_VERIFY_SERVICE_SID) {
-        await twilioClient.verify.v2
-          .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-          .verifications.create({ to: email, channel: "email" });
-        
-        return res.json({ message: "OTP sent successfully" });
-      } else {
-        // Fallback or custom implementation
-        return res.status(501).json({ error: "Twilio Verify Service SID not configured" });
-      }
-    } catch (error: any) {
-      console.error("Error sending OTP:", error);
-      res.status(500).json({ error: error.message });
+  app.get("/api/infra/events", (req, res) => {
+    const events = [
+      { id: 1, time: new Date().toISOString(), type: "USER_CREATED", service: "user-service", severity: "info" },
+      { id: 2, time: new Date(Date.now() - 300000).toISOString(), type: "AUTH_SUCCESS", service: "auth-service", severity: "info" },
+      { id: 3, time: new Date(Date.now() - 600000).toISOString(), type: "DB_BACKUP_COMPLETED", service: "rds", severity: "success" },
+      { id: 4, time: new Date(Date.now() - 900000).toISOString(), type: "CANARY_ROLLOUT_10%", service: "istio", severity: "warning" },
+    ];
+    res.json(events);
+  });
+
+  // --- Mock Microservices Endpoints ---
+
+  app.post("/api/auth/login", (req, res) => {
+    const { username, password } = req.body;
+    if (username === "admin" && password === "password") {
+      res.json({ token: "mock-jwt-token-for-preview", user: { id: 1, username: "admin", role: "admin" } });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
     }
   });
 
-  // OTP Verify Route
-  app.post("/api/auth/verify-otp", async (req, res) => {
-    const { email, code } = req.body;
-    if (!email || !code) return res.status(400).json({ error: "Email and code are required" });
-
-    try {
-      if (process.env.TWILIO_VERIFY_SERVICE_SID) {
-        const verification = await twilioClient.verify.v2
-          .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-          .verificationChecks.create({ to: email, code });
-
-        if (verification.status === "approved") {
-          // Create or get user in Supabase
-          const { data, error } = await supabase.auth.admin.createUser({
-            email,
-            email_confirm: true,
-          });
-
-          // If user already exists, this might error, so we just sign them in/get them
-          // In a real app, you'd handle this more robustly
-          
-          return res.json({ status: "verified", user: data?.user });
-        } else {
-          return res.status(401).json({ error: "Invalid OTP" });
-        }
-      } else {
-        return res.status(501).json({ error: "Twilio Verify Service SID not configured" });
-      }
-    } catch (error: any) {
-      console.error("Error verifying OTP:", error);
-      res.status(500).json({ error: error.message });
-    }
+  app.get("/api/users/profile", (req, res) => {
+    res.json({
+      id: "usr_921",
+      username: "jdoe",
+      email: "john.doe@enterprise.com",
+      role: "Platform Engineer",
+      lastLogin: new Date().toISOString()
+    });
   });
 
-  // Fetch Vehicles from Supabase
-  app.get("/api/vehicles", async (req, res) => {
-    try {
-      const { data, error } = await supabase
-        .from("vehicles")
-        .select("*");
-      
-      if (error) throw error;
-      res.json(data);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // --- Vite Middleware ---
 
-  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -120,7 +83,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Enterprise Cloud Console running on http://localhost:${PORT}`);
   });
 }
 

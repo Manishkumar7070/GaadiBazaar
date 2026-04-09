@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   ChevronLeft, 
@@ -18,24 +18,90 @@ import {
   FileText,
   Droplets,
   ArrowLeftRight,
-  Rotate3d
+  Rotate3d,
+  ZoomIn,
+  X,
+  Maximize2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
 import { MOCK_VEHICLES, MOCK_DEALERS } from '@/lib/mock-data';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import VehicleCard from '@/components/vehicles/VehicleCard';
-import ThreeSixtyViewer from '@/components/vehicles/ThreeSixtyViewer';
 import { useComparison } from '@/context/ComparisonContext';
 import { cn } from '@/lib/utils';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: () => void }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [showMagnifier, setShowMagnifier] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setPosition({ x, y });
+    setCursorPosition({ x: e.clientX - left, y: e.clientY - top });
+  };
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden cursor-zoom-in group"
+      onMouseEnter={() => setShowMagnifier(true)}
+      onMouseLeave={() => setShowMagnifier(false)}
+      onMouseMove={handleMouseMove}
+      onClick={onClick}
+    >
+      <img 
+        src={src} 
+        alt={alt}
+        className={cn(
+          "w-full h-full object-cover transition-transform duration-500",
+          showMagnifier ? "scale-105" : "scale-100"
+        )}
+        referrerPolicy="no-referrer"
+      />
+      
+      {/* Magnifying Glass Effect */}
+      {showMagnifier && (
+        <div
+          className="absolute pointer-events-none border-4 border-white/30 shadow-2xl rounded-full overflow-hidden hidden md:block"
+          style={{
+            left: `${cursorPosition.x - 100}px`,
+            top: `${cursorPosition.y - 100}px`,
+            width: '200px',
+            height: '200px',
+            backgroundImage: `url(${src})`,
+            backgroundPosition: `${position.x}% ${position.y}%`,
+            backgroundSize: '400%',
+            zIndex: 10,
+          }}
+        />
+      )}
+
+      {/* Zoom Icon Overlay */}
+      <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur-sm p-3 rounded-2xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <Maximize2 size={20} className="text-primary" />
+      </div>
+    </div>
+  );
+};
 
 const VehicleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToComparison, removeFromComparison, isVehicleSelected } = useComparison();
+  
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   
   const vehicle = MOCK_VEHICLES.find(v => v.id === id);
   const isSelected = vehicle ? isVehicleSelected(vehicle.id) : false;
@@ -120,75 +186,104 @@ const VehicleDetail = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Images & Details */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Image Gallery & 360 View */}
+          {/* Image Gallery */}
           <section className="space-y-4">
-            <Tabs defaultValue="all" className="w-full">
-              <div className="flex items-center justify-between mb-4">
-                <TabsList className="bg-slate-100 p-1 rounded-xl h-auto">
-                  <TabsTrigger value="all" className="rounded-lg py-1.5 px-4 text-xs font-bold">All</TabsTrigger>
-                  {(vehicle.exteriorImages && vehicle.exteriorImages.length > 0) && <TabsTrigger value="exterior" className="rounded-lg py-1.5 px-4 text-xs font-bold">Exterior</TabsTrigger>}
-                  {(vehicle.interiorImages && vehicle.interiorImages.length > 0) && <TabsTrigger value="interior" className="rounded-lg py-1.5 px-4 text-xs font-bold">Interior</TabsTrigger>}
-                  {(vehicle.threeSixtyImages && vehicle.threeSixtyImages.length > 0) && (
-                    <TabsTrigger value="360" className="rounded-lg py-1.5 px-4 text-xs font-bold flex gap-1 items-center">
-                      <Rotate3d size={14} /> 360°
-                    </TabsTrigger>
-                  )}
-                </TabsList>
+            <div className="space-y-4">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="aspect-video rounded-[2rem] overflow-hidden bg-slate-200 shadow-xl border border-slate-100"
+              >
+                <Magnifier 
+                  src={vehicle.images[activeImageIndex]} 
+                  alt={vehicle.title}
+                  onClick={() => setIsLightboxOpen(true)}
+                />
+              </motion.div>
+              
+              <div className="grid grid-cols-4 gap-4">
+                {vehicle.images.map((img, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => setActiveImageIndex(i)}
+                    className={cn(
+                      "aspect-square rounded-2xl overflow-hidden bg-slate-200 cursor-pointer transition-all duration-300 border-2",
+                      activeImageIndex === i ? "border-primary scale-95 shadow-inner" : "border-transparent hover:border-primary/30"
+                    )}
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                ))}
               </div>
+            </div>
+          </section>
 
-              <TabsContent value="all" className="mt-0 space-y-4">
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="aspect-video rounded-[2rem] overflow-hidden bg-slate-200"
-                >
-                  <img 
-                    src={vehicle.images[0]} 
+          {/* Lightbox Dialog */}
+          <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
+            <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none rounded-3xl overflow-hidden flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center p-4 md:p-12">
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={activeImageIndex}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.1 }}
+                    src={vehicle.images[activeImageIndex]}
                     alt={vehicle.title}
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
                     referrerPolicy="no-referrer"
                   />
-                </motion.div>
-                <div className="grid grid-cols-4 gap-4">
+                </AnimatePresence>
+
+                {/* Navigation Controls */}
+                <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white pointer-events-auto backdrop-blur-md"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImageIndex((prev) => (prev === 0 ? vehicle.images.length - 1 : prev - 1));
+                    }}
+                  >
+                    <ChevronLeft size={32} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white pointer-events-auto backdrop-blur-md"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImageIndex((prev) => (prev === vehicle.images.length - 1 ? 0 : prev + 1));
+                    }}
+                  >
+                    <ChevronRight size={32} />
+                  </Button>
+                </div>
+
+                {/* Thumbnail Strip in Lightbox */}
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 p-2 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10">
                   {vehicle.images.map((img, i) => (
-                    <div key={i} className="aspect-square rounded-2xl overflow-hidden bg-slate-200 cursor-pointer hover:opacity-80 transition-opacity">
+                    <div
+                      key={i}
+                      onClick={() => setActiveImageIndex(i)}
+                      className={cn(
+                        "w-16 h-16 rounded-xl overflow-hidden cursor-pointer transition-all border-2",
+                        activeImageIndex === i ? "border-white scale-110" : "border-transparent opacity-50 hover:opacity-100"
+                      )}
+                    >
                       <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                   ))}
                 </div>
-              </TabsContent>
 
-              {vehicle.exteriorImages && vehicle.exteriorImages.length > 0 && (
-                <TabsContent value="exterior" className="mt-0 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {vehicle.exteriorImages.map((img, i) => (
-                      <div key={i} className="aspect-video rounded-3xl overflow-hidden bg-slate-200">
-                        <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              )}
-
-              {vehicle.interiorImages && vehicle.interiorImages.length > 0 && (
-                <TabsContent value="interior" className="mt-0 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {vehicle.interiorImages.map((img, i) => (
-                      <div key={i} className="aspect-video rounded-3xl overflow-hidden bg-slate-200">
-                        <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                    ))}
-                  </div>
-                </TabsContent>
-              )}
-
-              {vehicle.threeSixtyImages && vehicle.threeSixtyImages.length > 0 && (
-                <TabsContent value="360" className="mt-0">
-                  <ThreeSixtyViewer images={vehicle.threeSixtyImages} />
-                </TabsContent>
-              )}
-            </Tabs>
-          </section>
+                {/* Close Button */}
+                <DialogClose className="absolute top-6 right-6 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md transition-colors">
+                  <X size={24} />
+                </DialogClose>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Title & Price */}
           <section className="space-y-4">
