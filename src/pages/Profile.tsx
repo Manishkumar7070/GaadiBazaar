@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { User, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,17 +8,30 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SavedSearch, Vehicle } from '@/types';
 import { MOCK_VEHICLES } from '@/lib/mock-data';
+import { useAuth } from '@/context/AuthContext';
 
 const Profile = () => {
+  const { user, loading, logout } = useAuth();
+  const navigate = useNavigate();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Vehicle[]>([]);
 
   useEffect(() => {
+    if (!loading && !user) {
+      navigate('/');
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('savedSearches') || '[]');
-    setSavedSearches(saved);
+    // Ensure unique IDs for saved searches
+    const uniqueSaved = Array.from(new Map(saved.map((s: any) => [s.id, s])).values()) as SavedSearch[];
+    setSavedSearches(uniqueSaved);
 
     const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
-    const viewedVehicles = viewedIds
+    // Ensure unique IDs for recently viewed
+    const uniqueIds = Array.from(new Set(viewedIds)) as string[];
+    const viewedVehicles = uniqueIds
       .map((id: string) => MOCK_VEHICLES.find(v => v.id === id))
       .filter(Boolean) as Vehicle[];
     setRecentlyViewed(viewedVehicles);
@@ -38,16 +51,27 @@ const Profile = () => {
     { icon: Settings, label: 'Account Settings' },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   return (
     <div className="max-w-2xl mx-auto space-y-8 pb-10">
       <div className="flex flex-col items-center text-center space-y-4">
         <Avatar className="w-24 h-24 border-4 border-white shadow-xl">
-          <AvatarImage src="https://picsum.photos/seed/user/200" />
-          <AvatarFallback>JD</AvatarFallback>
+          <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />
+          <AvatarFallback>{user.name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold">John Doe</h1>
-          <p className="text-slate-500">+91 98765 43210</p>
+          <h1 className="text-2xl font-bold">{user.name}</h1>
+          <p className="text-slate-500">{user.email}</p>
+          {user.phone && <p className="text-slate-500">{user.phone}</p>}
         </div>
         <Button variant="outline" className="rounded-full">Edit Profile</Button>
       </div>
@@ -65,7 +89,7 @@ const Profile = () => {
               {menuItems.map((item, i) => {
                 const Icon = item.icon;
                 return (
-                  <React.Fragment key={i}>
+                  <React.Fragment key={item.label}>
                     <button className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
@@ -200,7 +224,14 @@ const Profile = () => {
         </TabsContent>
       </Tabs>
 
-      <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 h-14 rounded-2xl font-bold flex gap-2">
+      <Button 
+        variant="ghost" 
+        className="w-full text-red-500 hover:text-red-600 hover:bg-red-50 h-14 rounded-2xl font-bold flex gap-2"
+        onClick={() => {
+          logout();
+          navigate('/');
+        }}
+      >
         <LogOut size={20} /> Logout
       </Button>
     </div>

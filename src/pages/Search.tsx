@@ -25,17 +25,22 @@ import {
 } from '@/components/ui/dialog';
 import { SavedSearch, SearchFilters } from '@/types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import LoginModal from '@/components/auth/LoginModal';
 
 const SearchPage = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(initialQuery);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [searchName, setSearchName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | null>(null);
   const ITEMS_PER_PAGE = 6;
   
   const [filters, setFilters] = useState<SearchFilters>({
@@ -81,11 +86,16 @@ const SearchPage = () => {
   }, [searchQuery, filters]);
 
   const handleSaveSearch = () => {
+    if (!user) {
+      setIsSaveDialogOpen(false);
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!searchName.trim()) return;
 
     const newSavedSearch: SavedSearch = {
       id: Math.random().toString(36).substr(2, 9),
-      userId: 'u1', // Mock user
+      userId: user.id,
       name: searchName,
       filters: { 
         ...filters,
@@ -113,6 +123,12 @@ const SearchPage = () => {
     const matchesCity = !filters.city || v.city.toLowerCase() === filters.city.toLowerCase();
 
     return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity;
+  }).sort((a, b) => {
+    if (sortBy === 'price-asc') return a.price - b.price;
+    if (sortBy === 'price-desc') return b.price - a.price;
+    if (sortBy === 'newest') return b.year - a.year;
+    if (sortBy === 'km-low') return a.kilometersDriven - b.kilometersDriven;
+    return 0;
   });
 
   const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
@@ -270,9 +286,30 @@ const SearchPage = () => {
           </Dialog>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <Button variant="secondary" size="sm" className="rounded-full">Price: Low to High</Button>
-          <Button variant="secondary" size="sm" className="rounded-full">Year: Newest</Button>
-          <Button variant="secondary" size="sm" className="rounded-full">Kilometers: Low</Button>
+          <Button 
+            variant={sortBy?.startsWith('price') ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full"
+            onClick={() => setSortBy(prev => prev === 'price-asc' ? 'price-desc' : 'price-asc')}
+          >
+            Price: {sortBy === 'price-asc' ? 'Low to High' : sortBy === 'price-desc' ? 'High to Low' : 'Sort by Price'}
+          </Button>
+          <Button 
+            variant={sortBy === 'newest' ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full"
+            onClick={() => setSortBy(prev => prev === 'newest' ? null : 'newest')}
+          >
+            Year: Newest
+          </Button>
+          <Button 
+            variant={sortBy === 'km-low' ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full"
+            onClick={() => setSortBy(prev => prev === 'km-low' ? null : 'km-low')}
+          >
+            Kilometers: Low
+          </Button>
         </div>
       </div>
 
@@ -362,6 +399,10 @@ const SearchPage = () => {
           </Pagination>
         </div>
       )}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </div>
   );
 };
