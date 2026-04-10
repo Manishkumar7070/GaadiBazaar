@@ -12,7 +12,9 @@ const ListVehicle = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -37,9 +39,50 @@ const ListVehicle = () => {
   };
 
   const handleImageAdd = () => {
-    // For demo purposes, we'll just add a placeholder image
-    const placeholder = `https://picsum.photos/seed/${Math.random()}/800/600`;
-    setFormData(prev => ({ ...prev, images: [...prev.images, placeholder] }));
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      alert('Cloudinary configuration missing. Please check your environment variables.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
+
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+        if (!response.ok) throw new Error('Upload failed');
+        const data = await response.json();
+        return data.secure_url;
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Failed to upload images. Please try again.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -281,6 +324,14 @@ const ListVehicle = () => {
 
             <div className="space-y-4">
               <label className="text-sm font-semibold text-slate-700">Vehicle Images</label>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                multiple 
+                accept="image/*" 
+                className="hidden" 
+              />
               <div className="grid grid-cols-3 gap-4">
                 {formData.images.map((img, i) => (
                   <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group">
@@ -297,10 +348,15 @@ const ListVehicle = () => {
                 <button 
                   type="button"
                   onClick={handleImageAdd}
-                  className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary transition-all"
+                  disabled={uploading}
+                  className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary transition-all disabled:opacity-50"
                 >
-                  <Upload size={24} />
-                  <span className="text-xs mt-2">Add Image</span>
+                  {uploading ? (
+                    <Loader2 className="animate-spin" size={24} />
+                  ) : (
+                    <Upload size={24} />
+                  )}
+                  <span className="text-xs mt-2">{uploading ? 'Uploading...' : 'Add Image'}</span>
                 </button>
               </div>
               <p className="text-xs text-slate-400">Add up to 10 high-quality images of your vehicle.</p>

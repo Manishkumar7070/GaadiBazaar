@@ -22,14 +22,26 @@ async function startServer() {
   app.use(express.json());
 
   // Redis Client (for distributed caching and session management)
-  const redis = new Redis({
-    host: process.env.REDIS_HOST || "localhost",
-    port: Number(process.env.REDIS_PORT) || 6379,
-    password: process.env.REDIS_PASSWORD,
-    retryStrategy: (times) => Math.min(times * 50, 2000),
-  });
-
-  redis.on("error", (err) => console.error("Redis Client Error", err));
+  let redis: any;
+  if (process.env.REDIS_HOST) {
+    redis = new Redis({
+      host: process.env.REDIS_HOST,
+      port: Number(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD,
+      retryStrategy: (times) => Math.min(times * 50, 2000),
+    });
+    redis.on("error", (err: any) => console.error("Redis Client Error", err));
+  } else {
+    console.log("Redis not configured, using in-memory mock.");
+    redis = {
+      get: async () => null,
+      setex: async () => "OK",
+      del: async () => 0,
+      ping: async () => "PONG",
+      quit: async () => "OK",
+      on: () => {},
+    };
+  }
 
   // Global Rate Limiting
   const limiter = rateLimit({
@@ -79,7 +91,9 @@ async function startServer() {
   app.get("/readyz", async (req, res) => {
     try {
       // Check dependencies
-      await redis.ping();
+      if (process.env.REDIS_HOST) {
+        await redis.ping();
+      }
       res.status(200).send("READY");
     } catch (err) {
       res.status(503).send("NOT READY");
