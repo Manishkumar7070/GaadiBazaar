@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, X, Check, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useComparison } from '@/context/ComparisonContext';
+import { useComparison } from '@/hooks/useComparison';
 import { motion } from 'motion/react';
 
 const Compare = () => {

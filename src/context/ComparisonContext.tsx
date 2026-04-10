@@ -9,7 +9,7 @@ interface ComparisonContextType {
   isVehicleSelected: (vehicleId: string) => boolean;
 }
 
-const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined);
+export const ComparisonContext = createContext<ComparisonContextType | undefined>(undefined);
 
 export const ComparisonProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [selectedVehicles, setSelectedVehicles] = useState<Vehicle[]>([]);
@@ -51,10 +51,3 @@ export const ComparisonProvider: React.FC<{ children: ReactNode }> = ({ children
   );
 };
 
-export const useComparison = () => {
-  const context = useContext(ComparisonContext);
-  if (context === undefined) {
-    throw new Error('useComparison must be used within a ComparisonProvider');
-  }
-  return context;
-};

@@ -13,8 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_VEHICLES, MOCK_DEALERS } from '@/lib/mock-data';
-import VehicleCard from '@/components/vehicles/VehicleCard';
+import { MOCK_VEHICLES, MOCK_DEALERS } from '@/constants/mockData';
+import VehicleCard from '@/features/vehicles/VehicleCard';
 import { motion } from 'motion/react';
 
 const DealerDetail = () => {

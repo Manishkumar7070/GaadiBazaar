@@ -4,8 +4,8 @@ import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck,
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_VEHICLES } from '@/lib/mock-data';
-import VehicleCard from '@/components/vehicles/VehicleCard';
+import { MOCK_VEHICLES } from '@/constants/mockData';
+import VehicleCard from '@/features/vehicles/VehicleCard';
 import { 
   Pagination, 
   PaginationContent, 
@@ -25,8 +25,8 @@ import {
 } from '@/components/ui/dialog';
 import { SavedSearch, SearchFilters } from '@/types';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
-import LoginModal from '@/components/auth/LoginModal';
+import { useAuth } from '@/hooks/useAuth';
+import LoginModal from '@/features/auth/LoginModal';
 
 const SearchPage = () => {
   const { user } = useAuth();

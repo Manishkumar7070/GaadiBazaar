@@ -3,8 +3,8 @@ import { Search, Filter, MapPin, Car, Bike, Truck, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_VEHICLES } from '@/lib/mock-data';
-import VehicleCard from '@/components/vehicles/VehicleCard';
+import { MOCK_VEHICLES } from '@/constants/mockData';
+import VehicleCard from '@/features/vehicles/VehicleCard';
 import { motion } from 'motion/react';
 import { Vehicle } from '@/types';
 import { Link } from 'react-router-dom';
@@ -15,7 +15,9 @@ const Home = () => {
 
   useEffect(() => {
     const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
-    const viewedVehicles = viewedIds
+    // Ensure unique IDs
+    const uniqueIds = Array.from(new Set(viewedIds)) as string[];
+    const viewedVehicles = uniqueIds
       .map((id: string) => MOCK_VEHICLES.find(v => v.id === id))
       .filter(Boolean)
       .slice(0, 4) as Vehicle[];

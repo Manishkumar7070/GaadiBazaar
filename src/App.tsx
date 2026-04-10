@@ -6,9 +6,10 @@ import Search from './pages/Search';
 import Profile from './pages/Profile';
 import Compare from './pages/Compare';
 import DealerDetail from './pages/DealerDetail';
-import Header from './components/shared/Header';
-import MobileNav from './components/shared/MobileNav';
-import ComparisonBar from './components/shared/ComparisonBar';
+import ListVehicle from './pages/ListVehicle';
+import Header from './layouts/Header';
+import MobileNav from './layouts/MobileNav';
+import ComparisonBar from './layouts/ComparisonBar';
 
 import { ComparisonProvider } from './context/ComparisonContext';
 import { AuthProvider } from './context/AuthContext';
@@ -28,6 +29,7 @@ export default function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/compare" element={<Compare />} />
               <Route path="/dealer/:id" element={<DealerDetail />} />
+              <Route path="/list-vehicle" element={<ListVehicle />} />
             </Routes>
           </main>
           <ComparisonBar />

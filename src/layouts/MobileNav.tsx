@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Search, Heart, User, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
-import LoginModal from '@/components/auth/LoginModal';
+import { useAuth } from '@/hooks/useAuth';
+import LoginModal from '@/features/auth/LoginModal';
 
 const MobileNav = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
-    { icon: PlusCircle, label: 'Sell', path: '#', primary: true, onClick: () => {
+    { icon: PlusCircle, label: 'Sell', path: '/list-vehicle', primary: true, onClick: () => {
       if (!user) {
         setIsLoginModalOpen(true);
       } else {
-        alert('Redirecting to sell vehicle page...');
+        navigate('/list-vehicle');
       }
     }},
     { icon: Heart, label: 'Saved', path: '/profile' },

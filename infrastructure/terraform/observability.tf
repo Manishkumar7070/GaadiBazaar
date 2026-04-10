@@ -42,7 +42,22 @@ resource "helm_release" "opensearch" {
 
   set {
     name  = "singleNode"
-    value = "true" # For blueprint simplicity, use Multi-node for production
+    value = "false" # Multi-node for high availability
+  }
+
+  set {
+    name  = "clusterName"
+    value = "opensearch-cluster"
+  }
+
+  set {
+    name  = "master.replicas"
+    value = "3"
+  }
+
+  set {
+    name  = "data.replicas"
+    value = "3"
   }
 }
 

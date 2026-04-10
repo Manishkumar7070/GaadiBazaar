@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2 } from 'lucide-react';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SavedSearch, Vehicle } from '@/types';
-import { MOCK_VEHICLES } from '@/lib/mock-data';
-import { useAuth } from '@/context/AuthContext';
+import { MOCK_VEHICLES } from '@/constants/mockData';
+import { useAuth } from '@/hooks/useAuth';
 
 const Profile = () => {
   const { user, loading, logout } = useAuth();
@@ -73,7 +73,14 @@ const Profile = () => {
           <p className="text-slate-500">{user.email}</p>
           {user.phone && <p className="text-slate-500">{user.phone}</p>}
         </div>
-        <Button variant="outline" className="rounded-full">Edit Profile</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="rounded-full">Edit Profile</Button>
+          <Link to="/list-vehicle">
+            <Button className="rounded-full bg-primary hover:bg-primary/90 text-white font-bold flex gap-2">
+              <PlusCircle size={18} /> Sell Vehicle
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Tabs defaultValue="menu" className="w-full flex flex-col gap-6">

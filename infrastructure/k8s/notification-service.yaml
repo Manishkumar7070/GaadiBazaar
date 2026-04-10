@@ -27,3 +27,15 @@ spec:
           requests:
             cpu: "200m"
             memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 15

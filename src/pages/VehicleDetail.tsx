@@ -33,10 +33,10 @@ import {
   DialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
-import { MOCK_VEHICLES, MOCK_DEALERS } from '@/lib/mock-data';
+import { MOCK_VEHICLES, MOCK_DEALERS } from '@/constants/mockData';
 import { motion, AnimatePresence } from 'motion/react';
-import VehicleCard from '@/components/vehicles/VehicleCard';
-import { useComparison } from '@/context/ComparisonContext';
+import VehicleCard from '@/features/vehicles/VehicleCard';
+import { useComparison } from '@/hooks/useComparison';
 import { cn } from '@/lib/utils';
 
 const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: () => void }) => {

@@ -10,13 +10,38 @@ module "eks" {
   cluster_endpoint_public_access = true
 
   eks_managed_node_groups = {
-    general = {
-      instance_types = ["m7g.large"] # Graviton for better price/performance
-      min_size       = 2
-      max_size       = 10
-      desired_size   = 2
+    # On-Demand nodes for critical, stateful, or base load
+    critical = {
+      instance_types = ["m7g.2xlarge"]
+      min_size       = 5
+      max_size       = 100
+      desired_size   = 5
+      capacity_type  = "ON_DEMAND"
+      
+      labels = {
+        workload = "critical"
+      }
+    }
 
-      capacity_type = "SPOT" # Cost optimization for stateless workloads
+    # Spot nodes for scalable stateless services (cost-effective)
+    spot_scaling = {
+      instance_types = ["m7g.4xlarge", "m7g.8xlarge"]
+      min_size       = 10
+      max_size       = 2000
+      desired_size   = 10
+      capacity_type  = "SPOT"
+
+      labels = {
+        workload = "stateless"
+      }
+      
+      taints = [
+        {
+          key    = "spot"
+          value  = "true"
+          effect = "NO_SCHEDULE"
+        }
+      ]
     }
   }
 

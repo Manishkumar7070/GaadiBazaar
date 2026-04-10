@@ -1,56 +1,42 @@
-module "db" {
-  source  = "terraform-aws-modules/rds/aws"
-  version = "~> 6.0"
+module "aurora" {
+  source  = "terraform-aws-modules/rds-aurora/aws"
+  version = "~> 8.0"
 
-  identifier = "${var.project_name}-db"
+  name           = "${var.project_name}-aurora"
+  engine         = "aurora-postgresql"
+  engine_version = "15.4"
+  master_username = "dbadmin"
+  database_name   = "appdb"
 
-  engine               = "postgres"
-  engine_version       = "15.4"
-  family               = "postgres15"
-  major_engine_version = "15"
-  instance_class       = "db.t4g.medium" # Graviton for RDS
+  vpc_id               = module.vpc.vpc_id
+  subnets              = module.vpc.database_subnets
+  security_group_rules = {
+    ex1_ingress = {
+      source_node_security_group = true
+    }
+  }
 
-  allocated_storage     = 20
-  max_allocated_storage = 100
+  # Aurora Serverless v2 for elastic scaling
+  serverlessv2_scaling_configuration = {
+    min_capacity = 2
+    max_capacity = 128
+  }
 
-  db_name  = "appdb"
-  username = "dbadmin"
-  port     = 5432
+  instance_class = "db.serverless"
+  instances = {
+    one = {}
+    two = {}
+  }
 
-  multi_az               = var.environment == "production"
-  db_subnet_group_name   = module.vpc.database_subnet_group_name
-  vpc_security_group_ids = [aws_security_group.rds.id]
+  storage_encrypted   = true
+  apply_immediately   = true
+  monitoring_interval = 10
 
-  maintenance_window      = "Mon:00:00-Mon:03:00"
-  backup_window           = "03:00-06:00"
-  backup_retention_period = 7
-
-  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-
-  skip_final_snapshot = true
-  deletion_protection = var.environment == "production"
+  enabled_cloudwatch_logs_exports = ["postgresql"]
 
   tags = {
     Environment = var.environment
     Project     = var.project_name
-  }
-}
-
-resource "aws_db_instance" "read_replica" {
-  provider = aws.secondary
-
-  identifier          = "${var.project_name}-db-replica"
-  replicate_source_db = module.db.db_instance_arn
-  instance_class      = "db.t4g.medium"
-  
-  # Note: In a real scenario, you'd need a VPC and Subnet Group in the secondary region
-  # For this blueprint, we assume the secondary infrastructure is provisioned
-  skip_final_snapshot = true
-  multi_az            = false
-
-  tags = {
-    Name        = "Cross-Region-Replica"
-    Environment = var.environment
   }
 }
 
