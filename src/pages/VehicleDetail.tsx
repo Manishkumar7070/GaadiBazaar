@@ -348,13 +348,20 @@ const VehicleDetail = () => {
                     {dealer.shopName[0]}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{dealer.shopName}</h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{dealer.shopName}</h3>
+                      {dealer.isVerified && (
+                        <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100 flex items-center gap-1 px-2 py-0 h-5">
+                          <ShieldCheck size={12} className="fill-green-600 text-white" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Verified Dealer</span>
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
                       <span>★ {dealer.rating}</span>
                       <span className="text-slate-400 font-normal">({dealer.totalReviews} reviews)</span>
                     </div>
                   </div>
-                  <ShieldCheck className="text-green-500" size={24} />
                 </Link>
               ) : (
                 <div className="flex items-center gap-4">
