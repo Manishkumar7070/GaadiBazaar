@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vehicle-marketplace
+  labels:
+    app: vehicle-marketplace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vehicle-marketplace
+  template:
+    metadata:
+      labels:
+        app: vehicle-marketplace
+    spec:
+      containers:
+      - name: vehicle-marketplace
+        image: your-registry/vehicle-marketplace:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        # Secrets should be managed via K8s Secrets
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: supabase-url
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: supabase-service-key
+        - name: TWILIO_ACCOUNT_SID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: twilio-sid
+        - name: TWILIO_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: twilio-token
+        - name: TWILIO_VERIFY_SERVICE_SID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: twilio-verify-sid
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vehicle-marketplace-service
+spec:
+  selector:
+    app: vehicle-marketplace
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer

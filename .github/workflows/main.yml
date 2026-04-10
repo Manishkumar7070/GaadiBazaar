@@ -1,4 +1,4 @@
-name: Production Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -7,82 +7,56 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Lint and Type Check
-        run: npm run lint
-        
-      - name: Build Application
-        run: npm run build
+      - run: npm install
+      - run: npm run lint
 
-  deploy-infrastructure:
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
+  build-and-push:
+    needs: lint
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.7.0
-          
-      - name: Terraform Init
-        working-directory: ./infrastructure/terraform
-        run: terraform init
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          
-      - name: Terraform Plan
-        working-directory: ./infrastructure/terraform
-        run: terraform plan
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  # Placeholder for Docker Build & EKS Deploy
-  containerize-and-deploy:
-    needs: deploy-infrastructure
-    if: github.ref == 'refs/heads/main'
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: your-dockerhub-username/vehicle-marketplace:latest,your-dockerhub-username/vehicle-marketplace:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - uses: actions/checkout@v4
+      
+      - name: Set up Kubeconfig
         run: |
-          # Build Auth Service
-          docker build -t $ECR_REGISTRY/auth-service:$IMAGE_TAG ./services/auth
-          docker push $ECR_REGISTRY/auth-service:$IMAGE_TAG
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
           
-          # Build User Service
-          docker build -t $ECR_REGISTRY/user-service:$IMAGE_TAG ./services/user
-          docker push $ECR_REGISTRY/user-service:$IMAGE_TAG
-          
-          # Build Notification Service
-          docker build -t $ECR_REGISTRY/notification-service:$IMAGE_TAG ./services/notification
-          docker push $ECR_REGISTRY/notification-service:$IMAGE_TAG
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image tag in deployment
+          sed -i "s|your-registry/vehicle-marketplace:latest|your-dockerhub-username/vehicle-marketplace:${{ github.sha }}|g" k8s.yaml
+          kubectl apply -f k8s.yaml
+          kubectl rollout status deployment/vehicle-marketplace

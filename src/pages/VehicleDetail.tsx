@@ -18,8 +18,6 @@ import {
   FileText,
   Droplets,
   ArrowLeftRight,
-  Rotate3d,
-  ZoomIn,
   X,
   Maximize2
 } from 'lucide-react';
