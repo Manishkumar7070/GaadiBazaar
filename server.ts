@@ -7,7 +7,6 @@ import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
 import rateLimit from "express-rate-limit";
 import CircuitBreaker from "opossum";
-import Redis from "ioredis";
 import retry from "async-retry";
 
 dotenv.config();
@@ -21,27 +20,31 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Redis Client (for distributed caching and session management)
-  let redis: any;
-  if (process.env.REDIS_HOST) {
-    redis = new Redis({
-      host: process.env.REDIS_HOST,
-      port: Number(process.env.REDIS_PORT) || 6379,
-      password: process.env.REDIS_PASSWORD,
-      retryStrategy: (times) => Math.min(times * 50, 2000),
-    });
-    redis.on("error", (err: any) => console.error("Redis Client Error", err));
-  } else {
-    console.log("Redis not configured, using in-memory mock.");
-    redis = {
-      get: async () => null,
-      setex: async () => "OK",
-      del: async () => 0,
-      ping: async () => "PONG",
-      quit: async () => "OK",
-      on: () => {},
-    };
-  }
+  // In-memory Cache (Free 0-cost alternative to Redis)
+  const memoryCache = new Map<string, { value: string; expires: number }>();
+  const cache = {
+    get: async (key: string) => {
+      const item = memoryCache.get(key);
+      if (!item) return null;
+      if (Date.now() > item.expires) {
+        memoryCache.delete(key);
+        return null;
+      }
+      return item.value;
+    },
+    setex: async (key: string, seconds: number, value: string) => {
+      memoryCache.set(key, {
+        value,
+        expires: Date.now() + seconds * 1000,
+      });
+      return "OK";
+    },
+    del: async (key: string) => {
+      return memoryCache.delete(key) ? 1 : 0;
+    },
+    ping: async () => "PONG",
+    quit: async () => "OK",
+  };
 
   // Global Rate Limiting
   const limiter = rateLimit({
@@ -91,9 +94,7 @@ async function startServer() {
   app.get("/readyz", async (req, res) => {
     try {
       // Check dependencies
-      if (process.env.REDIS_HOST) {
-        await redis.ping();
-      }
+      await cache.ping();
       res.status(200).send("READY");
     } catch (err) {
       res.status(503).send("NOT READY");
@@ -161,7 +162,7 @@ async function startServer() {
   app.get("/api/vehicles", async (req, res) => {
     try {
       // Try to get from cache first
-      const cachedVehicles = await redis.get("vehicles:all");
+      const cachedVehicles = await cache.get("vehicles:all");
       if (cachedVehicles) {
         return res.json(JSON.parse(cachedVehicles));
       }
@@ -182,7 +183,7 @@ async function startServer() {
       });
       
       // Cache for 5 minutes
-      await redis.setex("vehicles:all", 300, JSON.stringify(data));
+      await cache.setex("vehicles:all", 300, JSON.stringify(data));
       res.json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -220,7 +221,7 @@ async function startServer() {
       });
 
       // Invalidate cache
-      await redis.del("vehicles:all");
+      await cache.del("vehicles:all");
       
       res.status(201).json(data);
     } catch (error: any) {
@@ -254,8 +255,8 @@ async function startServer() {
     server.close(async () => {
       console.log("HTTP server closed.");
       try {
-        await redis.quit();
-        console.log("Redis connection closed.");
+        await cache.quit();
+        console.log("Cache closed.");
         process.exit(0);
       } catch (err) {
         console.error("Error during shutdown:", err);

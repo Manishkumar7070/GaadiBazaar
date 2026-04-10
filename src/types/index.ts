@@ -61,10 +61,18 @@ export interface Vehicle {
 export interface SearchFilters {
   vehicleType?: VehicleType;
   brand?: string;
+  model?: string;
   minPrice?: number;
   maxPrice?: number;
+  minYear?: number;
+  maxYear?: number;
+  minKm?: number;
+  maxKm?: number;
+  fuelType?: FuelType;
+  transmission?: TransmissionType;
+  ownership?: OwnershipType;
   city?: string;
-  year?: number;
+  state?: string;
 }
 
 export interface SavedSearch {

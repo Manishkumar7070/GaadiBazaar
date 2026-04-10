@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle } from 'lucide-react';
+import { Search, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 import LoginModal from '@/components/auth/LoginModal';
+import CitySelector from './CitySelector';
 import { 
   Sheet, 
   SheetContent, 
@@ -23,7 +24,7 @@ const Header = () => {
     if (!user) {
       setIsLoginModalOpen(true);
     } else {
-      alert('Redirecting to sell vehicle page...');
+      navigate('/list-vehicle');
     }
     setIsMobileMenuOpen(false);
   };
@@ -31,14 +32,20 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
-            G
+        <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
+              G
+            </div>
+            <span className="text-xl font-bold tracking-tight hidden sm:block">
+              Gaadi<span className="text-primary">Bazaar</span>
+            </span>
+          </Link>
+          
+          <div className="hidden sm:block">
+            <CitySelector />
           </div>
-          <span className="text-xl font-bold tracking-tight hidden sm:block">
-            Gaadi<span className="text-primary">Bazaar</span>
-          </span>
-        </Link>
+        </div>
 
         <div className="hidden md:flex flex-1 max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -49,9 +56,9 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" className="text-slate-600">
-            <MapPin size={20} />
-          </Button>
+          <div className="sm:hidden">
+            <CitySelector />
+          </div>
           <Button variant="ghost" size="icon" className="text-slate-600">
             <Bell size={20} />
           </Button>

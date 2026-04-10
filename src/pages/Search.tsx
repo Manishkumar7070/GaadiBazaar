@@ -27,6 +27,7 @@ import { SavedSearch, SearchFilters } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import LoginModal from '@/features/auth/LoginModal';
+import { POPULAR_CITIES, INDIAN_STATES } from '@/constants/cities';
 
 const SearchPage = () => {
   const { user } = useAuth();
@@ -65,17 +66,36 @@ const SearchPage = () => {
     const q = searchParams.get('q');
     const type = searchParams.get('type');
     const city = searchParams.get('city');
-    const min = searchParams.get('min');
-    const max = searchParams.get('max');
+    const state = searchParams.get('state');
+    const minPrice = searchParams.get('minPrice');
+    const maxPrice = searchParams.get('maxPrice');
+    const brand = searchParams.get('brand');
+    const model = searchParams.get('model');
+    const minYear = searchParams.get('minYear');
+    const maxYear = searchParams.get('maxYear');
+    const minKm = searchParams.get('minKm');
+    const maxKm = searchParams.get('maxKm');
+    const fuel = searchParams.get('fuel');
+    const trans = searchParams.get('trans');
+    const owner = searchParams.get('owner');
 
-    if (q || type || city || min || max) {
+    if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner) {
       if (q) setSearchQuery(q);
       setFilters({
-        brand: q || '',
+        brand: brand || q || '',
+        model: model || undefined,
         vehicleType: (type as any) || undefined,
         city: city || undefined,
-        minPrice: min ? parseInt(min) : undefined,
-        maxPrice: max ? parseInt(max) : undefined,
+        state: state || undefined,
+        minPrice: minPrice ? parseInt(minPrice) : undefined,
+        maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
+        minYear: minYear ? parseInt(minYear) : undefined,
+        maxYear: maxYear ? parseInt(maxYear) : undefined,
+        minKm: minKm ? parseInt(minKm) : undefined,
+        maxKm: maxKm ? parseInt(maxKm) : undefined,
+        fuelType: (fuel as any) || undefined,
+        transmission: (trans as any) || undefined,
+        ownership: (owner as any) || undefined,
       });
     }
     setCurrentPage(1);
@@ -121,8 +141,20 @@ const SearchPage = () => {
     const matchesMinPrice = !filters.minPrice || v.price >= filters.minPrice;
     const matchesMaxPrice = !filters.maxPrice || v.price <= filters.maxPrice;
     const matchesCity = !filters.city || v.city.toLowerCase() === filters.city.toLowerCase();
+    const matchesState = !filters.state || v.state.toLowerCase() === filters.state.toLowerCase();
+    const matchesBrand = !filters.brand || v.brand.toLowerCase().includes(filters.brand.toLowerCase());
+    const matchesModel = !filters.model || v.model.toLowerCase().includes(filters.model.toLowerCase());
+    const matchesMinYear = !filters.minYear || v.year >= filters.minYear;
+    const matchesMaxYear = !filters.maxYear || v.year <= filters.maxYear;
+    const matchesMinKm = !filters.minKm || v.kilometersDriven >= filters.minKm;
+    const matchesMaxKm = !filters.maxKm || v.kilometersDriven <= filters.maxKm;
+    const matchesFuel = !filters.fuelType || v.fuelType === filters.fuelType;
+    const matchesTrans = !filters.transmission || v.transmission === filters.transmission;
+    const matchesOwnership = !filters.ownership || v.ownership === filters.ownership;
 
-    return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity;
+    return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity && matchesState && 
+           matchesBrand && matchesModel && matchesMinYear && matchesMaxYear && matchesMinKm && matchesMaxKm && 
+           matchesFuel && matchesTrans && matchesOwnership;
   }).sort((a, b) => {
     if (sortBy === 'price-asc') return a.price - b.price;
     if (sortBy === 'price-desc') return b.price - a.price;
@@ -180,12 +212,28 @@ const SearchPage = () => {
                   <div className="flex flex-wrap gap-2">
                     {searchQuery && <Badge variant="secondary">Query: {searchQuery}</Badge>}
                     {filters.vehicleType && <Badge variant="secondary">Type: {filters.vehicleType}</Badge>}
+                    {filters.brand && <Badge variant="secondary">Make: {filters.brand}</Badge>}
+                    {filters.model && <Badge variant="secondary">Model: {filters.model}</Badge>}
                     {filters.city && <Badge variant="secondary">City: {filters.city}</Badge>}
+                    {filters.state && <Badge variant="secondary">State: {filters.state}</Badge>}
                     {(filters.minPrice || filters.maxPrice) && (
                       <Badge variant="secondary">
                         Price: {filters.minPrice ? `₹${filters.minPrice.toLocaleString()}` : '0'} - {filters.maxPrice ? `₹${filters.maxPrice.toLocaleString()}` : 'Any'}
                       </Badge>
                     )}
+                    {(filters.minYear || filters.maxYear) && (
+                      <Badge variant="secondary">
+                        Year: {filters.minYear || 'Any'} - {filters.maxYear || 'Any'}
+                      </Badge>
+                    )}
+                    {(filters.minKm || filters.maxKm) && (
+                      <Badge variant="secondary">
+                        KM: {filters.minKm || '0'} - {filters.maxKm || 'Any'}
+                      </Badge>
+                    )}
+                    {filters.fuelType && <Badge variant="secondary">Fuel: {filters.fuelType}</Badge>}
+                    {filters.transmission && <Badge variant="secondary">Trans: {filters.transmission}</Badge>}
+                    {filters.ownership && <Badge variant="secondary">Owner: {filters.ownership}</Badge>}
                   </div>
                 </div>
               </div>
@@ -200,14 +248,14 @@ const SearchPage = () => {
             <DialogTrigger render={<Button variant="outline" size="icon" className="h-12 w-12 rounded-xl" />}>
               <Filter size={20} />
             </DialogTrigger>
-            <DialogContent className="rounded-3xl max-w-md">
+            <DialogContent className="rounded-3xl max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Filter Search</DialogTitle>
               </DialogHeader>
-              <div className="py-4 space-y-6">
+              <div className="py-4 space-y-8">
                 <div className="space-y-3">
                   <label className="text-sm font-bold">Vehicle Type</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: 'car', label: 'Cars', icon: Car },
                       { id: 'bike', label: 'Bikes', icon: Bike },
@@ -234,34 +282,176 @@ const SearchPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-bold">Price Range</label>
-                  <div className="flex gap-4">
-                    <Input 
-                      type="number" 
-                      placeholder="Min Price" 
-                      className="rounded-xl"
-                      value={filters.minPrice || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
-                    />
-                    <Input 
-                      type="number" 
-                      placeholder="Max Price" 
-                      className="rounded-xl"
-                      value={filters.maxPrice || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Make & Model</label>
+                    <div className="space-y-2">
+                      <Input 
+                        placeholder="e.g., Maruti Suzuki" 
+                        className="rounded-xl"
+                        value={filters.brand || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, brand: e.target.value }))}
+                      />
+                      <Input 
+                        placeholder="e.g., Swift" 
+                        className="rounded-xl"
+                        value={filters.model || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, model: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Price Range</label>
+                    <div className="flex gap-4">
+                      <Input 
+                        type="number" 
+                        placeholder="Min Price" 
+                        className="rounded-xl"
+                        value={filters.minPrice || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      />
+                      <Input 
+                        type="number" 
+                        placeholder="Max Price" 
+                        className="rounded-xl"
+                        value={filters.maxPrice || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Year Range</label>
+                    <div className="flex gap-4">
+                      <Input 
+                        type="number" 
+                        placeholder="Min Year" 
+                        className="rounded-xl"
+                        value={filters.minYear || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, minYear: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      />
+                      <Input 
+                        type="number" 
+                        placeholder="Max Year" 
+                        className="rounded-xl"
+                        value={filters.maxYear || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, maxYear: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Kilometers Driven</label>
+                    <div className="flex gap-4">
+                      <Input 
+                        type="number" 
+                        placeholder="Min KM" 
+                        className="rounded-xl"
+                        value={filters.minKm || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, minKm: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      />
+                      <Input 
+                        type="number" 
+                        placeholder="Max KM" 
+                        className="rounded-xl"
+                        value={filters.maxKm || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, maxKm: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Fuel Type</label>
+                    <select 
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={filters.fuelType || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, fuelType: e.target.value as any || undefined }))}
+                    >
+                      <option value="">All Fuel Types</option>
+                      <option value="petrol">Petrol</option>
+                      <option value="diesel">Diesel</option>
+                      <option value="electric">Electric</option>
+                      <option value="cng">CNG</option>
+                      <option value="hybrid">Hybrid</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Transmission</label>
+                    <select 
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={filters.transmission || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, transmission: e.target.value as any || undefined }))}
+                    >
+                      <option value="">All Transmissions</option>
+                      <option value="manual">Manual</option>
+                      <option value="automatic">Automatic</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold">Ownership</label>
+                    <select 
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={filters.ownership || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, ownership: e.target.value as any || undefined }))}
+                    >
+                      <option value="">All Owners</option>
+                      <option value="1st">1st Owner</option>
+                      <option value="2nd">2nd Owner</option>
+                      <option value="3rd">3rd Owner</option>
+                      <option value="4th">4th Owner</option>
+                      <option value="4th+">4th+ Owner</option>
+                    </select>
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <label className="text-sm font-bold">Location</label>
-                  <Input 
-                    placeholder="e.g., Bhopal" 
-                    className="rounded-xl"
-                    value={filters.city || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value }))}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">City</label>
+                      <select 
+                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={filters.city || ''}
+                        onChange={(e) => {
+                          const city = e.target.value;
+                          const cityData = POPULAR_CITIES.find(c => c.name === city);
+                          setFilters(prev => ({ 
+                            ...prev, 
+                            city: city || undefined,
+                            state: cityData ? cityData.state : prev.state
+                          }));
+                        }}
+                      >
+                        <option value="">All Cities</option>
+                        {POPULAR_CITIES.map(city => (
+                          <option key={city.name} value={city.name}>{city.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase">State</label>
+                      <select 
+                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={filters.state || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, state: e.target.value || undefined }))}
+                      >
+                        <option value="">All States</option>
+                        {(filters.city 
+                          ? [POPULAR_CITIES.find(c => c.name === filters.city)?.state].filter(Boolean)
+                          : INDIAN_STATES
+                        ).map(state => (
+                          <option key={state} value={state}>{state}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
               <DialogFooter className="flex gap-2">

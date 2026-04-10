@@ -23,7 +23,6 @@
     "dotenv": "^17.4.1",
     "express": "^4.22.1",
     "express-rate-limit": "^8.3.2",
-    "ioredis": "^5.10.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.38.0",
     "opossum": "^9.0.0",
