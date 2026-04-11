@@ -1,20 +1,26 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Vehicle } from '@/types';
 import { useComparison } from '@/hooks/useComparison';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+import { MOCK_DEALERS } from '@/constants/mockData';
 
 interface VehicleCardProps {
   vehicle: Vehicle;
 }
 
 const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { addToComparison, removeFromComparison, isVehicleSelected } = useComparison();
   const isSelected = isVehicleSelected(vehicle.id);
+  const dealer = vehicle.dealerId ? MOCK_DEALERS.find(d => d.id === vehicle.dealerId) : null;
 
   const toggleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -24,6 +30,26 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
     } else {
       addToComparison(vehicle);
     }
+  };
+
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      navigate(`/login?reason=favorite_vehicle&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+    alert('Added to favorites!');
+  };
+
+  const handleContactSeller = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      navigate(`/login?reason=contact_seller&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+    alert('Contacting seller...');
   };
 
   return (
@@ -48,7 +74,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
           </div>
           
           <div className="absolute top-4 right-4 flex flex-col gap-2">
-            <button className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors">
+            <button 
+              onClick={handleFavorite}
+              className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors"
+            >
               <Heart size={20} />
             </button>
             <button 
@@ -89,21 +118,23 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             </div>
           </div>
           
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-            <div className="text-2xl font-bold text-slate-900">
-              ₹{vehicle.price.toLocaleString()}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <div className="text-2xl font-bold text-slate-900">
+                ₹{vehicle.price.toLocaleString()}
+              </div>
+              <Badge variant="secondary" className="bg-slate-100 text-slate-600 capitalize">
+                {vehicle.fuelType}
+              </Badge>
             </div>
-            <Badge variant="secondary" className="bg-slate-100 text-slate-600 capitalize">
-              {vehicle.fuelType}
-            </Badge>
-          </div>
-          <Button 
+            {dealer && (
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <ShieldCheck size={14} className="text-green-500" />
+                <span>Sold by <span className="font-semibold text-slate-600">{dealer.shopName}</span></span>
+              </div>
+            )}
+            <Button 
             className="w-full bg-primary hover:bg-primary/90 rounded-xl font-bold flex gap-2"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              alert('Contacting seller...');
-            }}
+            onClick={handleContactSeller}
           >
             <Phone size={18} />
             Contact Seller

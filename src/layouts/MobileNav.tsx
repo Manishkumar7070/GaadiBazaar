@@ -3,26 +3,36 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Search, Heart, User, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import LoginModal from '@/features/auth/LoginModal';
 
 const MobileNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Search, label: 'Search', path: '/search' },
     { icon: PlusCircle, label: 'Sell', path: '/list-vehicle', primary: true, onClick: () => {
       if (!user) {
-        setIsLoginModalOpen(true);
+        navigate('/login?reason=list_vehicle&redirect=/list-vehicle');
       } else {
         navigate('/list-vehicle');
       }
     }},
-    { icon: Heart, label: 'Saved', path: '/profile' },
-    { icon: User, label: 'Profile', path: '/profile' },
+    { icon: Heart, label: 'Saved', path: '/profile', onClick: () => {
+      if (!user) {
+        navigate('/login?reason=profile&redirect=/profile');
+      } else {
+        navigate('/profile');
+      }
+    }},
+    { icon: User, label: 'Profile', path: '/profile', onClick: () => {
+      if (!user) {
+        navigate('/login?reason=profile&redirect=/profile');
+      } else {
+        navigate('/profile');
+      }
+    }},
   ];
 
   return (
@@ -45,9 +55,9 @@ const MobileNav = () => {
           }
 
           return (
-            <Link
+            <button
               key={item.label}
-              to={item.path}
+              onClick={item.onClick || (() => navigate(item.path))}
               className={cn(
                 "flex flex-col items-center gap-1 transition-colors",
                 isActive ? "text-primary" : "text-slate-500"
@@ -55,14 +65,10 @@ const MobileNav = () => {
             >
               <Icon size={20} />
               <span className="text-[10px] font-medium">{item.label}</span>
-            </Link>
+            </button>
           );
         })}
       </nav>
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-      />
     </>
   );
 };

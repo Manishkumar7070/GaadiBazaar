@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap, Mic, MicOff, X, History } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
+import VehicleCardSkeleton from '@/features/vehicles/VehicleCardSkeleton';
+import SearchSuggestions from '@/features/search/SearchSuggestions';
 import { 
   Pagination, 
   PaginationContent, 
@@ -26,23 +28,144 @@ import {
 import { SavedSearch, SearchFilters } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import LoginModal from '@/features/auth/LoginModal';
 import { POPULAR_CITIES, INDIAN_STATES } from '@/constants/cities';
 
 const SearchPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(initialQuery);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [searchName, setSearchName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | null>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const ITEMS_PER_PAGE = 6;
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+    setRecentSearches(saved);
+  }, []);
+
+  const addToRecentSearches = (query: string) => {
+    if (!query.trim()) return;
+    const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
+  useEffect(() => {
+    if (debouncedSearchQuery.length > 0) {
+      const query = debouncedSearchQuery.toLowerCase();
+      
+      // 1. Match Vehicles (Brand or Model)
+      const vehicleMatches = Array.from(new Set(MOCK_VEHICLES
+        .filter(v => v.brand.toLowerCase().includes(query) || v.model.toLowerCase().includes(query))
+        .map(v => `${v.brand} ${v.model}`)))
+        .slice(0, 3)
+        .map(text => ({ id: `v-${text}`, text, type: 'vehicle' as const }));
+
+      // 2. Match Locations (City or State)
+      const cityMatches = POPULAR_CITIES
+        .filter(c => c.name.toLowerCase().includes(query))
+        .slice(0, 2)
+        .map(c => ({ id: `l-${c.name}`, text: c.name, subtext: c.state, type: 'location' as const, state: c.state }));
+
+      const stateMatches = INDIAN_STATES
+        .filter(s => s.toLowerCase().includes(query))
+        .slice(0, 2)
+        .map(s => ({ id: `s-${s}`, text: s, type: 'location' as const, state: s }));
+
+      // 3. Combined Logic (e.g., "Swift in Bihar")
+      // Check if query contains "in"
+      let combinedMatches: any[] = [];
+      if (query.includes(' in ')) {
+        const [carPart, locPart] = query.split(' in ');
+        if (carPart && locPart) {
+          combinedMatches = [{
+            id: 'combined-1',
+            text: `${carPart.trim()} in ${locPart.trim()}`,
+            type: 'combined' as const,
+            subtext: 'Search by car and location'
+          }];
+        }
+      }
+
+      setSuggestions([...combinedMatches, ...vehicleMatches, ...cityMatches, ...stateMatches]);
+    } else {
+      // Show recent searches when query is empty but focused
+      setSuggestions(recentSearches.map(s => ({ id: `h-${s}`, text: s, type: 'history' as const })));
+    }
+  }, [debouncedSearchQuery, recentSearches]);
+
+  const handleVoiceSearch = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert('Voice search is not supported in your browser.');
+      return;
+    }
+
+    const recognition = new (window as any).webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-IN';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setSearchQuery(transcript);
+      addToRecentSearches(transcript);
+    };
+
+    recognition.start();
+  };
+
+  const parseSmartQuery = (query: string) => {
+    const q = query.toLowerCase();
+    if (q.includes(' in ')) {
+      const [carPart, locPart] = q.split(' in ');
+      const state = INDIAN_STATES.find(s => s.toLowerCase() === locPart.trim());
+      const city = POPULAR_CITIES.find(c => c.name.toLowerCase() === locPart.trim());
+      
+      setFilters(prev => ({
+        ...prev,
+        brand: carPart.trim(),
+        state: state || (city ? city.state : undefined),
+        city: city ? city.name : undefined
+      }));
+      setSearchQuery(carPart.trim());
+    } else {
+      const state = INDIAN_STATES.find(s => s.toLowerCase() === q.trim());
+      const city = POPULAR_CITIES.find(c => c.name.toLowerCase() === q.trim());
+      
+      if (state || city) {
+        setFilters(prev => ({
+          ...prev,
+          state: state || (city ? city.state : undefined),
+          city: city ? city.name : undefined,
+          brand: ''
+        }));
+        setSearchQuery('');
+      } else {
+        setFilters(prev => ({ ...prev, brand: query }));
+      }
+    }
+  };
+
+  const handleSuggestionSelect = (suggestion: any) => {
+    setSearchQuery(suggestion.text);
+    parseSmartQuery(suggestion.text);
+    addToRecentSearches(suggestion.text);
+    setShowSuggestions(false);
+  };
   
   const [filters, setFilters] = useState<SearchFilters>({
     brand: initialQuery,
@@ -63,6 +186,11 @@ const SearchPage = () => {
   }, [searchQuery]);
 
   useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
     const q = searchParams.get('q');
     const type = searchParams.get('type');
     const city = searchParams.get('city');
@@ -99,6 +227,7 @@ const SearchPage = () => {
       });
     }
     setCurrentPage(1);
+    return () => clearTimeout(timer);
   }, [searchParams]);
 
   useEffect(() => {
@@ -107,8 +236,7 @@ const SearchPage = () => {
 
   const handleSaveSearch = () => {
     if (!user) {
-      setIsSaveDialogOpen(false);
-      setIsLoginModalOpen(true);
+      navigate('/login?reason=save_search&redirect=/search');
       return;
     }
     if (!searchName.trim()) return;
@@ -181,17 +309,68 @@ const SearchPage = () => {
           <div className="flex-1 relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
-              placeholder="Search cars, bikes..." 
-              className="pl-10 h-12 rounded-xl" 
+              placeholder="Search cars, bikes, or 'Swift in Bihar'..." 
+              className="pl-10 pr-24 h-12 rounded-xl" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  parseSmartQuery(searchQuery);
+                  addToRecentSearches(searchQuery);
+                  setShowSuggestions(false);
+                }
+              }}
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchQuery && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X size={16} />
+                </Button>
+              )}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn(
+                  "h-8 w-8 rounded-lg transition-colors",
+                  isListening ? "text-red-500 bg-red-50" : "text-slate-400 hover:text-primary"
+                )}
+                onClick={handleVoiceSearch}
+              >
+                {isListening ? <MicOff size={18} className="animate-pulse" /> : <Mic size={18} />}
+              </Button>
+            </div>
+
+            <SearchSuggestions 
+              suggestions={suggestions}
+              query={searchQuery}
+              isVisible={showSuggestions}
+              onSelect={handleSuggestionSelect}
             />
           </div>
           
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="h-12 w-12 rounded-xl text-primary border-primary/20 hover:bg-primary/5"
+            onClick={() => {
+              if (!user) {
+                navigate(`/login?reason=save_search&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+              } else {
+                setIsSaveDialogOpen(true);
+              }
+            }}
+          >
+            <Bookmark size={20} />
+          </Button>
+
           <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-            <DialogTrigger render={<Button variant="outline" size="icon" className="h-12 w-12 rounded-xl text-primary border-primary/20 hover:bg-primary/5" />}>
-              <Bookmark size={20} />
-            </DialogTrigger>
             <DialogContent className="rounded-3xl">
               <DialogHeader>
                 <DialogTitle>Save this search</DialogTitle>
@@ -504,7 +683,11 @@ const SearchPage = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedVehicles.length > 0 ? (
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <VehicleCardSkeleton key={i} />
+          ))
+        ) : paginatedVehicles.length > 0 ? (
           paginatedVehicles.map((vehicle) => (
             <VehicleCard key={vehicle.id} vehicle={vehicle} />
           ))
@@ -589,10 +772,6 @@ const SearchPage = () => {
           </Pagination>
         </div>
       )}
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-      />
     </div>
   );
 };

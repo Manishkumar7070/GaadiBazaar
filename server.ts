@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
@@ -17,6 +16,9 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Trust proxy is required for express-rate-limit to work behind Nginx/Cloud Run
+  app.set("trust proxy", 1);
 
   app.use(express.json());
 
@@ -61,11 +63,21 @@ async function startServer() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Twilio Client
-  const twilioClient = twilio(
-    process.env.TWILIO_ACCOUNT_SID,
-    process.env.TWILIO_AUTH_TOKEN
-  );
+  // Twilio Client (Lazy initialization)
+  let twilioClientInstance: any = null;
+  const getTwilioClient = () => {
+    if (!twilioClientInstance) {
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
+      
+      if (!accountSid || !authToken) {
+        throw new Error("Twilio credentials (ACCOUNT_SID or AUTH_TOKEN) are missing");
+      }
+      
+      twilioClientInstance = twilio(accountSid, authToken);
+    }
+    return twilioClientInstance;
+  };
 
   // Circuit Breaker for Supabase
   const supabaseBreaker = new CircuitBreaker(async (fn: any) => await fn(), {
@@ -108,9 +120,10 @@ async function startServer() {
 
     try {
       await twilioBreaker.fire(async () => {
-        if (process.env.TWILIO_VERIFY_SERVICE_SID) {
-          await twilioClient.verify.v2
-            .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+        if (verifyServiceSid) {
+          await getTwilioClient().verify.v2
+            .services(verifyServiceSid)
             .verifications.create({ to: email, channel: "email" });
         } else {
           throw new Error("Twilio Verify Service SID not configured");
@@ -130,9 +143,10 @@ async function startServer() {
     if (!email || !code) return res.status(400).json({ error: "Email and code are required" });
 
     try {
-      if (process.env.TWILIO_VERIFY_SERVICE_SID) {
-        const verification = await twilioClient.verify.v2
-          .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+      const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+      if (verifyServiceSid) {
+        const verification = await getTwilioClient().verify.v2
+          .services(verifyServiceSid)
           .verificationChecks.create({ to: email, code });
 
         if (verification.status === "approved") {
@@ -154,6 +168,28 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error("Error verifying OTP:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Complete Profile Route
+  app.post("/api/auth/complete-profile", async (req, res) => {
+    const { userId, role, name, phone } = req.body;
+    if (!userId || !role) return res.status(400).json({ error: "User ID and role are required" });
+
+    try {
+      const { data, error } = await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          role,
+          full_name: name,
+          phone: phone,
+        },
+      });
+
+      if (error) throw error;
+      res.json({ message: "Profile updated successfully", user: data.user });
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -232,6 +268,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

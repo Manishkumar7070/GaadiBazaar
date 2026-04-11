@@ -39,6 +39,5 @@ ENV PORT=3000
 # Expose the port
 EXPOSE 3000
 
-# Start the server using Node's native TS support (Node 22+)
-# Note: --experimental-strip-types is needed for Node 22 to run TS directly
-CMD ["node", "--experimental-strip-types", "server.ts"]
+# Start the server
+CMD ["npm", "start"]

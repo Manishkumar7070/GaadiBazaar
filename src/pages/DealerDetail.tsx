@@ -87,9 +87,11 @@ const DealerDetail = () => {
               </p>
 
               <div className="flex flex-wrap gap-4 pt-4">
-                <Button className="rounded-2xl h-14 px-8 bg-primary hover:bg-primary/90 text-white font-bold flex gap-2 flex-1 md:flex-none">
-                  <Phone size={20} /> Call Dealer
-                </Button>
+                <a href={`tel:${dealer.phone}`} className="flex-1 md:flex-none">
+                  <Button className="w-full rounded-2xl h-14 px-8 bg-primary hover:bg-primary/90 text-white font-bold flex gap-2">
+                    <Phone size={20} /> Call Dealer
+                  </Button>
+                </a>
                 <Button variant="outline" className="rounded-2xl h-14 px-8 border-primary text-primary font-bold flex gap-2 flex-1 md:flex-none">
                   <MessageSquare size={20} /> Chat
                 </Button>

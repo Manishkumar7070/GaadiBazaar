@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
+import VehicleCardSkeleton from '@/features/vehicles/VehicleCardSkeleton';
 import { motion } from 'motion/react';
 import { Vehicle } from '@/types';
 import { Link } from 'react-router-dom';
@@ -12,8 +13,14 @@ import { Link } from 'react-router-dom';
 const Home = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [recentlyViewed, setRecentlyViewed] = useState<Vehicle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Simulate data fetching
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+
     const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
     // Ensure unique IDs
     const uniqueIds = Array.from(new Set(viewedIds)) as string[];
@@ -22,6 +29,8 @@ const Home = () => {
       .filter(Boolean)
       .slice(0, 4) as Vehicle[];
     setRecentlyViewed(viewedVehicles);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const categories = [
@@ -172,16 +181,22 @@ const Home = () => {
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVehicles.map((vehicle, index) => (
-            <motion.div
-              key={vehicle.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <VehicleCard vehicle={vehicle} />
-            </motion.div>
-          ))}
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <VehicleCardSkeleton key={i} />
+            ))
+          ) : (
+            filteredVehicles.map((vehicle, index) => (
+              <motion.div
+                key={vehicle.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <VehicleCard vehicle={vehicle} />
+              </motion.div>
+            ))
+          )}
         </div>
       </section>
     </div>

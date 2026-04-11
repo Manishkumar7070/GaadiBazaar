@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle } from 'lucide-react';
+import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
-import LoginModal from '@/features/auth/LoginModal';
+import Logo from '@/components/Logo';
 import { 
   Sheet, 
   SheetContent, 
@@ -16,14 +16,13 @@ import {
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSellClick = () => {
     if (!user) {
-      setIsLoginModalOpen(true);
+      navigate('/login?reason=list_vehicle&redirect=/list-vehicle');
     } else {
-      alert('Redirecting to sell vehicle page...');
+      navigate('/list-vehicle');
     }
     setIsMobileMenuOpen(false);
   };
@@ -32,12 +31,7 @@ const Header = () => {
     <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
-            G
-          </div>
-          <span className="text-xl font-bold tracking-tight hidden sm:block">
-            Gaadi<span className="text-primary">Bazaar</span>
-          </span>
+          <Logo fontSize="text-2xl" iconSize={28} />
         </Link>
 
         <div className="hidden md:flex flex-1 max-w-md relative">
@@ -62,14 +56,14 @@ const Header = () => {
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <User size={18} />
                 </div>
-                {user.name || 'Account'}
+                {user.fullName || 'Account'}
               </Button>
             </Link>
           ) : (
             <Button 
               variant="outline" 
               className="hidden md:flex border-primary text-primary hover:bg-primary/5"
-              onClick={() => setIsLoginModalOpen(true)}
+              onClick={() => navigate('/login')}
             >
               Login
             </Button>
@@ -88,8 +82,8 @@ const Header = () => {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] rounded-l-3xl">
               <SheetHeader className="text-left pb-6 border-b">
-                <SheetTitle className="text-2xl font-bold">
-                  Gaadi<span className="text-primary">Bazaar</span>
+                <SheetTitle>
+                  <Logo fontSize="text-2xl" iconSize={28} />
                 </SheetTitle>
               </SheetHeader>
               
@@ -100,7 +94,7 @@ const Header = () => {
                       <User size={24} />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900">{user.name}</p>
+                      <p className="font-bold text-slate-900">{user.fullName}</p>
                       <p className="text-xs text-slate-500">{user.email}</p>
                     </div>
                   </div>
@@ -109,7 +103,7 @@ const Header = () => {
                     className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      setIsLoginModalOpen(true);
+                      navigate('/login');
                     }}
                   >
                     Login / Register
@@ -158,11 +152,6 @@ const Header = () => {
           </Sheet>
         </div>
       </div>
-      
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-      />
     </header>
   );
 };

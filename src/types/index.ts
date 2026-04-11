@@ -26,6 +26,7 @@ export interface Dealer {
   city: string;
   state: string;
   pincode: string;
+  phone: string;
   isVerified: boolean;
   rating: number;
   totalReviews: number;

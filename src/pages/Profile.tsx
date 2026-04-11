@@ -18,7 +18,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/');
+      navigate('/login?reason=profile&redirect=/profile');
     }
   }, [user, loading, navigate]);
 
@@ -66,10 +66,10 @@ const Profile = () => {
       <div className="flex flex-col items-center text-center space-y-4">
         <Avatar className="w-24 h-24 border-4 border-white shadow-xl">
           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />
-          <AvatarFallback>{user.name?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+          <AvatarFallback>{user.fullName?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold">{user.name}</h1>
+          <h1 className="text-2xl font-bold">{user.fullName}</h1>
           <p className="text-slate-500">{user.email}</p>
           {user.phone && <p className="text-slate-500">{user.phone}</p>}
         </div>

@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.github
+*.log
+.env
+.env.example
+k8s.yaml
+Dockerfile
+README.md

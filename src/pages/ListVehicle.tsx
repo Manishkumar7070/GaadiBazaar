@@ -33,6 +33,12 @@ const ListVehicle = () => {
     images: [] as string[],
   });
 
+  React.useEffect(() => {
+    if (!user) {
+      navigate('/login?reason=list_vehicle&redirect=/list-vehicle');
+    }
+  }, [user, navigate]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -116,7 +122,7 @@ const ListVehicle = () => {
           <CheckCircle2 size={40} />
         </div>
         <h1 className="text-2xl font-bold">Vehicle Listed Successfully!</h1>
-        <p className="text-slate-500">Your vehicle is now live on Gaadi Bazaar. Redirecting to your profile...</p>
+        <p className="text-slate-500">Your vehicle is now live on AsOneDealer. Redirecting to your profile...</p>
       </div>
     );
   }

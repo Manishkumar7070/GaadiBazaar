@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Dialog, 
   DialogContent, 
@@ -94,6 +95,7 @@ const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: 
 };
 
 const VehicleDetail = () => {
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToComparison, removeFromComparison, isVehicleSelected } = useComparison();
@@ -111,6 +113,22 @@ const VehicleDetail = () => {
       removeFromComparison(vehicle.id);
     } else {
       addToComparison(vehicle);
+    }
+  };
+
+  const handleFavorite = () => {
+    if (!user) {
+      navigate(`/login?reason=favorite_vehicle&redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    alert('Added to favorites!');
+  };
+
+  const handleContactSeller = (e: React.MouseEvent) => {
+    if (!user) {
+      e.preventDefault();
+      navigate(`/login?reason=contact_seller&redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
     }
   };
 
@@ -175,7 +193,12 @@ const VehicleDetail = () => {
           <Button variant="ghost" size="icon" className="rounded-full bg-white shadow-sm">
             <Share2 size={20} />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full bg-white shadow-sm">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full bg-white shadow-sm"
+            onClick={handleFavorite}
+          >
             <Heart size={20} />
           </Button>
         </div>
@@ -377,10 +400,50 @@ const VehicleDetail = () => {
               )}
 
               <div className="space-y-3">
-                <Button className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold flex gap-2">
-                  <Phone size={20} /> Contact Seller
-                </Button>
-                <Button variant="outline" className="w-full h-14 rounded-2xl text-lg font-bold flex gap-2 border-slate-200">
+                {dealer ? (
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
+                      <a 
+                        href={`tel:${dealer.phone}`} 
+                        className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
+                      >
+                        <Phone size={18} />
+                        {dealer.phone}
+                      </a>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] border-slate-200">Dealer</Badge>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
+                      <a 
+                        href="tel:+919999999999" 
+                        className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
+                      >
+                        <Phone size={18} />
+                        +91 99999 99999
+                      </a>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] border-slate-200">Private</Badge>
+                  </div>
+                )}
+
+                <a 
+                  href={dealer ? `tel:${dealer.phone}` : "tel:+919999999999"} 
+                  className="block w-full"
+                  onClick={handleContactSeller}
+                >
+                  <Button className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold flex gap-2">
+                    <Phone size={20} /> Call Seller
+                  </Button>
+                </a>
+                <Button 
+                  variant="outline" 
+                  className="w-full h-14 rounded-2xl text-lg font-bold flex gap-2 border-slate-200"
+                  onClick={handleContactSeller}
+                >
                   <MessageSquare size={20} /> Chat Now
                 </Button>
               </div>

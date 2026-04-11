@@ -7,6 +7,7 @@ import Profile from './pages/Profile';
 import Compare from './pages/Compare';
 import DealerDetail from './pages/DealerDetail';
 import ListVehicle from './pages/ListVehicle';
+import Login from './pages/Login';
 import Header from './layouts/Header';
 import MobileNav from './layouts/MobileNav';
 import ComparisonBar from './layouts/ComparisonBar';
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/compare" element={<Compare />} />
               <Route path="/dealer/:id" element={<DealerDetail />} />
               <Route path="/list-vehicle" element={<ListVehicle />} />
+              <Route path="/login" element={<Login />} />
             </Routes>
           </main>
           <ComparisonBar />
