@@ -25,14 +25,16 @@ import {
   DialogFooter,
   DialogTrigger
 } from '@/components/ui/dialog';
-import { SavedSearch, SearchFilters } from '@/types';
+import { SavedSearch, SearchFilters, Vehicle } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { POPULAR_CITIES, INDIAN_STATES } from '@/constants/cities';
+import { vehicleService } from '@/services/vehicle.service';
 
 const SearchPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   
@@ -43,7 +45,7 @@ const SearchPage = () => {
   const [searchName, setSearchName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | null>(null);
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | 'city-asc' | null>(null);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -63,11 +65,27 @@ const SearchPage = () => {
   };
 
   useEffect(() => {
+    const loadVehicles = async () => {
+      setIsLoading(true);
+      try {
+        const data = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
+        setVehicles(data.length > 0 ? data : MOCK_VEHICLES);
+      } catch (error) {
+        console.error('Error loading vehicles:', error);
+        setVehicles(MOCK_VEHICLES);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadVehicles();
+  }, []);
+
+  useEffect(() => {
     if (debouncedSearchQuery.length > 0) {
       const query = debouncedSearchQuery.toLowerCase();
       
       // 1. Match Vehicles (Brand or Model)
-      const vehicleMatches = Array.from(new Set(MOCK_VEHICLES
+      const vehicleMatches = Array.from(new Set(vehicles
         .filter(v => v.brand.toLowerCase().includes(query) || v.model.toLowerCase().includes(query))
         .map(v => `${v.brand} ${v.model}`)))
         .slice(0, 3)
@@ -99,7 +117,13 @@ const SearchPage = () => {
         }
       }
 
-      setSuggestions([...combinedMatches, ...vehicleMatches, ...cityMatches, ...stateMatches]);
+      // 4. Match Recent Searches
+      const historyMatches = recentSearches
+        .filter(s => s.toLowerCase().includes(query) && s.toLowerCase() !== query)
+        .slice(0, 2)
+        .map(s => ({ id: `h-${s}`, text: s, type: 'history' as const }));
+
+      setSuggestions([...combinedMatches, ...vehicleMatches, ...cityMatches, ...stateMatches, ...historyMatches]);
     } else {
       // Show recent searches when query is empty but focused
       setSuggestions(recentSearches.map(s => ({ id: `h-${s}`, text: s, type: 'history' as const })));
@@ -260,7 +284,7 @@ const SearchPage = () => {
     alert('Search saved successfully! You can find it in your profile.');
   };
 
-  const filteredVehicles = MOCK_VEHICLES.filter(v => {
+  const filteredVehicles = vehicles.filter(v => {
     const matchesQuery = !debouncedSearchQuery || 
       v.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
       v.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
@@ -288,6 +312,7 @@ const SearchPage = () => {
     if (sortBy === 'price-desc') return b.price - a.price;
     if (sortBy === 'newest') return b.year - a.year;
     if (sortBy === 'km-low') return a.kilometersDriven - b.kilometersDriven;
+    if (sortBy === 'city-asc') return a.city.localeCompare(b.city);
     return 0;
   });
 
@@ -678,6 +703,14 @@ const SearchPage = () => {
             onClick={() => setSortBy(prev => prev === 'km-low' ? null : 'km-low')}
           >
             Kilometers: Low
+          </Button>
+          <Button 
+            variant={sortBy === 'city-asc' ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full"
+            onClick={() => setSortBy(prev => prev === 'city-asc' ? null : 'city-asc')}
+          >
+            City: A-Z
           </Button>
         </div>
       </div>

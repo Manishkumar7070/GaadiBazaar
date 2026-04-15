@@ -43,10 +43,19 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" className="text-slate-600">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-slate-600 md:hidden"
+            onClick={() => navigate('/search')}
+          >
+            <Search size={20} />
+          </Button>
+          
+          <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
             <MapPin size={20} />
           </Button>
-          <Button variant="ghost" size="icon" className="text-slate-600">
+          <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
             <Bell size={20} />
           </Button>
           
@@ -80,73 +89,75 @@ const Header = () => {
             <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
               <Menu size={24} />
             </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px] rounded-l-3xl">
-              <SheetHeader className="text-left pb-6 border-b">
-                <SheetTitle>
-                  <Logo fontSize="text-2xl" iconSize={28} />
-                </SheetTitle>
-              </SheetHeader>
-              
-              <div className="py-6 space-y-6">
-                {user ? (
-                  <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <User size={24} />
+            <SheetContent side="right" className="w-[300px] sm:w-[400px] rounded-l-3xl p-0">
+              <div className="flex flex-col h-full">
+                <SheetHeader className="text-left p-6 border-b">
+                  <SheetTitle>
+                    <Logo fontSize="text-2xl" iconSize={28} />
+                  </SheetTitle>
+                </SheetHeader>
+                
+                <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6">
+                  {user ? (
+                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <User size={24} />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="font-bold text-slate-900 truncate">{user.fullName}</p>
+                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-900">{user.fullName}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <Button 
-                    className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      navigate('/login');
-                    }}
-                  >
-                    Login / Register
-                  </Button>
-                )}
-
-                <nav className="space-y-2">
-                  <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                    <Search size={20} className="text-slate-400" />
-                    <span className="font-semibold text-slate-700">Browse Vehicles</span>
-                  </Link>
-                  <button onClick={handleSellClick} className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors text-left">
-                    <PlusCircle size={20} className="text-slate-400" />
-                    <span className="font-semibold text-slate-700">Sell Your Vehicle</span>
-                  </button>
-                  {user && (
-                    <>
-                      <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                        <Package size={20} className="text-slate-400" />
-                        <span className="font-semibold text-slate-700">My Listings</span>
-                      </Link>
-                      <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                        <Heart size={20} className="text-slate-400" />
-                        <span className="font-semibold text-slate-700">Favorites</span>
-                      </Link>
-                      <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
-                        <Settings size={20} className="text-slate-400" />
-                        <span className="font-semibold text-slate-700">Settings</span>
-                      </Link>
-                      <button 
-                        onClick={() => {
-                          logout();
-                          setIsMobileMenuOpen(false);
-                          navigate('/');
-                        }} 
-                        className="w-full flex items-center gap-4 p-4 hover:bg-red-50 rounded-xl transition-colors text-left text-red-500"
-                      >
-                        <LogOut size={20} />
-                        <span className="font-semibold">Logout</span>
-                      </button>
-                    </>
+                  ) : (
+                    <Button 
+                      className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        navigate('/login');
+                      }}
+                    >
+                      Login / Register
+                    </Button>
                   )}
-                </nav>
+
+                  <nav className="space-y-1">
+                    <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                      <Search size={20} className="text-slate-400" />
+                      <span className="font-semibold text-slate-700">Browse Vehicles</span>
+                    </Link>
+                    <button onClick={handleSellClick} className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors text-left">
+                      <PlusCircle size={20} className="text-slate-400" />
+                      <span className="font-semibold text-slate-700">Sell Your Vehicle</span>
+                    </button>
+                    {user && (
+                      <>
+                        <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                          <Package size={20} className="text-slate-400" />
+                          <span className="font-semibold text-slate-700">My Listings</span>
+                        </Link>
+                        <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                          <Heart size={20} className="text-slate-400" />
+                          <span className="font-semibold text-slate-700">Favorites</span>
+                        </Link>
+                        <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                          <Settings size={20} className="text-slate-400" />
+                          <span className="font-semibold text-slate-700">Settings</span>
+                        </Link>
+                        <button 
+                          onClick={() => {
+                            logout();
+                            setIsMobileMenuOpen(false);
+                            navigate('/');
+                          }} 
+                          className="w-full flex items-center gap-4 p-4 hover:bg-red-50 rounded-xl transition-colors text-left text-red-500"
+                        >
+                          <LogOut size={20} />
+                          <span className="font-semibold">Logout</span>
+                        </button>
+                      </>
+                    )}
+                  </nav>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

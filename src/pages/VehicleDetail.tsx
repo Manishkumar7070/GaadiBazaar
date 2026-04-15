@@ -26,17 +26,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
+import { useWishlist } from '@/hooks/useWishlist';
 import { 
   Dialog, 
   DialogContent, 
   DialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
-import { MOCK_VEHICLES, MOCK_DEALERS } from '@/constants/mockData';
+import { MOCK_VEHICLES } from '@/constants/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import { useComparison } from '@/hooks/useComparison';
 import { cn } from '@/lib/utils';
+import { vehicleService } from '@/services/vehicle.service';
+import { shopService } from '@/services/shop.service';
+import { Vehicle, Shop } from '@/types';
 
 const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: () => void }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -99,13 +103,49 @@ const VehicleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToComparison, removeFromComparison, isVehicleSelected } = useComparison();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  const vehicle = MOCK_VEHICLES.find(v => v.id === id);
+  const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([]);
+  
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        // Try to find in mock data first for demo, then fallback to service
+        let v = MOCK_VEHICLES.find(v => v.id === id) as any;
+        if (!v) {
+          const vehicles = await vehicleService.fetchVehicles();
+          v = vehicles.find(item => item.id === id);
+        }
+        
+        if (v) {
+          setVehicle(v);
+          if (v.shopId) {
+            const s = await shopService.fetchShopById(v.shopId);
+            setShop(s);
+          }
+          
+          // Load similar vehicles
+          const similar = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
+          setSimilarVehicles(similar.filter(item => item.id !== v.id && (item.brand === v.brand || item.vehicleType === v.vehicleType)).slice(0, 4));
+        }
+      } catch (error) {
+        console.error('Error loading vehicle details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [id]);
+
   const isSelected = vehicle ? isVehicleSelected(vehicle.id) : false;
-  const dealer = vehicle?.dealerId ? MOCK_DEALERS.find(d => d.id === vehicle.dealerId) : null;
 
   const toggleCompare = () => {
     if (!vehicle) return;
@@ -116,12 +156,19 @@ const VehicleDetail = () => {
     }
   };
 
-  const handleFavorite = () => {
+  const handleFavorite = async () => {
     if (!user) {
       navigate(`/login?reason=favorite_vehicle&redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
-    alert('Added to favorites!');
+    
+    if (!vehicle) return;
+    
+    try {
+      await toggleWishlist(vehicle.id);
+    } catch (error) {
+      alert('Failed to update wishlist');
+    }
   };
 
   const handleContactSeller = (e: React.MouseEvent) => {
@@ -161,11 +208,6 @@ const VehicleDetail = () => {
     { icon: Droplets, label: 'Mileage', value: vehicle.mileage || 'N/A' },
   ];
 
-  const similarVehicles = MOCK_VEHICLES.filter(v => 
-    v.id !== vehicle.id && 
-    (v.brand === vehicle.brand || v.vehicleType === vehicle.vehicleType)
-  ).slice(0, 4);
-
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-10">
       {/* Header Actions */}
@@ -196,10 +238,13 @@ const VehicleDetail = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="rounded-full bg-white shadow-sm"
+            className={cn(
+              "rounded-full shadow-sm transition-colors",
+              isInWishlist(vehicle.id) ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-white hover:bg-slate-50"
+            )}
             onClick={handleFavorite}
           >
-            <Heart size={20} />
+            <Heart size={20} className={isInWishlist(vehicle.id) ? "fill-current" : ""} />
           </Button>
         </div>
       </div>
@@ -363,15 +408,15 @@ const VehicleDetail = () => {
           {/* Seller Card */}
           <Card className="rounded-[2rem] border-none shadow-lg overflow-hidden">
             <CardContent className="p-6 space-y-6">
-              {dealer ? (
-                <Link to={`/dealer/${dealer.id}`} className="flex items-center gap-4 group cursor-pointer">
+              {shop ? (
+                <div className="flex items-center gap-4 group cursor-pointer">
                   <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary group-hover:bg-primary/10 transition-colors">
-                    {dealer.shopName[0]}
+                    {shop.name[0]}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{dealer.shopName}</h3>
-                      {dealer.isVerified && (
+                      <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{shop.name}</h3>
+                      {shop.verificationStatus === 'verified' && (
                         <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100 flex items-center gap-1 px-2 py-0 h-5">
                           <ShieldCheck size={12} className="fill-green-600 text-white" />
                           <span className="text-[10px] font-bold uppercase tracking-wider">Verified Dealer</span>
@@ -379,11 +424,11 @@ const VehicleDetail = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
-                      <span>★ {dealer.rating}</span>
-                      <span className="text-slate-400 font-normal">({dealer.totalReviews} reviews)</span>
+                      <span>★ {shop.rating || '4.5'}</span>
+                      <span className="text-slate-400 font-normal">({shop.reviewCount || '0'} reviews)</span>
                     </div>
                   </div>
-                </Link>
+                </div>
               ) : (
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary">
@@ -400,16 +445,16 @@ const VehicleDetail = () => {
               )}
 
               <div className="space-y-3">
-                {dealer ? (
+                {shop ? (
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
                       <a 
-                        href={`tel:${dealer.phone}`} 
+                        href={`tel:${shop.phone}`} 
                         className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
                       >
                         <Phone size={18} />
-                        {dealer.phone}
+                        {shop.phone}
                       </a>
                     </div>
                     <Badge variant="outline" className="text-[10px] border-slate-200">Dealer</Badge>
@@ -431,7 +476,7 @@ const VehicleDetail = () => {
                 )}
 
                 <a 
-                  href={dealer ? `tel:${dealer.phone}` : "tel:+919999999999"} 
+                  href={shop ? `tel:${shop.phone}` : "tel:+919999999999"} 
                   className="block w-full"
                   onClick={handleContactSeller}
                 >
@@ -461,10 +506,10 @@ const VehicleDetail = () => {
                   <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
                     <MapPin size={16} />
                   </div>
-                  {dealer ? (
-                    <Link to={`/dealer/${dealer.id}`} className="hover:text-primary transition-colors underline underline-offset-4 decoration-slate-200">
-                      {dealer.address}, {dealer.city}
-                    </Link>
+                  {shop ? (
+                    <span className="text-slate-600">
+                      {shop.address}, {shop.city}
+                    </span>
                   ) : (
                     <span>{vehicle.city}</span>
                   )}

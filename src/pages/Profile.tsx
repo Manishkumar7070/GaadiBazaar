@@ -1,26 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle } from 'lucide-react';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SavedSearch, Vehicle } from '@/types';
+import { SavedSearch, Vehicle, WishlistItem, Shop } from '@/types';
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import { useAuth } from '@/hooks/useAuth';
+import { useWishlist } from '@/hooks/useWishlist';
+import { shopService } from '@/services/shop.service';
+import VehicleCard from '@/features/vehicles/VehicleCard';
 
 const Profile = () => {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
+  const { wishlist, loading: wishlistLoading, toggleWishlist } = useWishlist();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Vehicle[]>([]);
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [shopLoading, setShopLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login?reason=profile&redirect=/profile');
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    const loadShop = async () => {
+      if (user && (user.role === 'dealer' || user.role === 'admin')) {
+        setShopLoading(true);
+        try {
+          const userShop = await shopService.fetchUserShop(user.id);
+          setShop(userShop);
+        } catch (error) {
+          console.error('Error loading shop:', error);
+        } finally {
+          setShopLoading(false);
+        }
+      }
+    };
+    loadShop();
+  }, [user]);
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('savedSearches') || '[]');
@@ -45,7 +69,7 @@ const Profile = () => {
 
   const menuItems = [
     { icon: Package, label: 'My Listings', count: 0 },
-    { icon: Heart, label: 'Favorites', count: 2 },
+    { icon: Heart, label: 'Wishlist', count: wishlist.length },
     { icon: Bell, label: 'Notifications', count: 5 },
     { icon: Shield, label: 'Verification Status', status: 'Pending' },
     { icon: Settings, label: 'Account Settings' },
@@ -73,19 +97,43 @@ const Profile = () => {
           <p className="text-slate-500">{user.email}</p>
           {user.phone && <p className="text-slate-500">{user.phone}</p>}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           <Button variant="outline" className="rounded-full">Edit Profile</Button>
+          {user.role === 'dealer' && !shop && !shopLoading && (
+            <Link to="/create-shop">
+              <Button className="rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold flex gap-2">
+                <Store size={18} /> Register Showroom
+              </Button>
+            </Link>
+          )}
           <Link to="/list-vehicle">
             <Button className="rounded-full bg-primary hover:bg-primary/90 text-white font-bold flex gap-2">
               <PlusCircle size={18} /> Sell Vehicle
             </Button>
           </Link>
+          {user.role === 'admin' && (
+            <Link to="/admin">
+              <Button className="rounded-full bg-slate-900 hover:bg-slate-800 text-white font-bold flex gap-2">
+                <Shield size={18} /> Admin Panel
+              </Button>
+            </Link>
+          )}
         </div>
+        {shop && (
+          <div className="mt-4 flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+            <Store size={16} className="text-primary" />
+            <span className="text-sm font-bold">{shop.name}</span>
+            <Badge variant={shop.verificationStatus === 'verified' ? 'default' : 'secondary'} className="text-[10px] uppercase">
+              {shop.verificationStatus}
+            </Badge>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="menu" className="w-full flex flex-col gap-6">
-        <TabsList className="grid grid-cols-3 w-full rounded-2xl bg-slate-100 p-1 gap-1 h-12">
+        <TabsList className="grid grid-cols-4 w-full rounded-2xl bg-slate-100 p-1 gap-1 h-12">
           <TabsTrigger value="menu" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Menu</TabsTrigger>
+          <TabsTrigger value="wishlist" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Wishlist</TabsTrigger>
           <TabsTrigger value="saved" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Saved</TabsTrigger>
           <TabsTrigger value="recent" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Recent</TabsTrigger>
         </TabsList>
@@ -123,6 +171,28 @@ const Profile = () => {
               })}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="wishlist" className="mt-6 space-y-4">
+          {wishlistLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+          ) : wishlist.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200 space-y-3">
+              <Heart className="mx-auto text-slate-300" size={40} />
+              <p className="text-slate-500">Your wishlist is empty.</p>
+              <Link to="/search">
+                <Button variant="link" className="text-primary font-bold">Browse Vehicles</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {wishlist.map((item) => (
+                item.vehicle && <VehicleCard key={item.id} vehicle={item.vehicle} />
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="saved" className="mt-6 space-y-4">

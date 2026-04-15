@@ -16,21 +16,46 @@ import { Badge } from '@/components/ui/badge';
 import { MOCK_VEHICLES, MOCK_DEALERS } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import { motion } from 'motion/react';
+import { shopService } from '@/services/shop.service';
+import { vehicleService } from '@/services/vehicle.service';
+import { Shop, Vehicle } from '@/types';
 
 const DealerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [dealer, setDealer] = React.useState<Shop | null>(null);
+  const [dealerVehicles, setDealerVehicles] = React.useState<Vehicle[]>([]);
+  const [loading, setLoading] = React.useState(true);
   
-  const dealer = MOCK_DEALERS.find(d => d.id === id);
-  const dealerVehicles = MOCK_VEHICLES.filter(v => v.dealerId === id);
+  React.useEffect(() => {
+    const loadData = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const shop = await shopService.fetchShopById(id);
+        if (shop) {
+          setDealer(shop);
+          const vehicles = await vehicleService.fetchVehicles({ shopId: id, verificationStatus: 'verified' });
+          setDealerVehicles(vehicles);
+        } else {
+          // Fallback to mock for demo
+          const mockDealer = MOCK_DEALERS.find(d => d.id === id);
+          if (mockDealer) {
+            setDealer(mockDealer as any);
+            setDealerVehicles(MOCK_VEHICLES.filter(v => v.shopId === id));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dealer data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [id]);
 
-  if (!dealer) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <h2 className="text-2xl font-bold">Dealer not found</h2>
-        <Button onClick={() => navigate('/')}>Back to Home</Button>
-      </div>
-    );
+  if (loading) {
+    return <div className="flex items-center justify-center py-20">Loading...</div>;
   }
 
   return (
@@ -54,12 +79,12 @@ const DealerDetail = () => {
           <div className="grid grid-cols-1 md:grid-cols-3">
             <div className="md:col-span-1 aspect-square md:aspect-auto relative">
               <img 
-                src={dealer.shopImages[0]} 
-                alt={dealer.shopName} 
+                src={dealer.images[0]} 
+                alt={dealer.name} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
-              {dealer.isVerified && (
+              {dealer.verificationStatus === 'verified' && (
                 <div className="absolute top-6 left-6">
                   <Badge className="bg-green-500 text-white border-none px-3 py-1 flex gap-1 items-center shadow-lg">
                     <ShieldCheck size={14} /> Verified Dealer
@@ -70,10 +95,10 @@ const DealerDetail = () => {
             <div className="md:col-span-2 p-8 md:p-12 space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-bold text-slate-900">{dealer.shopName}</h2>
+                  <h2 className="text-3xl font-bold text-slate-900">{dealer.name}</h2>
                   <div className="flex items-center gap-1 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-sm font-bold">
                     <Star size={16} fill="currentColor" />
-                    {dealer.rating} ({dealer.totalReviews} reviews)
+                    {dealer.rating || '4.5'} ({dealer.reviewCount || '0'} Reviews)
                   </div>
                 </div>
                 <p className="text-slate-500 flex items-center gap-2">
@@ -135,6 +160,51 @@ const DealerDetail = () => {
           <div className="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-200">
             <Car className="mx-auto text-slate-300 mb-4" size={48} />
             <p className="text-slate-500 font-medium">This dealer currently has no active listings.</p>
+          </div>
+        )}
+      </section>
+
+      {/* Reviews Section */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-bold flex items-center gap-2">
+            <MessageSquare className="text-primary" /> Customer Reviews
+            <span className="text-sm font-normal text-slate-400 ml-2">({dealer.reviewCount || 0})</span>
+          </h3>
+          <Button variant="outline" className="rounded-xl border-primary text-primary font-bold">
+            Write a Review
+          </Button>
+        </div>
+
+        {dealer.reviews && dealer.reviews.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {dealer.reviews.map((review) => (
+              <Card key={review.id} className="border-none shadow-sm rounded-3xl bg-white p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                      {review.userName[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900">{review.userName}</p>
+                      <p className="text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-orange-500 bg-orange-50 px-2 py-1 rounded-lg text-sm font-bold">
+                    <Star size={14} fill="currentColor" />
+                    {review.rating}
+                  </div>
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed italic">
+                  "{review.comment}"
+                </p>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-white rounded-[2rem] border border-dashed border-slate-200">
+            <MessageSquare className="mx-auto text-slate-300 mb-4" size={48} />
+            <p className="text-slate-500 font-medium">No reviews yet for this dealer.</p>
           </div>
         )}
       </section>

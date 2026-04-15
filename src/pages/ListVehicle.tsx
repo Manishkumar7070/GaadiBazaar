@@ -6,7 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { vehicleService } from '@/services/vehicle.service';
-import { VehicleType, FuelType, TransmissionType, OwnershipType } from '@/types';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop } from '@/types';
+import { shopService } from '@/services/shop.service';
 
 const ListVehicle = () => {
   const { user } = useAuth();
@@ -14,29 +17,75 @@ const ListVehicle = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [shop, setShop] = useState<Shop | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    brand: '',
-    model: '',
-    year: new Date().getFullYear(),
-    vehicleType: 'car' as VehicleType,
-    fuelType: 'petrol' as FuelType,
-    transmission: 'manual' as TransmissionType,
-    kilometersDriven: '',
-    ownership: '1st' as OwnershipType,
-    city: '',
-    state: '',
-    images: [] as string[],
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem('vehicle_form_draft');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved form draft');
+      }
+    }
+    return {
+      title: '',
+      description: '',
+      price: '',
+      brand: '',
+      model: '',
+      year: new Date().getFullYear(),
+      vehicleType: 'car' as VehicleType,
+      fuelType: 'petrol' as FuelType,
+      transmission: 'manual' as TransmissionType,
+      kilometersDriven: '',
+      ownership: '1st' as OwnershipType,
+      city: '',
+      state: '',
+      registrationNumber: '',
+      mileage: '',
+      images: [] as string[],
+      categorizedImages: {
+        front: '',
+        back: '',
+        left: '',
+        right: '',
+        interior: '',
+        exterior: '',
+      } as Record<string, string>,
+    };
   });
+
+  // Save draft to localStorage whenever formData changes
+  React.useEffect(() => {
+    localStorage.setItem('vehicle_form_draft', JSON.stringify(formData));
+  }, [formData]);
+
+  const clearDraft = () => {
+    localStorage.removeItem('vehicle_form_draft');
+  };
 
   React.useEffect(() => {
     if (!user) {
       navigate('/login?reason=list_vehicle&redirect=/list-vehicle');
+      return;
     }
+
+    const loadShop = async () => {
+      if (user.role === 'dealer' || user.role === 'admin') {
+        const userShop = await shopService.fetchUserShop(user.id);
+        setShop(userShop);
+        if (userShop) {
+          setFormData(prev => ({
+            ...prev,
+            city: userShop.city,
+            state: userShop.state
+          }));
+        }
+      }
+    };
+    loadShop();
   }, [user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -50,44 +99,57 @@ const ListVehicle = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      alert('Cloudinary configuration missing. Please check your environment variables.');
-      return;
-    }
+    if (!files || files.length === 0 || !user) return;
 
     setUploading(true);
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', uploadPreset);
-
-        const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-          {
-            method: 'POST',
-            body: formData,
-          }
-        );
-
-        if (!response.ok) throw new Error('Upload failed');
-        const data = await response.json();
-        return data.secure_url;
+        // Create a unique filename
+        const filename = `${Date.now()}-${file.name}`;
+        const storageRef = ref(storage, `vehicles/${user.id}/${filename}`);
+        
+        // Upload the file
+        const snapshot = await uploadBytes(storageRef, file);
+        
+        // Get the download URL
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
       setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
     } catch (error) {
       console.error('Error uploading images:', error);
-      alert('Failed to upload images. Please try again.');
+      alert('Failed to upload images. Please make sure you are logged in and try again.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCategorizedFileChange = async (e: React.ChangeEvent<HTMLInputElement>, category: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    try {
+      const filename = `${Date.now()}-${category}-${file.name}`;
+      const storageRef = ref(storage, `vehicles/${user.id}/${filename}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setFormData(prev => ({
+        ...prev,
+        categorizedImages: {
+          ...prev.categorizedImages,
+          [category]: downloadURL
+        }
+      }));
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -95,16 +157,37 @@ const ListVehicle = () => {
     e.preventDefault();
     if (!user) return;
 
+    // Validate that all required photos are present
+    const requiredPhotos = ['front', 'back', 'left', 'right', 'interior', 'exterior'];
+    const missingPhotos = requiredPhotos.filter(cat => !formData.categorizedImages[cat]);
+    
+    if (missingPhotos.length > 0) {
+      alert(`Please upload all required photos: ${missingPhotos.join(', ')}`);
+      return;
+    }
+
     setLoading(true);
     try {
+      const allImages = [
+        formData.categorizedImages.front,
+        formData.categorizedImages.back,
+        formData.categorizedImages.left,
+        formData.categorizedImages.right,
+        formData.categorizedImages.interior,
+        formData.categorizedImages.exterior,
+        ...formData.images
+      ].filter(Boolean);
+
       await vehicleService.createVehicle({
         ...formData,
         price: Number(formData.price),
         kilometersDriven: Number(formData.kilometersDriven),
         year: Number(formData.year),
         sellerId: user.id,
-        images: formData.images.length > 0 ? formData.images : ['https://picsum.photos/seed/car/800/600'],
+        shopId: shop?.id,
+        images: allImages,
       });
+      clearDraft();
       setSuccess(true);
       setTimeout(() => navigate('/profile'), 2000);
     } catch (error) {
@@ -172,6 +255,7 @@ const ListVehicle = () => {
                 <Input 
                   name="price" 
                   type="number" 
+                  min="0"
                   placeholder="e.g. 850000" 
                   required 
                   value={formData.price}
@@ -231,6 +315,8 @@ const ListVehicle = () => {
                 <Input 
                   name="year" 
                   type="number" 
+                  min="1900"
+                  max={new Date().getFullYear() + 1}
                   placeholder="e.g. 2020" 
                   required 
                   value={formData.year}
@@ -271,6 +357,7 @@ const ListVehicle = () => {
                 <Input 
                   name="kilometersDriven" 
                   type="number" 
+                  min="0"
                   placeholder="e.g. 45000" 
                   required 
                   value={formData.kilometersDriven}
@@ -292,6 +379,26 @@ const ListVehicle = () => {
                   <option value="4th">4th Owner</option>
                   <option value="4th+">4th+ Owner</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Registration Number (Optional)</label>
+                <Input 
+                  name="registrationNumber" 
+                  placeholder="e.g. MP04 AB 1234" 
+                  value={formData.registrationNumber}
+                  onChange={handleChange}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Mileage (kmpl/range)</label>
+                <Input 
+                  name="mileage" 
+                  placeholder="e.g. 18 kmpl" 
+                  value={formData.mileage}
+                  onChange={handleChange}
+                  className="rounded-xl"
+                />
               </div>
             </div>
           </CardContent>
@@ -328,44 +435,94 @@ const ListVehicle = () => {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <label className="text-sm font-semibold text-slate-700">Vehicle Images</label>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                multiple 
-                accept="image/*" 
-                className="hidden" 
-              />
-              <div className="grid grid-cols-3 gap-4">
-                {formData.images.map((img, i) => (
-                  <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group">
-                    <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    <button 
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Upload className="rotate-45" size={12} />
-                    </button>
+            <div className="space-y-6">
+              <label className="text-sm font-semibold text-slate-700">Required Photos</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                  { id: 'front', label: 'Front View' },
+                  { id: 'back', label: 'Back View' },
+                  { id: 'left', label: 'Left Side' },
+                  { id: 'right', label: 'Right Side' },
+                  { id: 'interior', label: 'Interior' },
+                  { id: 'exterior', label: 'Exterior' },
+                ].map((cat) => (
+                  <div key={cat.id} className="space-y-2">
+                    <p className="text-xs font-medium text-slate-500">{cat.label}</p>
+                    <div className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden relative group">
+                      {formData.categorizedImages[cat.id] ? (
+                        <>
+                          <img 
+                            src={formData.categorizedImages[cat.id]} 
+                            alt={cat.label} 
+                            className="w-full h-full object-cover" 
+                            referrerPolicy="no-referrer" 
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              categorizedImages: { ...prev.categorizedImages, [cat.id]: '' }
+                            }))}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Upload className="rotate-45" size={12} />
+                          </button>
+                        </>
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors">
+                          <Upload size={20} className="text-slate-400" />
+                          <span className="text-[10px] mt-1 text-slate-400">Upload</span>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={(e) => handleCategorizedFileChange(e, cat.id)}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 ))}
-                <button 
-                  type="button"
-                  onClick={handleImageAdd}
-                  disabled={uploading}
-                  className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary transition-all disabled:opacity-50"
-                >
-                  {uploading ? (
-                    <Loader2 className="animate-spin" size={24} />
-                  ) : (
-                    <Upload size={24} />
-                  )}
-                  <span className="text-xs mt-2">{uploading ? 'Uploading...' : 'Add Image'}</span>
-                </button>
               </div>
-              <p className="text-xs text-slate-400">Add up to 10 high-quality images of your vehicle.</p>
+
+              <div className="space-y-4">
+                <label className="text-sm font-semibold text-slate-700">Additional Images (Optional)</label>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  multiple 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                <div className="grid grid-cols-3 gap-4">
+                  {formData.images.map((img, i) => (
+                    <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group">
+                      <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <button 
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Upload className="rotate-45" size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <button 
+                    type="button"
+                    onClick={handleImageAdd}
+                    disabled={uploading}
+                    className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary transition-all disabled:opacity-50"
+                  >
+                    {uploading ? (
+                      <Loader2 className="animate-spin" size={24} />
+                    ) : (
+                      <Upload size={24} />
+                    )}
+                    <span className="text-xs mt-2">{uploading ? 'Uploading...' : 'Add More'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

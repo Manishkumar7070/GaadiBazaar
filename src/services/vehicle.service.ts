@@ -1,26 +1,57 @@
-import { Vehicle } from '@/types';
+import { Vehicle, VerificationStatus } from '@/types';
+import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, Timestamp, doc, updateDoc } from 'firebase/firestore';
 
 export const vehicleService = {
-  async fetchVehicles(): Promise<Vehicle[]> {
-    const response = await fetch('/api/vehicles');
-    if (!response.ok) {
-      throw new Error('Failed to fetch vehicles');
+  async fetchVehicles(filters?: { shopId?: string; sellerId?: string; verificationStatus?: VerificationStatus }): Promise<Vehicle[]> {
+    const path = 'vehicles';
+    try {
+      let q = query(collection(db, path), orderBy('createdAt', 'desc'));
+      
+      if (filters?.shopId) {
+        q = query(collection(db, path), where('shopId', '==', filters.shopId), orderBy('createdAt', 'desc'));
+      } else if (filters?.sellerId) {
+        q = query(collection(db, path), where('sellerId', '==', filters.sellerId), orderBy('createdAt', 'desc'));
+      } else if (filters?.verificationStatus) {
+        q = query(collection(db, path), where('verificationStatus', '==', filters.verificationStatus), orderBy('createdAt', 'desc'));
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data().createdAt as Timestamp)?.toDate()?.toISOString() || new Date().toISOString()
+      } as Vehicle));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
     }
-    return response.json();
   },
 
   async createVehicle(vehicleData: Partial<Vehicle>): Promise<Vehicle> {
-    const response = await fetch('/api/vehicles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(vehicleData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to create vehicle');
+    const path = 'vehicles';
+    try {
+      const docRef = await addDoc(collection(db, path), {
+        ...vehicleData,
+        status: 'active',
+        verificationStatus: 'pending',
+        createdAt: serverTimestamp(),
+      });
+      return { id: docRef.id, ...vehicleData } as Vehicle;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+      throw error;
     }
+  },
 
-    return response.json();
+  async updateVehicleVerification(vehicleId: string, status: 'verified' | 'rejected'): Promise<void> {
+    const path = `vehicles/${vehicleId}`;
+    try {
+      const docRef = doc(db, 'vehicles', vehicleId);
+      await updateDoc(docRef, { verificationStatus: status });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+      throw error;
+    }
   }
 };

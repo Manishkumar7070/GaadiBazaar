@@ -266,6 +266,63 @@ async function startServer() {
     }
   });
 
+  // Fetch Wishlist for User
+  app.get("/api/wishlist/:userId", async (req, res) => {
+    const { userId } = req.params;
+    try {
+      const { data, error } = await supabase
+        .from("user_wishlist")
+        .select("*, vehicles(*)")
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching wishlist:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add to Wishlist
+  app.post("/api/wishlist", async (req, res) => {
+    const { userId, vehicleId } = req.body;
+    if (!userId || !vehicleId) return res.status(400).json({ error: "User ID and Vehicle ID are required" });
+
+    try {
+      const { data, error } = await supabase
+        .from("user_wishlist")
+        .insert([{ user_id: userId, vehicle_id: vehicleId }])
+        .select();
+
+      if (error) {
+        if (error.code === "23505") return res.status(409).json({ error: "Already in wishlist" });
+        throw error;
+      }
+      res.status(201).json(data[0]);
+    } catch (error: any) {
+      console.error("Error adding to wishlist:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Remove from Wishlist
+  app.delete("/api/wishlist/:userId/:vehicleId", async (req, res) => {
+    const { userId, vehicleId } = req.params;
+    try {
+      const { error } = await supabase
+        .from("user_wishlist")
+        .delete()
+        .eq("user_id", userId)
+        .eq("vehicle_id", vehicleId);
+
+      if (error) throw error;
+      res.json({ message: "Removed from wishlist" });
+    } catch (error: any) {
+      console.error("Error removing from wishlist:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");

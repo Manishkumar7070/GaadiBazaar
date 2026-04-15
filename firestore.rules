@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - fullName: string (optional)
+    //   - phone: string (optional)
+    //   - role: string (optional, enum: buyer, seller, dealer, admin)
+    //   - isProfileComplete: bool (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: wishlists
+    // Document ID: {wishlistId} (usually userId_vehicleId)
+    // Fields:
+    //   - userId: string (required)
+    //   - vehicleId: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "9162808640abcd@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isSeller() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['seller', 'dealer', 'admin'];
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             (!('role' in data) || data.role in ['buyer', 'seller', 'dealer', 'admin']) &&
+             (!('fullName' in data) || (data.fullName is string && data.fullName.size() < 100)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 20));
+    }
+
+    function isValidWishlist(data) {
+      return data.userId == request.auth.uid &&
+             data.vehicleId is string && data.vehicleId.size() > 0;
+    }
+
+    function isValidVehicle(data) {
+      return data.sellerId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 &&
+             data.price is number && data.price >= 0 &&
+             (!('images' in data) || data.images is list) &&
+             (!('verificationStatus' in data) || data.verificationStatus in ['pending', 'verified', 'rejected']);
+    }
+
+    function isValidShop(data) {
+      return data.ownerId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 &&
+             data.address is string && data.address.size() > 0 &&
+             (!('verificationStatus' in data) || data.verificationStatus in ['pending', 'verified', 'rejected']);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (!('role' in request.resource.data) || request.resource.data.role != 'admin');
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /wishlists/{wishlistId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && isValidWishlist(request.resource.data);
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow create: if isSeller() && isValidVehicle(request.resource.data) && 
+                      (!('verificationStatus' in request.resource.data) || request.resource.data.verificationStatus == 'pending');
+      allow update: if (isOwner(resource.data.sellerId) || isAdmin()) && 
+                      isValidVehicle(request.resource.data) &&
+                      (request.resource.data.verificationStatus == resource.data.verificationStatus || isAdmin());
+      allow delete: if isOwner(resource.data.sellerId) || isAdmin();
+    }
+
+    match /shops/{shopId} {
+      allow read: if true;
+      allow create: if isSeller() && isValidShop(request.resource.data) &&
+                      (!('verificationStatus' in request.resource.data) || request.resource.data.verificationStatus == 'pending');
+      allow update: if (isOwner(resource.data.ownerId) || isAdmin()) && 
+                      isValidShop(request.resource.data) &&
+                      (request.resource.data.verificationStatus == resource.data.verificationStatus || isAdmin());
+      allow delete: if isOwner(resource.data.ownerId) || isAdmin();
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-import { authService } from '@/services/auth.service';
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut,
+  signInAnonymously,
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db, googleProvider } from '@/lib/firebase';
 
 interface User {
   id: string;
@@ -14,9 +22,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, code: string) => Promise<User>;
-  logout: () => void;
-  sendOtp: (email: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginQuickly: (data: { fullName?: string; phone?: string }) => Promise<void>;
+  logout: () => Promise<void>;
   completeProfile: (data: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => Promise<void>;
 }
 
@@ -35,72 +43,114 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch additional user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUser({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            fullName: userData.fullName,
+            phone: userData.phone,
+            role: userData.role,
+            isProfileComplete: userData.isProfileComplete,
+          });
+        } else {
+          // New user, initial state
+          setUser({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            isProfileComplete: false,
+          });
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const sendOtp = async (email: string) => {
-    await authService.sendOtp(email);
-  };
-
-  const login = async (email: string, code: string) => {
-    const data = await authService.verifyOtp(email, code);
-    const userData: User = {
-      id: data.user.id,
-      email: data.user.email,
-      fullName: data.user.user_metadata?.full_name,
-      phone: data.user.user_metadata?.phone || data.user.phone,
-      role: data.user.user_metadata?.role,
-      isProfileComplete: !!data.user.user_metadata?.role,
-    };
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    return userData;
+  const loginWithGoogle = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
+      
+      // Check if user exists in Firestore, if not create basic profile
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          fullName: firebaseUser.displayName,
+          createdAt: serverTimestamp(),
+          isProfileComplete: false
+        });
+      }
+    } catch (error) {
+      console.error('Google Login Error:', error);
+      throw error;
+    }
   };
 
   const completeProfile = async (profileData: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => {
-    if (!user) return;
+    if (!auth.currentUser) return;
 
     try {
-      const response = await fetch('/api/auth/complete-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: user.id, 
-          role: profileData.role,
-          name: profileData.fullName,
-          phone: profileData.phone 
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update profile');
-
-      const updatedUser = {
-        ...user,
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await setDoc(userRef, {
         role: profileData.role,
-        fullName: profileData.fullName || user.fullName,
-        phone: profileData.phone || user.phone,
+        fullName: profileData.fullName,
+        phone: profileData.phone,
         isProfileComplete: true,
-      };
+        updatedAt: serverTimestamp()
+      }, { merge: true });
 
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(prev => prev ? {
+        ...prev,
+        role: profileData.role,
+        fullName: profileData.fullName || prev.fullName,
+        phone: profileData.phone || prev.phone,
+        isProfileComplete: true,
+      } : null);
     } catch (error) {
       console.error('Error completing profile:', error);
       throw error;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  const loginQuickly = async (data: { fullName?: string; phone?: string }) => {
+    try {
+      const result = await signInAnonymously(auth);
+      const firebaseUser = result.user;
+      
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      await setDoc(userRef, {
+        uid: firebaseUser.uid,
+        fullName: data.fullName || '',
+        phone: data.phone || '',
+        createdAt: serverTimestamp(),
+        isProfileComplete: false,
+        authMethod: 'anonymous'
+      });
+    } catch (error) {
+      console.error('Quick Login Error:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, sendOtp, completeProfile }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginQuickly, logout, completeProfile }}>
       {children}
     </AuthContext.Provider>
   );

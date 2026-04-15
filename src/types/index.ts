@@ -4,38 +4,51 @@ export type TransmissionType = 'manual' | 'automatic' | 'semi-automatic';
 export type OwnershipType = '1st' | '2nd' | '3rd' | '4th' | '4th+';
 export type VehicleStatus = 'active' | 'sold' | 'pending' | 'inactive';
 
+export type VerificationStatus = 'pending' | 'verified' | 'rejected';
+
 export interface User {
   id: string;
-  phone: string;
+  email: string;
   fullName: string;
+  phone: string;
   role: 'buyer' | 'seller' | 'dealer' | 'admin';
-  isVerified: boolean;
-  profileImage?: string;
-  languagePreference: string;
+  isProfileComplete: boolean;
+  createdAt: string;
 }
 
-export interface Dealer {
+export interface Review {
   id: string;
   userId: string;
-  shopName: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+export interface Shop {
+  id: string;
+  ownerId: string;
+  name: string;
   description: string;
-  shopImages: string[];
-  latitude: number;
-  longitude: number;
   address: string;
   city: string;
   state: string;
-  pincode: string;
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
   phone: string;
-  isVerified: boolean;
-  rating: number;
-  totalReviews: number;
+  images: string[];
+  verificationStatus: VerificationStatus;
+  rating?: number;
+  reviewCount?: number;
+  reviews?: Review[];
+  createdAt: string;
 }
 
 export interface Vehicle {
   id: string;
   sellerId: string;
-  dealerId?: string;
+  shopId?: string;
   title: string;
   description: string;
   price: number;
@@ -51,6 +64,7 @@ export interface Vehicle {
   state: string;
   images: string[];
   status: VehicleStatus;
+  verificationStatus: VerificationStatus;
   isFeatured: boolean;
   isVerified: boolean;
   viewsCount: number;
@@ -82,4 +96,12 @@ export interface SavedSearch {
   name: string;
   filters: SearchFilters;
   createdAt: string;
+}
+
+export interface WishlistItem {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  createdAt: string;
+  vehicle?: Vehicle;
 }

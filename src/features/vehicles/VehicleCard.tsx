@@ -20,7 +20,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
   const navigate = useNavigate();
   const { addToComparison, removeFromComparison, isVehicleSelected } = useComparison();
   const isSelected = isVehicleSelected(vehicle.id);
-  const dealer = vehicle.dealerId ? MOCK_DEALERS.find(d => d.id === vehicle.dealerId) : null;
+  const shop = vehicle.shopId ? MOCK_DEALERS.find(d => d.id === vehicle.shopId) : null;
 
   const toggleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -126,10 +126,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
                 {vehicle.fuelType}
               </Badge>
             </div>
-            {dealer && (
+            {shop && (
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <ShieldCheck size={14} className="text-green-500" />
-                <span>Sold by <span className="font-semibold text-slate-600">{dealer.shopName}</span></span>
+                <span>Sold by <span className="font-semibold text-slate-600">{shop.name}</span></span>
               </div>
             )}
             <Button 

@@ -9,14 +9,15 @@ import { cn } from '@/lib/utils';
 import Logo from '@/components/Logo';
 
 const LoginPage = () => {
-  const { user, login, sendOtp, completeProfile } = useAuth();
+  const { user, loginWithGoogle, loginQuickly, completeProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'email' | 'otp' | 'role' | 'profile'>('email');
+  const [step, setStep] = useState<'login' | 'role' | 'profile'>('login');
   const [loading, setLoading] = useState(false);
+  
+  // Login fields
+  const [loginInput, setLoginInput] = useState('');
   
   // Profile fields
   const [selectedRole, setSelectedRole] = useState<'buyer' | 'seller' | null>(null);
@@ -33,6 +34,27 @@ const LoginPage = () => {
       setStep('role');
     }
   }, [user, navigate, redirect]);
+
+  const handleQuickLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginInput) return;
+
+    setLoading(true);
+    try {
+      // Determine if input is phone or name
+      const isPhone = /^\+?[\d\s-]{10,}$/.test(loginInput);
+      await loginQuickly({
+        fullName: isPhone ? '' : loginInput,
+        phone: isPhone ? loginInput : '',
+      });
+      // Step will change to 'role' via useEffect
+    } catch (error) {
+      console.error('Quick Login Error:', error);
+      alert('Failed to login. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getReasonMessage = () => {
     if (step === 'role') return 'Help us personalize your experience. Are you here to buy or sell?';
@@ -54,37 +76,14 @@ const LoginPage = () => {
     }
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    
+  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      await sendOtp(email);
-      setStep('otp');
+      await loginWithGoogle();
+      // AuthContext will handle state change and useEffect will handle navigation
     } catch (error) {
-      console.error('Error sending OTP:', error);
-      alert('Failed to send OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) return;
-    
-    setLoading(true);
-    try {
-      const userData = await login(email, otp);
-      if (userData.isProfileComplete) {
-        navigate(redirect);
-      } else {
-        setStep('role');
-      }
-    } catch (error) {
-      console.error('Error verifying OTP:', error);
-      alert('Invalid OTP. Please try again.');
+      console.error('Google Login Error:', error);
+      alert('Failed to login with Google. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -128,67 +127,53 @@ const LoginPage = () => {
 
   const renderStep = () => {
     switch (step) {
-      case 'email':
+      case 'login':
         return (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-primary transition-all"
-                />
+          <div className="space-y-6">
+            <form onSubmit={handleQuickLogin} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Number or Name</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <Input 
+                    type="text" 
+                    placeholder="Enter your name or mobile" 
+                    value={loginInput}
+                    onChange={(e) => setLoginInput(e.target.value)}
+                    required
+                    className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-primary transition-all"
+                  />
+                </div>
               </div>
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20"
+              >
+                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Continue'}
+              </Button>
+            </form>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-400 font-bold">Or continue with</span></div>
             </div>
+
             <Button 
-              type="submit" 
+              onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20 flex gap-2"
+              className="w-full h-14 rounded-2xl bg-white border-2 border-slate-100 hover:bg-slate-50 text-slate-700 font-bold text-lg flex gap-3 shadow-sm"
             >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <><Mail size={20} /> Send OTP</>}
+              {loading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <>
+                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                  Google
+                </>
+              )}
             </Button>
-          </form>
-        );
-      case 'otp':
-        return (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Enter 6-digit OTP</label>
-              <div className="relative">
-                <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input 
-                  type="text" 
-                  placeholder="000000" 
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  required
-                  className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-primary transition-all tracking-[0.5em] font-mono text-lg"
-                />
-              </div>
-              <p className="text-xs text-slate-400 text-center">We've sent a code to {email}</p>
-            </div>
-            <Button 
-              type="submit" 
-              disabled={loading}
-              className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20 flex gap-2"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <><LogIn size={20} /> Verify & Login</>}
-            </Button>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              onClick={() => setStep('email')}
-              className="w-full h-12 rounded-xl text-slate-500 hover:text-primary"
-            >
-              Change Email
-            </Button>
-          </form>
+          </div>
         );
       case 'role':
         return (
