@@ -9,11 +9,14 @@ import {
   ShieldCheck,
   Clock,
   XCircle,
-  Car
+  Car,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import { MOCK_VEHICLES, MOCK_DEALERS } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import { motion } from 'motion/react';
@@ -59,7 +62,21 @@ const DealerDetail = () => {
   }, [id]);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
+    );
+  }
+
+  if (!dealer) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <XCircle size={48} className="text-red-500" />
+        <h2 className="text-xl font-bold">Dealer not found</h2>
+        <Button onClick={() => navigate(-1)}>Go Back</Button>
+      </div>
+    );
   }
 
   return (
@@ -118,24 +135,43 @@ const DealerDetail = () => {
               )}
             </div>
             <div className="md:col-span-2 p-8 md:p-12 space-y-6">
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-3xl font-bold text-slate-900">{dealer.name}</h2>
-                    {user?.id === dealer.ownerId && (
-                      <Link to="/edit-shop">
-                        <Button variant="outline" size="sm" className="rounded-xl border-primary text-primary font-bold">
-                          Edit Shop
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-sm font-bold">
-                    <Star size={16} fill="currentColor" />
-                    {dealer.rating || '4.5'} ({dealer.reviewCount || '0'} Reviews)
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-4xl font-black text-slate-900 tracking-tight">{dealer.name}</h2>
+                      {user?.id === dealer.ownerId && (
+                        <Link to="/edit-shop">
+                          <Button variant="outline" size="sm" className="rounded-xl border-primary text-primary font-bold hover:bg-primary/5">
+                            Edit Shop
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star 
+                            key={star} 
+                            size={20} 
+                            className={cn(
+                              "transition-all",
+                              star <= Math.round(dealer.rating || 4.5) 
+                                ? "text-orange-500 fill-orange-500" 
+                                : "text-slate-200"
+                            )} 
+                          />
+                        ))}
+                      </div>
+                      <span className="text-lg font-bold text-slate-900">{dealer.rating || '4.5'}</span>
+                      <Separator orientation="vertical" className="h-4 bg-slate-200" />
+                      <span className="text-sm font-bold text-primary hover:underline cursor-pointer">
+                        {dealer.reviewCount || '0'} Verified Reviews
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <p className="text-slate-500 flex items-center gap-2">
+                <p className="text-slate-500 flex items-center gap-2 font-medium">
                   <MapPin size={18} className="text-primary" />
                   {dealer.address}, {dealer.city}, {dealer.state} - {dealer.pincode}
                 </p>

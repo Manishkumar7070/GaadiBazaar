@@ -13,6 +13,7 @@ interface Suggestion {
 interface SearchSuggestionsProps {
   suggestions: Suggestion[];
   onSelect: (suggestion: Suggestion) => void;
+  onClearRecent?: () => void;
   query: string;
   isVisible: boolean;
 }
@@ -20,6 +21,7 @@ interface SearchSuggestionsProps {
 const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ 
   suggestions, 
   onSelect, 
+  onClearRecent,
   query,
   isVisible 
 }) => {
@@ -47,6 +49,22 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
       <div className="max-h-[400px] overflow-y-auto no-scrollbar">
         {suggestions.length > 0 ? (
           <div className="py-2">
+            {query.length === 0 && suggestions.some(s => s.type === 'history') && (
+              <div className="px-4 py-2 flex items-center justify-between border-b border-slate-50">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recent Searches</span>
+                {onClearRecent && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClearRecent();
+                    }}
+                    className="text-[10px] font-bold text-primary hover:underline"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+            )}
             {suggestions.map((suggestion) => (
               <button
                 key={suggestion.id}

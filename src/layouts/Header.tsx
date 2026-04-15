@@ -44,15 +44,23 @@ const Header = () => {
           <Logo fontSize="text-2xl" iconSize={28} />
         </Link>
 
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <Input 
-            placeholder="Search cars, bikes..." 
-            className="pl-10 bg-slate-100 border-none focus-visible:ring-primary"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+        <div className="hidden md:flex flex-1 max-w-2xl items-center gap-2">
+          <form onSubmit={handleSearch} className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input 
+              placeholder="Search cars, bikes..." 
+              className="pl-10 bg-slate-100 border-none focus-visible:ring-primary h-11 rounded-xl"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </form>
+          <CitySelector 
+            onSelect={(city) => {
+              navigate(`/search?city=${encodeURIComponent(city)}`);
+            }}
+            className="bg-slate-100 h-11 border-none"
           />
-        </form>
+        </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
           <Button 
@@ -63,10 +71,13 @@ const Header = () => {
           >
             <Search size={20} />
           </Button>
-          
-          <div className="flex">
-            <CitySelector />
-          </div>
+
+          <CitySelector 
+            onSelect={(city) => {
+              navigate(`/search?city=${encodeURIComponent(city)}`);
+            }}
+            className="md:hidden px-1"
+          />
           
           <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
             <Bell size={20} />
@@ -132,6 +143,17 @@ const Header = () => {
                       Login / Register
                     </Button>
                   )}
+
+                  <div className="px-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Your Location</p>
+                    <CitySelector 
+                      onSelect={(city) => {
+                        setIsMobileMenuOpen(false);
+                        navigate(`/search?city=${encodeURIComponent(city)}`);
+                      }}
+                      className="w-full justify-start h-14 bg-slate-50 border-slate-100 rounded-2xl"
+                    />
+                  </div>
 
                   <nav className="space-y-1">
                     <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">

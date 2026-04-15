@@ -59,8 +59,20 @@ const Home = () => {
     ? vehicles 
     : vehicles.filter(v => v.vehicleType === activeCategory);
 
-  const handleSearch = () => {
-    navigate('/search');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (searchQuery.trim()) {
+      // Save to recent searches
+      const saved = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+      const updated = [searchQuery.trim(), ...saved.filter((s: string) => s !== searchQuery.trim())].slice(0, 5);
+      localStorage.setItem('recentSearches', JSON.stringify(updated));
+      
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      navigate('/search');
+    }
   };
 
   return (
@@ -107,7 +119,8 @@ const Home = () => {
             </motion.p>
           </div>
           
-          <motion.div 
+          <motion.form 
+            onSubmit={handleSearch}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -118,6 +131,8 @@ const Home = () => {
               <Input 
                 placeholder="Search brand, model..." 
                 className="bg-transparent border-none text-white placeholder:text-slate-400 h-12 pl-12 focus-visible:ring-0 text-base w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="w-px bg-white/20 hidden sm:block h-8" />
@@ -126,12 +141,12 @@ const Home = () => {
               <span className="text-sm font-medium whitespace-nowrap">Bhopal, MP</span>
             </div>
             <Button 
-              onClick={handleSearch}
+              type="submit"
               className="bg-primary hover:bg-primary/90 h-12 px-8 rounded-xl font-bold shadow-lg shadow-primary/20 w-full sm:w-auto"
             >
               Search
             </Button>
-          </motion.div>
+          </motion.form>
         </div>
       </section>
 

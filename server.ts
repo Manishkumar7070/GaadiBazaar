@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
 import rateLimit from "express-rate-limit";
+import slowDown from "express-slow-down";
 import CircuitBreaker from "opossum";
 import retry from "async-retry";
 
@@ -21,6 +22,17 @@ async function startServer() {
   app.set("trust proxy", 1);
 
   app.use(express.json());
+
+  // Global Request Timeout (30 seconds)
+  // This ensures that long-running requests don't hang the server during high load
+  app.use((req, res, next) => {
+    res.setTimeout(30000, () => {
+      if (!res.headersSent) {
+        res.status(408).json({ error: "Request Timeout", message: "The server took too long to respond." });
+      }
+    });
+    next();
+  });
 
   // In-memory Cache (Free 0-cost alternative to Redis)
   const memoryCache = new Map<string, { value: string; expires: number }>();
@@ -48,15 +60,38 @@ async function startServer() {
     quit: async () => "OK",
   };
 
-  // Global Rate Limiting
+  // Global Rate Limiting & Load Management
+  // 1. "Soft" Rate Limiting (Slow Down)
+  // Instead of blocking, we slow down requests after a certain threshold.
+  // This "manages" the load gracefully when usage increases.
+  const speedLimiter = slowDown({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    delayAfter: 50, // allow 50 requests per 15 minutes, then...
+    delayMs: (hits) => hits * 100, // add 100ms of delay per request above 50
+    maxDelayMs: 2000, // max delay of 2 seconds
+  });
+
+  // 2. "Hard" Rate Limiting (Block)
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 150, // Limit each IP to 150 requests per windowMs
     standardHeaders: true,
     legacyHeaders: false,
     message: "Too many requests from this IP, please try again after 15 minutes",
   });
+
+  // 3. Strict Auth Rate Limiting (Prevent Brute Force/Abuse)
+  const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 OTP requests per hour
+    message: "Too many login attempts. Please try again in an hour.",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use("/api/", speedLimiter);
   app.use("/api/", limiter);
+  app.use("/api/auth/send-otp", authLimiter);
 
   // Supabase Client (Server-side)
   const supabaseUrl = process.env.SUPABASE_URL || "";

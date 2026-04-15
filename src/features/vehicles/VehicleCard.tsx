@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle } from 'lucide-react';
+import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle, Share2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Vehicle } from '@/types';
@@ -52,8 +52,35 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
     alert('Contacting seller...');
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const shareData = {
+      title: vehicle.title,
+      text: `Check out this ${vehicle.title} on AsOneDealer!`,
+      url: `${window.location.origin}/vehicle/${vehicle.id}`
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('Link copied to clipboard!');
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Error sharing:', error);
+      }
+    }
+  };
+
   return (
-    <Link to={`/vehicle/${vehicle.id}`}>
+    <div 
+      onClick={() => navigate(`/vehicle/${vehicle.id}`)}
+      className="cursor-pointer"
+    >
       <Card className="group overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-300 bg-white rounded-3xl">
         <div className="relative aspect-[4/3] overflow-hidden">
           <img 
@@ -87,6 +114,13 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
               className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors"
             >
               <Heart size={20} />
+            </button>
+            <button 
+              onClick={handleShare}
+              className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-primary transition-colors"
+              title="Share"
+            >
+              <Share2 size={20} />
             </button>
             <button 
               onClick={toggleCompare}
@@ -137,7 +171,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             {shop && (
               <div className="flex items-center gap-2 text-xs text-slate-400">
                 <ShieldCheck size={14} className="text-green-500" />
-                <span>Sold by <span className="font-semibold text-slate-600">{shop.name}</span></span>
+                <span>Sold by <Link to={`/dealer/${shop.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-slate-600 hover:text-primary transition-colors underline decoration-slate-200 underline-offset-2">{shop.name}</Link></span>
               </div>
             )}
             <Button 
@@ -149,7 +183,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
           </Button>
         </CardContent>
       </Card>
-    </Link>
+    </div>
   );
 };
 

@@ -10,12 +10,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { POPULAR_CITIES, POPULAR_STATES } from '@/constants/cities';
+import { cn } from '@/lib/utils';
 
-const CitySelector = () => {
+interface CitySelectorProps {
+  onSelect?: (city: string) => void;
+  className?: string;
+}
+
+const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
   const [selectedCity, setSelectedCity] = useState('New Delhi');
   const [searchQuery, setSearchQuery] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleSelect = (city: string) => {
+    setSelectedCity(city);
+    setIsOpen(false);
+    if (onSelect) onSelect(city);
+  };
 
   useEffect(() => {
     const checkStandalone = () => {
@@ -39,7 +51,7 @@ const CitySelector = () => {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger 
         render={
-          <Button variant="ghost" className="flex items-center gap-1 px-2 sm:px-4 hover:bg-slate-100 rounded-full h-10 transition-all duration-200">
+          <Button variant="ghost" className={cn("flex items-center gap-1 px-2 sm:px-4 hover:bg-slate-100 rounded-full h-10 transition-all duration-200", className)}>
             <MapPin size={18} className="text-primary shrink-0" />
             <span className="font-semibold text-slate-700 hidden sm:inline truncate max-w-[100px]">{selectedCity}</span>
             <ChevronDown size={16} className="text-slate-400 shrink-0" />
@@ -79,10 +91,7 @@ const CitySelector = () => {
                 {filteredStates.map((state) => (
                   <button
                     key={state.name}
-                    onClick={() => {
-                      setSelectedCity(state.name);
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handleSelect(state.name)}
                     className="flex flex-col items-center gap-4 group outline-none"
                   >
                     <div className={`relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden border-2 transition-all duration-300 transform group-hover:scale-105 group-active:scale-95 ${selectedCity === state.name ? 'border-primary ring-4 ring-primary/10' : 'border-transparent group-hover:border-slate-200 shadow-sm group-hover:shadow-md'}`}>
@@ -125,10 +134,7 @@ const CitySelector = () => {
                 {filteredCities.map((city) => (
                   <button
                     key={city.name}
-                    onClick={() => {
-                      setSelectedCity(city.name);
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handleSelect(city.name)}
                     className="flex flex-col items-center gap-4 group outline-none"
                   >
                     <div className={`relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden border-2 transition-all duration-300 transform group-hover:scale-105 group-active:scale-95 ${selectedCity === city.name ? 'border-primary ring-4 ring-primary/10' : 'border-transparent group-hover:border-slate-200 shadow-sm group-hover:shadow-md'}`}>

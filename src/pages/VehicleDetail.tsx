@@ -131,7 +131,7 @@ const VehicleDetail = () => {
             const s = await shopService.fetchShopById(v.shopId);
             setShop(s);
           }
-          
+
           // Load similar vehicles
           const similar = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
           setSimilarVehicles(similar.filter(item => item.id !== v.id && (item.brand === v.brand || item.vehicleType === v.vehicleType)).slice(0, 4));
@@ -409,7 +409,7 @@ const VehicleDetail = () => {
           <Card className="rounded-[2rem] border-none shadow-lg overflow-hidden">
             <CardContent className="p-6 space-y-6">
               {shop ? (
-                <div className="flex items-center gap-4 group cursor-pointer">
+                <Link to={`/dealer/${shop.id}`} className="flex items-center gap-4 group cursor-pointer">
                   <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary group-hover:bg-primary/10 transition-colors">
                     {shop.name[0]}
                   </div>
@@ -428,7 +428,7 @@ const VehicleDetail = () => {
                       <span className="text-slate-400 font-normal">({shop.reviewCount || '0'} reviews)</span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ) : (
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary">

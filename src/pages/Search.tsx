@@ -130,6 +130,12 @@ const SearchPage = () => {
     }
   }, [debouncedSearchQuery, recentSearches]);
 
+  const handleClearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recentSearches');
+    setSuggestions([]);
+  };
+
   const handleVoiceSearch = () => {
     if (!('webkitSpeechRecognition' in window)) {
       alert('Voice search is not supported in your browser.');
@@ -232,7 +238,10 @@ const SearchPage = () => {
     const owner = searchParams.get('owner');
 
     if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner) {
-      if (q) setSearchQuery(q);
+      if (q) {
+        setSearchQuery(q);
+        parseSmartQuery(q);
+      }
       setFilters({
         brand: brand || q || '',
         model: model || undefined,
@@ -377,6 +386,7 @@ const SearchPage = () => {
               query={searchQuery}
               isVisible={showSuggestions}
               onSelect={handleSuggestionSelect}
+              onClearRecent={handleClearRecentSearches}
             />
           </div>
           
@@ -756,14 +766,31 @@ const SearchPage = () => {
                 />
               </PaginationItem>
               
-              {Array.from({ length: totalPages }).map((_, i) => {
-                const page = i + 1;
-                // Simple pagination logic: show first, last, and current +/- 1
-                if (
-                  page === 1 || 
-                  page === totalPages || 
-                  (page >= currentPage - 1 && page <= currentPage + 1)
-                ) {
+              {(() => {
+                const pages = [];
+                const showMax = 5;
+                
+                if (totalPages <= showMax) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (currentPage <= 3) {
+                    pages.push(2, 3, 4, 'ellipsis', totalPages);
+                  } else if (currentPage >= totalPages - 2) {
+                    pages.push('ellipsis', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                  } else {
+                    pages.push('ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages);
+                  }
+                }
+
+                return pages.map((page, i) => {
+                  if (page === 'ellipsis') {
+                    return (
+                      <PaginationItem key={`ellipsis-${i}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
                   return (
                     <PaginationItem key={page}>
                       <PaginationLink 
@@ -771,25 +798,15 @@ const SearchPage = () => {
                         isActive={currentPage === page}
                         onClick={(e) => {
                           e.preventDefault();
-                          handlePageChange(page);
+                          handlePageChange(page as number);
                         }}
                       >
                         {page}
                       </PaginationLink>
                     </PaginationItem>
                   );
-                } else if (
-                  page === currentPage - 2 || 
-                  page === currentPage + 2
-                ) {
-                  return (
-                    <PaginationItem key={page}>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  );
-                }
-                return null;
-              })}
+                });
+              })()}
 
               <PaginationItem>
                 <PaginationNext 

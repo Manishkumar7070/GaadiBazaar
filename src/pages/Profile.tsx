@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin } from 'lucide-react';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { SavedSearch, Vehicle, WishlistItem, Shop } from '@/types';
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,6 +26,7 @@ const Profile = () => {
   const [shop, setShop] = useState<Shop | null>(null);
   const [shopLoading, setShopLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -183,6 +185,12 @@ const Profile = () => {
                 Edit Shop
               </Button>
             </Link>
+            <Separator orientation="vertical" className="h-4" />
+            <Link to={`/dealer/${shop.id}`}>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg flex gap-1 items-center">
+                <Eye size={12} /> Preview
+              </Button>
+            </Link>
           </div>
         )}
       </div>
@@ -207,9 +215,16 @@ const Profile = () => {
                       <MapPin size={14} /> {shop.city}, {shop.state}
                     </p>
                   </div>
-                  <Link to="/edit-shop">
-                    <Button variant="outline" size="sm" className="rounded-xl font-bold">Edit Details</Button>
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link to={`/dealer/${shop.id}`}>
+                      <Button variant="outline" size="sm" className="rounded-xl font-bold flex gap-2 items-center">
+                        <Eye size={16} /> View Public Profile
+                      </Button>
+                    </Link>
+                    <Link to="/edit-shop">
+                      <Button variant="outline" size="sm" className="rounded-xl font-bold">Edit Details</Button>
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -243,12 +258,24 @@ const Profile = () => {
                       {shop.images.map((img, i) => (
                         <div key={i} className="aspect-video rounded-2xl overflow-hidden border border-slate-100 relative group">
                           <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          <button 
-                            onClick={() => removeShopPhoto(i)}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <Button 
+                              variant="secondary" 
+                              size="icon" 
+                              className="rounded-full w-8 h-8"
+                              onClick={() => setSelectedImage(img)}
+                            >
+                              <Eye size={14} />
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="icon" 
+                              className="rounded-full w-8 h-8"
+                              onClick={() => removeShopPhoto(i)}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -444,6 +471,33 @@ const Profile = () => {
       >
         <LogOut size={20} /> Logout
       </Button>
+
+      {/* Image Preview Modal */}
+      <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Shop Photo Preview</DialogTitle>
+          </DialogHeader>
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            <Button 
+              variant="secondary" 
+              size="icon" 
+              className="absolute top-6 right-6 rounded-full z-50 shadow-xl"
+              onClick={() => setSelectedImage(null)}
+            >
+              <X size={20} />
+            </Button>
+            {selectedImage && (
+              <img 
+                src={selectedImage} 
+                alt="Shop Preview" 
+                className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+                referrerPolicy="no-referrer"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
