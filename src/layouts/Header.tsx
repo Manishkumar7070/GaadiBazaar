@@ -13,10 +13,20 @@ import {
   SheetTrigger 
 } from '@/components/ui/sheet';
 
+import CitySelector from '@/components/shared/CitySelector';
+
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   const handleSellClick = () => {
     if (!user) {
@@ -34,13 +44,15 @@ const Header = () => {
           <Logo fontSize="text-2xl" iconSize={28} />
         </Link>
 
-        <div className="hidden md:flex flex-1 max-w-md relative">
+        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <Input 
             placeholder="Search cars, bikes..." 
             className="pl-10 bg-slate-100 border-none focus-visible:ring-primary"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
+        </form>
 
         <div className="flex items-center gap-2 sm:gap-4">
           <Button 
@@ -52,9 +64,10 @@ const Header = () => {
             <Search size={20} />
           </Button>
           
-          <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
-            <MapPin size={20} />
-          </Button>
+          <div className="flex">
+            <CitySelector />
+          </div>
+          
           <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
             <Bell size={20} />
           </Button>

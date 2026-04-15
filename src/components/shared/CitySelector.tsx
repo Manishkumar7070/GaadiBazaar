@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
-import { POPULAR_CITIES } from '@/constants/cities';
+import { POPULAR_CITIES, POPULAR_STATES } from '@/constants/cities';
 
 const CitySelector = () => {
   const [selectedCity, setSelectedCity] = useState('New Delhi');
@@ -31,6 +31,10 @@ const CitySelector = () => {
     city.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredStates = POPULAR_STATES.filter(state =>
+    state.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger 
@@ -42,10 +46,10 @@ const CitySelector = () => {
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto rounded-3xl p-0 gap-0 border-none shadow-2xl">
+      <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto rounded-3xl p-0 gap-0 border-none shadow-2xl">
         <DialogHeader className="p-6 border-b sticky top-0 bg-white/95 backdrop-blur-sm z-10">
           <div className="flex items-center justify-between mb-6">
-            <DialogTitle className="text-2xl font-bold text-slate-900">Select your city</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-slate-900">Select your location</DialogTitle>
           </div>
           
           {!isStandalone && (
@@ -53,7 +57,7 @@ const CitySelector = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                 <Input 
-                  placeholder="Search for your city" 
+                  placeholder="Search for city or state" 
                   className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-100 focus-visible:ring-primary focus-visible:bg-white transition-all text-lg"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -67,48 +71,94 @@ const CitySelector = () => {
           )}
         </DialogHeader>
 
-        <div className="p-8">
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Popular cities</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-10">
-            {filteredCities.map((city) => (
-              <button
-                key={city.name}
-                onClick={() => {
-                  setSelectedCity(city.name);
-                  setIsOpen(false);
-                }}
-                className="flex flex-col items-center gap-4 group outline-none"
-              >
-                <div className={`relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden border-2 transition-all duration-300 transform group-hover:scale-105 group-active:scale-95 ${selectedCity === city.name ? 'border-primary ring-4 ring-primary/10' : 'border-transparent group-hover:border-slate-200 shadow-sm group-hover:shadow-md'}`}>
-                  <img 
-                    src={city.image} 
-                    alt={city.name} 
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    referrerPolicy="no-referrer"
-                  />
-                  {selectedCity === city.name && (
-                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[2px]">
-                      <div className="bg-white rounded-full p-2 shadow-xl animate-in zoom-in duration-300">
-                        <div className="bg-primary text-white rounded-full p-1">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </div>
+        <div className="p-8 space-y-12">
+          {filteredStates.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Popular States</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-10">
+                {filteredStates.map((state) => (
+                  <button
+                    key={state.name}
+                    onClick={() => {
+                      setSelectedCity(state.name);
+                      setIsOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-4 group outline-none"
+                  >
+                    <div className={`relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden border-2 transition-all duration-300 transform group-hover:scale-105 group-active:scale-95 ${selectedCity === state.name ? 'border-primary ring-4 ring-primary/10' : 'border-transparent group-hover:border-slate-200 shadow-sm group-hover:shadow-md'}`}>
+                      <img 
+                        src={state.image} 
+                        alt={state.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-3">
+                        <span className="text-[10px] text-white font-bold uppercase tracking-wider">{state.landmark}</span>
                       </div>
+                      {selectedCity === state.name && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[2px]">
+                          <div className="bg-white rounded-full p-2 shadow-xl animate-in zoom-in duration-300">
+                            <div className="bg-primary text-white rounded-full p-1">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <span className={`text-sm font-bold tracking-tight transition-colors duration-200 ${selectedCity === city.name ? 'text-primary' : 'text-slate-600 group-hover:text-slate-900'}`}>
-                  {city.name}
-                </span>
-              </button>
-            ))}
-          </div>
+                    <span className={`text-sm font-bold tracking-tight transition-colors duration-200 ${selectedCity === state.name ? 'text-primary' : 'text-slate-600 group-hover:text-slate-900'}`}>
+                      {state.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {filteredCities.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Popular cities</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-10">
+                {filteredCities.map((city) => (
+                  <button
+                    key={city.name}
+                    onClick={() => {
+                      setSelectedCity(city.name);
+                      setIsOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-4 group outline-none"
+                  >
+                    <div className={`relative w-full aspect-[4/3] rounded-[2rem] overflow-hidden border-2 transition-all duration-300 transform group-hover:scale-105 group-active:scale-95 ${selectedCity === city.name ? 'border-primary ring-4 ring-primary/10' : 'border-transparent group-hover:border-slate-200 shadow-sm group-hover:shadow-md'}`}>
+                      <img 
+                        src={city.image} 
+                        alt={city.name} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                      {selectedCity === city.name && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[2px]">
+                          <div className="bg-white rounded-full p-2 shadow-xl animate-in zoom-in duration-300">
+                            <div className="bg-primary text-white rounded-full p-1">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <span className={`text-sm font-bold tracking-tight transition-colors duration-200 ${selectedCity === city.name ? 'text-primary' : 'text-slate-600 group-hover:text-slate-900'}`}>
+                      {city.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           
-          {filteredCities.length === 0 && (
+          {filteredCities.length === 0 && filteredStates.length === 0 && (
             <div className="py-20 text-center">
               <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search size={32} className="text-slate-300" />
               </div>
-              <p className="text-slate-500 font-medium">No cities found matching "{searchQuery}"</p>
+              <p className="text-slate-500 font-medium">No locations found matching "{searchQuery}"</p>
             </div>
           )}
         </div>

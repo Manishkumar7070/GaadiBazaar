@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store } from 'lucide-react';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,8 @@ import { MOCK_VEHICLES } from '@/constants/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import { useWishlist } from '@/hooks/useWishlist';
 import { shopService } from '@/services/shop.service';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 
 const Profile = () => {
@@ -22,6 +24,8 @@ const Profile = () => {
   const [recentlyViewed, setRecentlyViewed] = useState<Vehicle[]>([]);
   const [shop, setShop] = useState<Shop | null>(null);
   const [shopLoading, setShopLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -65,6 +69,44 @@ const Profile = () => {
     const updated = savedSearches.filter(s => s.id !== id);
     setSavedSearches(updated);
     localStorage.setItem('savedSearches', JSON.stringify(updated));
+  };
+
+  const handleShopPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !user || !shop) return;
+
+    setUploading(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const filename = `${Date.now()}-${file.name}`;
+        const storageRef = ref(storage, `shops/${user.id}/${filename}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        return await getDownloadURL(snapshot.ref);
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      const updatedImages = [...(shop.images || []), ...uploadedUrls];
+      
+      await shopService.updateShop(shop.id, { images: updatedImages });
+      setShop({ ...shop, images: updatedImages });
+    } catch (error) {
+      console.error('Error uploading shop photos:', error);
+      alert('Failed to upload photos.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeShopPhoto = async (index: number) => {
+    if (!shop) return;
+    const updatedImages = shop.images.filter((_, i) => i !== index);
+    try {
+      await shopService.updateShop(shop.id, { images: updatedImages });
+      setShop({ ...shop, images: updatedImages });
+    } catch (error) {
+      console.error('Error removing shop photo:', error);
+    }
   };
 
   const menuItems = [
@@ -145,13 +187,89 @@ const Profile = () => {
         )}
       </div>
 
-      <Tabs defaultValue="menu" className="w-full flex flex-col gap-6">
-        <TabsList className="grid grid-cols-4 w-full rounded-2xl bg-slate-100 p-1 gap-1 h-12">
+      <Tabs defaultValue={shop ? "shop" : "menu"} className="w-full flex flex-col gap-6">
+        <TabsList className={`grid ${shop ? 'grid-cols-5' : 'grid-cols-4'} w-full rounded-2xl bg-slate-100 p-1 gap-1 h-12`}>
+          {shop && <TabsTrigger value="shop" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">My Shop</TabsTrigger>}
           <TabsTrigger value="menu" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Menu</TabsTrigger>
           <TabsTrigger value="wishlist" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Wishlist</TabsTrigger>
           <TabsTrigger value="saved" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Saved</TabsTrigger>
           <TabsTrigger value="recent" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Recent</TabsTrigger>
         </TabsList>
+        
+        {shop && (
+          <TabsContent value="shop" className="mt-6 space-y-6">
+            <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
+              <CardContent className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">{shop.name}</h3>
+                    <p className="text-slate-500 text-sm flex items-center gap-1 mt-1">
+                      <MapPin size={14} /> {shop.city}, {shop.state}
+                    </p>
+                  </div>
+                  <Link to="/edit-shop">
+                    <Button variant="outline" size="sm" className="rounded-xl font-bold">Edit Details</Button>
+                  </Link>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                      <PlusCircle size={18} className="text-primary" />
+                      Shop Photos
+                    </h4>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleShopPhotoUpload} 
+                      multiple 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-primary font-bold hover:bg-primary/5"
+                    >
+                      {uploading ? <Loader2 className="animate-spin mr-2" size={16} /> : <PlusCircle className="mr-2" size={16} />}
+                      {uploading ? 'Uploading...' : 'Add Photos'}
+                    </Button>
+                  </div>
+
+                  {shop.images && shop.images.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {shop.images.map((img, i) => (
+                        <div key={i} className="aspect-video rounded-2xl overflow-hidden border border-slate-100 relative group">
+                          <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <button 
+                            onClick={() => removeShopPhoto(i)}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                      <Store className="mx-auto text-slate-300 mb-2" size={32} />
+                      <p className="text-slate-500 text-sm">No photos uploaded yet.</p>
+                      <Button 
+                        variant="link" 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-primary font-bold"
+                      >
+                        Upload your first photo
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
         
         <TabsContent value="menu" className="mt-6">
           <Card className="rounded-3xl border-none shadow-sm overflow-hidden">

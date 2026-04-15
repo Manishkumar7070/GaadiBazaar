@@ -24,6 +24,21 @@ export const POPULAR_CITIES = [
   { name: 'Ludhiana', state: 'Punjab', image: 'https://images.unsplash.com/photo-1611638206900-532292881640?auto=format&fit=crop&w=200&h=150' },
 ];
 
+export const POPULAR_STATES = [
+  { name: 'Maharashtra', image: 'https://images.unsplash.com/photo-1562979314-bee7453e911c?auto=format&fit=crop&w=200&h=150', landmark: 'Gateway of India' },
+  { name: 'Delhi', image: 'https://images.unsplash.com/photo-1587474260584-1f20d4296c06?auto=format&fit=crop&w=200&h=150', landmark: 'India Gate' },
+  { name: 'Karnataka', image: 'https://images.unsplash.com/photo-1599930333423-5635671217a3?auto=format&fit=crop&w=200&h=150', landmark: 'Vidhana Soudha' },
+  { name: 'Tamil Nadu', image: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=200&h=150', landmark: 'Marina Beach' },
+  { name: 'Telangana', image: 'https://images.unsplash.com/photo-1605000797499-95a51c5269ae?auto=format&fit=crop&w=200&h=150', landmark: 'Charminar' },
+  { name: 'Rajasthan', image: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=200&h=150', landmark: 'Hawa Mahal' },
+  { name: 'West Bengal', image: 'https://images.unsplash.com/photo-1558431382-bb7b58ce4d8d?auto=format&fit=crop&w=200&h=150', landmark: 'Victoria Memorial' },
+  { name: 'Gujarat', image: 'https://images.unsplash.com/photo-1603262110263-fb0112e7cc33?auto=format&fit=crop&w=200&h=150', landmark: 'Statue of Unity' },
+  { name: 'Uttar Pradesh', image: 'https://images.unsplash.com/photo-1564507592333-c60657eaa0ae?auto=format&fit=crop&w=200&h=150', landmark: 'Taj Mahal' },
+  { name: 'Bihar', image: 'https://images.unsplash.com/photo-1622322062691-766723f53878?auto=format&fit=crop&w=200&h=150', landmark: 'Golghar' },
+  { name: 'Madhya Pradesh', image: 'https://images.unsplash.com/photo-1605465067531-291cc5c91483?auto=format&fit=crop&w=200&h=150', landmark: 'Rajwada' },
+  { name: 'Kerala', image: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=200&h=150', landmark: 'Backwaters' },
+];
+
 export const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ];

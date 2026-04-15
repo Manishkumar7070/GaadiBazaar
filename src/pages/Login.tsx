@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LogIn, Mail, ShieldCheck, ArrowRight, Loader2, User, ShoppingCart, Tag, Phone } from 'lucide-react';
+import { LogIn, ShieldCheck, ArrowRight, Loader2, User, ShoppingCart, Tag, Phone, MapPin, Camera, Mic, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/Logo';
+import { motion, AnimatePresence } from 'motion/react';
 
 const LoginPage = () => {
   const { user, loginWithGoogle, loginQuickly, completeProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const [step, setStep] = useState<'login' | 'role' | 'profile'>('login');
+  const [step, setStep] = useState<'login' | 'permissions' | 'role' | 'profile'>('login');
   const [loading, setLoading] = useState(false);
   
   // Login fields
-  const [loginInput, setLoginInput] = useState('');
-  
-  // Profile fields
-  const [selectedRole, setSelectedRole] = useState<'buyer' | 'seller' | null>(null);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   
@@ -35,44 +32,22 @@ const LoginPage = () => {
     }
   }, [user, navigate, redirect]);
 
-  const handleQuickLogin = async (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginInput) return;
+    if (!fullName || !phone) return;
 
     setLoading(true);
     try {
-      // Determine if input is phone or name
-      const isPhone = /^\+?[\d\s-]{10,}$/.test(loginInput);
       await loginQuickly({
-        fullName: isPhone ? '' : loginInput,
-        phone: isPhone ? loginInput : '',
+        fullName: fullName,
+        phone: phone,
       });
       // Step will change to 'role' via useEffect
     } catch (error: any) {
       console.error('Quick Login Error:', error);
-      alert(`Failed to login: ${error.message || 'Unknown error'}. If you are on Vercel, make sure Anonymous Auth is enabled in Firebase Console.`);
+      alert(`Failed to login: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getReasonMessage = () => {
-    if (step === 'role') return 'Help us personalize your experience. Are you here to buy or sell?';
-    if (step === 'profile') return 'Just a few more details to get you started.';
-    
-    switch (reason) {
-      case 'save_search':
-        return 'Please log in to save your search filters and get notified of new listings.';
-      case 'list_vehicle':
-        return 'You need to be logged in to list your vehicle for sale on AsOneDealer.';
-      case 'favorite_vehicle':
-        return 'Log in to save this vehicle to your favorites and track price drops.';
-      case 'contact_seller':
-        return 'Please log in to view the seller\'s contact details and start a conversation.';
-      case 'profile':
-        return 'Please log in to view your profile and managed your listings.';
-      default:
-        return 'Log in to access all features of AsOneDealer.';
     }
   };
 
@@ -80,24 +55,22 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await loginWithGoogle();
-      // AuthContext will handle state change and useEffect will handle navigation
     } catch (error: any) {
       console.error('Google Login Error:', error);
-      alert(`Failed to login with Google: ${error.message || 'Unknown error'}. Make sure your Vercel domain is added to "Authorized Domains" in Firebase Console.`);
+      alert(`Failed to login with Google: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRoleSelect = async (role: 'buyer' | 'seller') => {
-    setSelectedRole(role);
     if (role === 'buyer') {
       setStep('profile');
     } else {
       setLoading(true);
       try {
         await completeProfile({ role: 'seller' });
-        navigate(redirect);
+        setStep('permissions');
       } catch (error) {
         alert('Failed to set role. Please try again.');
       } finally {
@@ -106,180 +79,199 @@ const LoginPage = () => {
     }
   };
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRole || !fullName || !phone) return;
-
-    setLoading(true);
-    try {
-      await completeProfile({
-        role: selectedRole,
-        fullName: fullName,
-        phone: phone,
-      });
-      navigate(redirect);
-    } catch (error) {
-      alert('Failed to complete profile. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handlePermissionsDone = () => {
+    navigate(redirect);
   };
 
-  const renderStep = () => {
-    switch (step) {
-      case 'login':
-        return (
-          <div className="space-y-6">
-            <form onSubmit={handleQuickLogin} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Number or Name</label>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <Input 
-                    type="text" 
-                    placeholder="Enter your name or mobile" 
-                    value={loginInput}
-                    onChange={(e) => setLoginInput(e.target.value)}
-                    required
-                    className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-primary transition-all"
-                  />
-                </div>
-              </div>
-              <Button 
-                type="submit" 
-                disabled={loading}
-                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20"
-              >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Continue'}
-              </Button>
-            </form>
-
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-slate-400 font-bold">Or continue with</span></div>
-            </div>
-
-            <Button 
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="w-full h-14 rounded-2xl bg-white border-2 border-slate-100 hover:bg-slate-50 text-slate-700 font-bold text-lg flex gap-3 shadow-sm"
-            >
-              {loading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <>
-                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                  Google
-                </>
-              )}
-            </Button>
-          </div>
-        );
-      case 'role':
-        return (
-          <div className="grid grid-cols-1 gap-4">
-            <button
-              onClick={() => handleRoleSelect('buyer')}
-              className="group p-6 rounded-3xl border-2 border-slate-100 hover:border-primary hover:bg-primary/5 transition-all text-left flex items-center gap-4"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-                <ShoppingCart size={28} />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">I want to Buy</h3>
-                <p className="text-sm text-slate-500">Browse and purchase vehicles</p>
-              </div>
-              <ArrowRight className="ml-auto text-slate-300 group-hover:text-primary transition-colors" size={20} />
-            </button>
-            <button
-              onClick={() => handleRoleSelect('seller')}
-              className="group p-6 rounded-3xl border-2 border-slate-100 hover:border-primary hover:bg-primary/5 transition-all text-left flex items-center gap-4"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-                <Tag size={28} />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">I want to Sell</h3>
-                <p className="text-sm text-slate-500">List and sell your vehicles</p>
-              </div>
-              <ArrowRight className="ml-auto text-slate-300 group-hover:text-primary transition-colors" size={20} />
-            </button>
-          </div>
-        );
-      case 'profile':
-        return (
-          <form onSubmit={handleProfileSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input 
-                  type="text" 
-                  placeholder="John Doe" 
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-primary transition-all"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact Number</label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input 
-                  type="tel" 
-                  placeholder="+91 98765 43210" 
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  required
-                  className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-primary transition-all"
-                />
-              </div>
-            </div>
-            <Button 
-              type="submit" 
-              disabled={loading}
-              className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-lg shadow-primary/20"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Complete Sign Up'}
-            </Button>
-          </form>
-        );
-      default:
-        return null;
+  const getReasonMessage = () => {
+    switch (reason) {
+      case 'save_search': return 'Log in to save your searches.';
+      case 'list_vehicle': return 'Log in to sell your vehicle.';
+      case 'favorite_vehicle': return 'Log in to save favorites.';
+      case 'contact_seller': return 'Log in to contact sellers.';
+      default: return 'Join India\'s most trusted vehicle marketplace.';
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md rounded-[2.5rem] border-none shadow-2xl overflow-hidden bg-white">
-        <CardHeader className="bg-primary text-white p-8 space-y-4">
-          <div className="w-auto h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md px-6">
-            <Logo variant="light" fontSize="text-2xl" iconSize={28} />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50/50">
+      <div className="w-full max-w-md space-y-8">
+        {/* Logo Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center text-center space-y-2"
+        >
+          <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 mb-2">
+            <Logo iconSize={32} fontSize="text-xl" />
           </div>
-          <div className="space-y-1">
-            <CardTitle className="text-2xl font-bold">
-              {step === 'role' ? 'Choose Your Path' : step === 'profile' ? 'Complete Profile' : 'Welcome Back'}
-            </CardTitle>
-            <CardDescription className="text-white/80">
-              {getReasonMessage()}
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="p-8 space-y-6">
-          {renderStep()}
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">
+            Welcome to <span className="text-primary">AsOneDealer</span>
+          </h1>
+          <p className="text-slate-500 font-medium max-w-[280px]">
+            {getReasonMessage()}
+          </p>
+        </motion.div>
 
-          <div className="pt-4 border-t border-slate-50">
-            <div className="flex items-center justify-center py-2">
-              <Logo fontSize="text-lg" iconSize={20} />
+        <Card className="rounded-[2.5rem] border-none shadow-2xl shadow-primary/5 overflow-hidden bg-white">
+          <CardContent className="p-8 sm:p-10">
+            <AnimatePresence mode="wait">
+              {step === 'login' && (
+                <motion.div
+                  key="login"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <form onSubmit={handleContinue} className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <Input 
+                          type="text" 
+                          placeholder="Enter your name" 
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          required
+                          className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Mobile Number</label>
+                      <div className="relative">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <Input 
+                          type="tel" 
+                          placeholder="Enter mobile number" 
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          required
+                          className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      disabled={loading}
+                      className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={24} /> : 'Continue'}
+                    </Button>
+                  </form>
+
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
+                    <div className="relative flex justify-center text-[10px] uppercase tracking-widest"><span className="bg-white px-4 text-slate-400 font-black">Or continue with</span></div>
+                  </div>
+
+                  <Button 
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    variant="outline"
+                    className="w-full h-14 rounded-2xl border-2 border-slate-100 hover:bg-slate-50 text-slate-700 font-bold text-lg flex gap-3 transition-all"
+                  >
+                    <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                    Google
+                  </Button>
+                </motion.div>
+              )}
+
+              {step === 'role' && (
+                <motion.div
+                  key="role"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-4"
+                >
+                  <h2 className="text-xl font-bold text-center mb-6">How would you like to use AsOneDealer?</h2>
+                  <button
+                    onClick={() => handleRoleSelect('buyer')}
+                    className="w-full group p-6 rounded-3xl border-2 border-slate-100 hover:border-primary hover:bg-primary/5 transition-all text-left flex items-center gap-5"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
+                      <ShoppingCart size={28} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-slate-900">I want to Buy</h3>
+                      <p className="text-sm text-slate-500">Find your dream vehicle</p>
+                    </div>
+                    <ArrowRight className="text-slate-300 group-hover:text-primary transition-colors" size={20} />
+                  </button>
+                  <button
+                    onClick={() => handleRoleSelect('seller')}
+                    className="w-full group p-6 rounded-3xl border-2 border-slate-100 hover:border-primary hover:bg-primary/5 transition-all text-left flex items-center gap-5"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
+                      <Tag size={28} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-slate-900">I want to Sell</h3>
+                      <p className="text-sm text-slate-500">List and sell quickly</p>
+                    </div>
+                    <ArrowRight className="text-slate-300 group-hover:text-primary transition-colors" size={20} />
+                  </button>
+                </motion.div>
+              )}
+
+              {step === 'permissions' && (
+                <motion.div
+                  key="permissions"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-8 text-center"
+                >
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold text-slate-900">Enable Permissions</h2>
+                    <p className="text-slate-500">We need these to provide the best experience for buying and selling.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {[
+                      { icon: MapPin, label: 'Location', desc: 'To find vehicles near you' },
+                      { icon: Camera, label: 'Camera', desc: 'To take photos of your vehicle' },
+                      { icon: Mic, label: 'Microphone', desc: 'For voice search and support' },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl text-left">
+                        <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm">
+                          <item.icon size={24} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{item.label}</p>
+                          <p className="text-xs text-slate-500">{item.desc}</p>
+                        </div>
+                        <CheckCircle2 className="ml-auto text-green-500" size={20} />
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button 
+                    onClick={handlePermissionsDone}
+                    className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-lg shadow-xl"
+                  >
+                    Get Started
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-8 pt-6 border-t border-slate-50 text-center space-y-4">
+              <p className="text-[11px] text-slate-400 leading-relaxed px-4">
+                By continuing, you agree to our <span className="text-primary font-bold cursor-pointer hover:underline">Terms of Service</span> and <span className="text-primary font-bold cursor-pointer hover:underline">Privacy Policy</span>.
+              </p>
+              <div className="flex items-center justify-center gap-2 opacity-30 grayscale">
+                <ShieldCheck size={14} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Secure & Verified</span>
+              </div>
             </div>
-            <p className="text-center text-xs text-slate-400 mt-4">
-              By continuing, you agree to our <span className="text-primary font-medium cursor-pointer">Terms of Service</span> and <span className="text-primary font-medium cursor-pointer">Privacy Policy</span>.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

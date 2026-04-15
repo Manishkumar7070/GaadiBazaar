@@ -1,5 +1,5 @@
 {
   "name": "AsOneDealer",
   "description": "A production-ready marketplace for buying and selling second-hand vehicles in Tier-2/3 India.",
-  "requestFramePermissions": ["geolocation"]
+  "requestFramePermissions": ["geolocation", "camera", "microphone"]
 }
