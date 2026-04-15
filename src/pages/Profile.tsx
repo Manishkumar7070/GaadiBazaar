@@ -71,7 +71,13 @@ const Profile = () => {
     { icon: Package, label: 'My Listings', count: 0 },
     { icon: Heart, label: 'Wishlist', count: wishlist.length },
     { icon: Bell, label: 'Notifications', count: 5 },
-    { icon: Shield, label: 'Verification Status', status: 'Pending' },
+    { 
+      icon: Shield, 
+      label: 'Verification Status', 
+      status: shop ? shop.verificationStatus : 'Not Registered',
+      statusColor: shop?.verificationStatus === 'verified' ? 'text-green-500' : 
+                   shop?.verificationStatus === 'rejected' ? 'text-red-500' : 'text-orange-500'
+    },
     { icon: Settings, label: 'Account Settings' },
   ];
 
@@ -120,12 +126,21 @@ const Profile = () => {
           )}
         </div>
         {shop && (
-          <div className="mt-4 flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+          <div className="mt-4 flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
             <Store size={16} className="text-primary" />
             <span className="text-sm font-bold">{shop.name}</span>
-            <Badge variant={shop.verificationStatus === 'verified' ? 'default' : 'secondary'} className="text-[10px] uppercase">
+            <Badge 
+              variant={shop.verificationStatus === 'verified' ? 'default' : shop.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
+              className={`text-[10px] uppercase ${shop.verificationStatus === 'verified' ? 'bg-green-500 hover:bg-green-600' : ''}`}
+            >
               {shop.verificationStatus}
             </Badge>
+            <Separator orientation="vertical" className="h-4" />
+            <Link to="/edit-shop">
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-bold text-primary hover:text-primary/80 hover:bg-primary/5 rounded-lg">
+                Edit Shop
+              </Button>
+            </Link>
           </div>
         )}
       </div>
@@ -159,7 +174,7 @@ const Profile = () => {
                           </span>
                         )}
                         {item.status && (
-                          <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
+                          <span className={`text-xs font-bold uppercase tracking-wider ${item.statusColor || 'text-orange-500'}`}>
                             {item.status}
                           </span>
                         )}

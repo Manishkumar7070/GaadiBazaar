@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone } from 'lucide-react';
+import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Vehicle } from '@/types';
@@ -66,9 +66,17 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             {vehicle.isFeatured && (
               <Badge className="bg-primary text-white border-none">Featured</Badge>
             )}
-            {vehicle.isVerified && (
+            {vehicle.verificationStatus === 'verified' ? (
               <Badge className="bg-green-500 text-white border-none flex gap-1 items-center">
                 <ShieldCheck size={12} /> Verified
+              </Badge>
+            ) : user?.id === vehicle.sellerId && (
+              <Badge 
+                variant={vehicle.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
+                className={`border-none flex gap-1 items-center ${vehicle.verificationStatus === 'pending' ? 'bg-orange-500 text-white' : ''}`}
+              >
+                {vehicle.verificationStatus === 'pending' ? <Clock size={12} /> : <XCircle size={12} />} 
+                {vehicle.verificationStatus.charAt(0).toUpperCase() + vehicle.verificationStatus.slice(1)}
               </Badge>
             )}
           </div>

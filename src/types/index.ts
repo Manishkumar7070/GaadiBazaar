@@ -43,6 +43,7 @@ export interface Shop {
   reviewCount?: number;
   reviews?: Review[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Vehicle {

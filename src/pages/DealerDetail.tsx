@@ -7,7 +7,8 @@ import {
   Phone, 
   MessageSquare, 
   ShieldCheck,
-  Info,
+  Clock,
+  XCircle,
   Car
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,10 +20,13 @@ import { motion } from 'motion/react';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
 import { Shop, Vehicle } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
 
 const DealerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [dealer, setDealer] = React.useState<Shop | null>(null);
   const [dealerVehicles, setDealerVehicles] = React.useState<Vehicle[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -77,25 +81,55 @@ const DealerDetail = () => {
       <section>
         <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
           <div className="grid grid-cols-1 md:grid-cols-3">
-            <div className="md:col-span-1 aspect-square md:aspect-auto relative">
-              <img 
-                src={dealer.images[0]} 
-                alt={dealer.name} 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              {dealer.verificationStatus === 'verified' && (
-                <div className="absolute top-6 left-6">
-                  <Badge className="bg-green-500 text-white border-none px-3 py-1 flex gap-1 items-center shadow-lg">
-                    <ShieldCheck size={14} /> Verified Dealer
-                  </Badge>
+            <div className="md:col-span-1 space-y-2 p-4">
+              <div className="aspect-square rounded-3xl overflow-hidden relative">
+                <img 
+                  src={dealer.images[0]} 
+                  alt={dealer.name} 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                {dealer.verificationStatus === 'verified' ? (
+                  <div className="absolute top-4 left-4">
+                    <Badge className="bg-green-500 text-white border-none px-3 py-1 flex gap-1 items-center shadow-lg">
+                      <ShieldCheck size={14} /> Verified
+                    </Badge>
+                  </div>
+                ) : user?.id === dealer.ownerId && (
+                  <div className="absolute top-4 left-4">
+                    <Badge 
+                      variant={dealer.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
+                      className={`border-none px-3 py-1 flex gap-1 items-center shadow-lg ${dealer.verificationStatus === 'pending' ? 'bg-orange-500 text-white' : ''}`}
+                    >
+                      {dealer.verificationStatus === 'pending' ? <Clock size={14} /> : <XCircle size={14} />} 
+                      {dealer.verificationStatus.charAt(0).toUpperCase() + dealer.verificationStatus.slice(1)}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              {dealer.images.length > 1 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {dealer.images.slice(1, 5).map((img, i) => (
+                    <div key={i} className="aspect-square rounded-xl overflow-hidden border border-slate-100">
+                      <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
             <div className="md:col-span-2 p-8 md:p-12 space-y-6">
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-bold text-slate-900">{dealer.name}</h2>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-3xl font-bold text-slate-900">{dealer.name}</h2>
+                    {user?.id === dealer.ownerId && (
+                      <Link to="/edit-shop">
+                        <Button variant="outline" size="sm" className="rounded-xl border-primary text-primary font-bold">
+                          Edit Shop
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-sm font-bold">
                     <Star size={16} fill="currentColor" />
                     {dealer.rating || '4.5'} ({dealer.reviewCount || '0'} Reviews)

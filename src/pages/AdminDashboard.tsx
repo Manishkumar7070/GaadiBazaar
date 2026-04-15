@@ -161,7 +161,13 @@ const AdminDashboard = () => {
                         <p className="text-slate-500 text-sm">{shop.address}, {shop.city}</p>
                         <p className="text-slate-400 text-xs mt-1">Owner ID: {shop.ownerId}</p>
                       </div>
-                      <Badge variant="secondary" className="bg-orange-50 text-orange-600 border-orange-100">Pending</Badge>
+                      <Badge 
+                        variant={shop.verificationStatus === 'verified' ? 'default' : shop.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
+                        className={shop.verificationStatus === 'verified' ? 'bg-green-500 hover:bg-green-600' : 
+                                   shop.verificationStatus === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100' : ''}
+                      >
+                        {shop.verificationStatus.charAt(0).toUpperCase() + shop.verificationStatus.slice(1)}
+                      </Badge>
                     </div>
                     <p className="text-slate-600 text-sm line-clamp-2">{shop.description}</p>
                     <div className="flex flex-wrap gap-2 pt-2 items-center">
@@ -229,7 +235,13 @@ const AdminDashboard = () => {
                         <p className="text-slate-400 text-xs mt-1">Seller ID: {vehicle.sellerId}</p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge variant="secondary" className="bg-orange-50 text-orange-600 border-orange-100">Pending</Badge>
+                        <Badge 
+                          variant={vehicle.verificationStatus === 'verified' ? 'default' : vehicle.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
+                          className={vehicle.verificationStatus === 'verified' ? 'bg-green-500 hover:bg-green-600' : 
+                                     vehicle.verificationStatus === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100' : ''}
+                        >
+                          {vehicle.verificationStatus.charAt(0).toUpperCase() + vehicle.verificationStatus.slice(1)}
+                        </Badge>
                         <Button 
                           variant="ghost" 
                           size="sm" 

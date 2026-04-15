@@ -48,9 +48,9 @@ const LoginPage = () => {
         phone: isPhone ? loginInput : '',
       });
       // Step will change to 'role' via useEffect
-    } catch (error) {
+    } catch (error: any) {
       console.error('Quick Login Error:', error);
-      alert('Failed to login. Please try again.');
+      alert(`Failed to login: ${error.message || 'Unknown error'}. If you are on Vercel, make sure Anonymous Auth is enabled in Firebase Console.`);
     } finally {
       setLoading(false);
     }
@@ -81,9 +81,9 @@ const LoginPage = () => {
     try {
       await loginWithGoogle();
       // AuthContext will handle state change and useEffect will handle navigation
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google Login Error:', error);
-      alert('Failed to login with Google. Please try again.');
+      alert(`Failed to login with Google: ${error.message || 'Unknown error'}. Make sure your Vercel domain is added to "Authorized Domains" in Firebase Console.`);
     } finally {
       setLoading(false);
     }

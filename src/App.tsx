@@ -8,6 +8,7 @@ import Compare from './pages/Compare';
 import DealerDetail from './pages/DealerDetail';
 import ListVehicle from './pages/ListVehicle';
 import CreateShop from './pages/CreateShop';
+import EditShop from './pages/EditShop';
 import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/Login';
 import Header from './layouts/Header';
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="/dealer/:id" element={<DealerDetail />} />
                 <Route path="/list-vehicle" element={<ListVehicle />} />
                 <Route path="/create-shop" element={<CreateShop />} />
+                <Route path="/edit-shop" element={<EditShop />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/login" element={<Login />} />
               </Routes>

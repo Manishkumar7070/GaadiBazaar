@@ -78,5 +78,19 @@ export const shopService = {
       handleFirestoreError(error, OperationType.UPDATE, path);
       throw error;
     }
+  },
+
+  async updateShop(shopId: string, shopData: Partial<Shop>): Promise<void> {
+    const path = `shops/${shopId}`;
+    try {
+      const docRef = doc(db, 'shops', shopId);
+      await updateDoc(docRef, {
+        ...shopData,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+      throw error;
+    }
   }
 };
