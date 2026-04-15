@@ -91,6 +91,10 @@ const CitySelector = () => {
                         alt={state.name} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=400&h=300'; // Generic city fallback
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-3">
                         <span className="text-[10px] text-white font-bold uppercase tracking-wider">{state.landmark}</span>
@@ -133,6 +137,10 @@ const CitySelector = () => {
                         alt={city.name} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=400&h=300'; // Generic city fallback
+                        }}
                       />
                       {selectedCity === city.name && (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[2px]">
