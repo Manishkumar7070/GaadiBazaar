@@ -19,7 +19,9 @@ import {
   Droplets,
   ArrowLeftRight,
   X,
-  Maximize2
+  Maximize2,
+  Palette,
+  Wrench
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -202,7 +204,9 @@ const VehicleDetail = () => {
     { icon: Gauge, label: 'Kilometers', value: `${vehicle.kilometersDriven.toLocaleString()} km` },
     { icon: Fuel, label: 'Fuel Type', value: vehicle.fuelType },
     { icon: Settings, label: 'Transmission', value: vehicle.transmission },
-    { icon: User, label: 'Ownership', value: vehicle.ownership },
+    { icon: User, label: 'No. of Owners', value: vehicle.ownership },
+    { icon: Palette, label: 'Color', value: vehicle.color || 'N/A' },
+    { icon: Wrench, label: 'Assembly', value: vehicle.assemblyType || 'N/A' },
     { icon: MapPin, label: 'Location', value: vehicle.city },
     { icon: FileText, label: 'Reg. No', value: vehicle.registrationNumber || 'N/A' },
     { icon: Droplets, label: 'Mileage', value: vehicle.mileage || 'N/A' },

@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { vehicleService } from '@/services/vehicle.service';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '@/lib/supabase';
 import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop } from '@/types';
 import { shopService } from '@/services/shop.service';
 
@@ -45,6 +44,8 @@ const ListVehicle = () => {
       state: '',
       registrationNumber: '',
       mileage: '',
+      color: '',
+      assemblyType: 'Local',
       images: [] as string[],
       categorizedImages: {
         front: '',
@@ -104,16 +105,21 @@ const ListVehicle = () => {
     setUploading(true);
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        // Create a unique filename
-        const filename = `${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, `vehicles/${user.id}/${filename}`);
-        
-        // Upload the file
-        const snapshot = await uploadBytes(storageRef, file);
-        
-        // Get the download URL
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        return downloadURL;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('vehicles')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('vehicles')
+          .getPublicUrl(filePath);
+
+        return publicUrl;
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
@@ -133,16 +139,25 @@ const ListVehicle = () => {
 
     setUploading(true);
     try {
-      const filename = `${Date.now()}-${category}-${file.name}`;
-      const storageRef = ref(storage, `vehicles/${user.id}/${filename}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${category}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('vehicles')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('vehicles')
+        .getPublicUrl(filePath);
       
       setFormData(prev => ({
         ...prev,
         categorizedImages: {
           ...prev.categorizedImages,
-          [category]: downloadURL
+          [category]: publicUrl
         }
       }));
     } catch (error) {
@@ -399,6 +414,30 @@ const ListVehicle = () => {
                   onChange={handleChange}
                   className="rounded-xl"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Color</label>
+                <Input 
+                  name="color" 
+                  placeholder="e.g. White, Black, Red" 
+                  value={formData.color}
+                  onChange={handleChange}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Assembly Type</label>
+                <select 
+                  name="assemblyType" 
+                  value={formData.assemblyType}
+                  onChange={handleChange}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="Local">Local</option>
+                  <option value="Imported">Imported</option>
+                  <option value="CKD">CKD (Completely Knocked Down)</option>
+                  <option value="CBU">CBU (Completely Built Unit)</option>
+                </select>
               </div>
             </div>
           </CardContent>

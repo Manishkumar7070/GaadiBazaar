@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake } from 'lucide-react';
+import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,18 +14,81 @@ import {
 } from '@/components/ui/sheet';
 
 import CitySelector from '@/components/shared/CitySelector';
+import SearchSuggestions from '@/features/search/SearchSuggestions';
+import { vehicleService } from '@/services/vehicle.service';
 
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      const data = await vehicleService.fetchPopularMetadata();
+      setPopularMetadata(data);
+    };
+    fetchMetadata();
+  }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const query = debouncedQuery.toLowerCase().trim();
+    
+    if (!query) {
+      // Show popular items when focused but empty
+      const popularSuggestions = [
+        ...popularMetadata.brands.map(b => ({ id: `b-${b}`, text: b, type: 'vehicle' as const, subtext: 'Popular Brand' })),
+        ...popularMetadata.cities.map(c => ({ id: `c-${c}`, text: c, type: 'location' as const, subtext: 'Popular City' }))
+      ].slice(0, 8);
+      setSuggestions(popularSuggestions);
+      return;
+    }
+
+    // Direct matches from metadata
+    const brandMatches = popularMetadata.brands
+      .filter(b => b.toLowerCase().includes(query))
+      .map(b => ({ id: `b-${b}`, text: b, type: 'vehicle' as const, subtext: 'Brand' }));
+
+    const modelMatches = popularMetadata.models
+      .filter(m => m.toLowerCase().includes(query))
+      .map(m => ({ id: `m-${m}`, text: m, type: 'vehicle' as const, subtext: 'Model' }));
+
+    const cityMatches = popularMetadata.cities
+      .filter(c => c.toLowerCase().includes(query))
+      .map(c => ({ id: `c-${c}`, text: c, type: 'location' as const, subtext: 'City' }));
+
+    const genericSearch = { id: 'search-query', text: debouncedQuery, type: 'combined' as const, subtext: `Search for "${debouncedQuery}"` };
+
+    setSuggestions([genericSearch, ...brandMatches, ...modelMatches, ...cityMatches].slice(0, 8));
+  }, [debouncedQuery, popularMetadata]);
+
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setShowSuggestions(false);
     }
+  };
+
+  const handleSuggestionSelect = (suggestion: any) => {
+    setSearchQuery(suggestion.text);
+    if (suggestion.type === 'location') {
+      navigate(`/search?city=${encodeURIComponent(suggestion.text)}`);
+    } else {
+      navigate(`/search?q=${encodeURIComponent(suggestion.text)}`);
+    }
+    setShowSuggestions(false);
   };
 
   const handleSellClick = () => {
@@ -44,16 +107,47 @@ const Header = () => {
           <Logo fontSize="text-2xl" iconSize={28} />
         </Link>
 
-        <div className="hidden md:flex flex-1 max-w-2xl items-center gap-2">
-          <form onSubmit={handleSearch} className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input 
-              placeholder="Search cars, bikes..." 
-              className="pl-10 bg-slate-100 border-none focus-visible:ring-primary h-11 rounded-xl"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+        <div className="hidden md:flex items-center gap-6 ml-4">
+          <Link to="/search" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            Explore
+          </Link>
+          <Link to="/search?type=car" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            Cars
+          </Link>
+          <Link to="/search?type=bike" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            Bikes
+          </Link>
+        </div>
+
+        <div className="hidden md:flex flex-1 max-w-xl items-center gap-2">
+          <div className="flex-1 relative z-50">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Input 
+                placeholder="Search cars, bikes..." 
+                className="pl-10 pr-10 bg-slate-100 border-none focus-visible:ring-primary h-11 rounded-xl w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              />
+              {searchQuery && (
+                <button 
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </form>
+            <SearchSuggestions 
+              suggestions={suggestions}
+              query={searchQuery}
+              isVisible={showSuggestions}
+              onSelect={handleSuggestionSelect}
             />
-          </form>
+          </div>
           <CitySelector 
             onSelect={(city) => {
               navigate(`/search?city=${encodeURIComponent(city)}`);
@@ -62,14 +156,22 @@ const Header = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button 
+            className="md:hidden bg-primary text-white font-bold h-9 px-3 rounded-xl gap-1.5 shadow-sm"
+            onClick={handleSellClick}
+          >
+            <PlusCircle size={16} />
+            <span className="text-xs">Sell</span>
+          </Button>
+
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-slate-600 md:hidden"
+            className="text-slate-600 md:hidden h-9 w-9"
             onClick={() => navigate('/search')}
           >
-            <Search size={20} />
+            <Search size={18} />
           </Button>
 
           <CitySelector 
@@ -83,6 +185,22 @@ const Header = () => {
             <Bell size={20} />
           </Button>
           
+          {user?.role === 'admin' && (
+            <Link to="/admin">
+              <Button variant="ghost" className="hidden md:flex gap-2 items-center text-primary font-bold">
+                <Settings size={18} /> Admin Panel
+              </Button>
+            </Link>
+          )}
+
+          {user?.role === 'admin' && (
+            <Link to="/admin">
+              <Button variant="ghost" className="hidden md:flex gap-2 items-center text-primary font-bold">
+                <Settings size={18} /> Admin Panel
+              </Button>
+            </Link>
+          )}
+
           {user ? (
             <Link to="/profile">
               <Button variant="ghost" className="hidden md:flex gap-2 items-center text-slate-700 font-semibold">
@@ -160,6 +278,12 @@ const Header = () => {
                       <Search size={20} className="text-slate-400" />
                       <span className="font-semibold text-slate-700">Browse Vehicles</span>
                     </Link>
+                    {user?.role === 'admin' && (
+                      <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors border border-primary/10">
+                        <Settings size={20} className="text-primary" />
+                        <span className="font-bold text-primary">Admin Dashboard</span>
+                      </Link>
+                    )}
                     <button onClick={handleSellClick} className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors text-left">
                       <PlusCircle size={20} className="text-slate-400" />
                       <span className="font-semibold text-slate-700">Sell Your Vehicle</span>

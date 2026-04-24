@@ -1,25 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LogIn, ShieldCheck, ArrowRight, Loader2, User, ShoppingCart, Tag, Phone, MapPin, Camera, Mic, CheckCircle2 } from 'lucide-react';
+import { LogIn, ShieldCheck, ArrowRight, Loader2, User, ShoppingCart, Tag, Phone, MapPin, Camera, Mic, CheckCircle2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 
 const LoginPage = () => {
-  const { user, loginWithGoogle, loginQuickly, completeProfile } = useAuth();
+  const { user, loginWithGoogle, completeProfile, sendOtp, verifyOtp } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const [step, setStep] = useState<'login' | 'permissions' | 'role' | 'profile'>('login');
+  const [step, setStep] = useState<'login' | 'otp' | 'permissions' | 'role' | 'profile'>('login');
   const [loading, setLoading] = useState(false);
   
   // Login fields
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
   
   const redirect = searchParams.get('redirect') || '/';
   const reason = searchParams.get('reason');
@@ -34,18 +45,33 @@ const LoginPage = () => {
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phone) return;
+    if (!fullName || !email) return;
 
     setLoading(true);
     try {
-      await loginQuickly({
-        fullName: fullName,
-        phone: phone,
-      });
-      // Step will change to 'role' via useEffect
+      await sendOtp(email);
+      setStep('otp');
+      setCountdown(60);
     } catch (error: any) {
-      console.error('Quick Login Error:', error);
-      alert(`Failed to login: ${error.message || 'Unknown error'}`);
+      console.error('Supabase Email Auth Error:', error);
+      alert(`Failed to send code: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp) return;
+
+    setLoading(true);
+    try {
+      await verifyOtp(email, otp);
+      // Wait a bit for onAuthStateChange to fire and update user state
+      // profile completion will be handled by useEffect
+    } catch (error: any) {
+      console.error('OTP Verify Error:', error);
+      alert(`Invalid code: ${error.message || 'Please try again'}`);
     } finally {
       setLoading(false);
     }
@@ -63,19 +89,35 @@ const LoginPage = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (countdown > 0 || loading) return;
+    
+    setLoading(true);
+    try {
+      await sendOtp(email);
+      setCountdown(60);
+      alert('Code resent successfully!');
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRoleSelect = async (role: 'buyer' | 'seller') => {
-    if (role === 'buyer') {
-      setStep('profile');
-    } else {
-      setLoading(true);
-      try {
-        await completeProfile({ role: 'seller' });
+    setLoading(true);
+    try {
+      await completeProfile({ role, fullName });
+      if (role === 'seller') {
         setStep('permissions');
-      } catch (error) {
-        alert('Failed to set role. Please try again.');
-      } finally {
-        setLoading(false);
+      } else {
+        navigate(redirect);
       }
+    } catch (error) {
+      console.error('Role Selection Error:', error);
+      alert('Failed to set role. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,14 +183,14 @@ const LoginPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Mobile Number</label>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
                       <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <Input 
-                          type="tel" 
-                          placeholder="Enter mobile number" 
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
+                          type="email" 
+                          placeholder="Enter your email" 
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
                           required
                           className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
                         />
@@ -178,6 +220,67 @@ const LoginPage = () => {
                     <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
                     Google
                   </Button>
+                </motion.div>
+              )}
+
+              {step === 'otp' && (
+                <motion.div
+                  key="otp"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h2 className="text-xl font-bold">Verify your email</h2>
+                    <p className="text-sm text-slate-500">Enter the 6-digit code sent to {email}</p>
+                  </div>
+
+                  <form onSubmit={handleVerifyOtp} className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-center block">One-Time Password</label>
+                      <Input 
+                        type="text" 
+                        placeholder="000000" 
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        maxLength={6}
+                        required
+                        className="h-16 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-3xl font-black text-center tracking-[0.5em]"
+                      />
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      disabled={loading}
+                      className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={24} /> : 'Verify & Continue'}
+                    </Button>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleResendOtp}
+                        disabled={countdown > 0 || loading}
+                        className={cn(
+                          "text-sm font-bold transition-colors",
+                          countdown > 0 ? "text-slate-300 cursor-not-allowed" : "text-primary hover:underline"
+                        )}
+                      >
+                        {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
+                      </button>
+                    </div>
+
+                    <Button 
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setStep('login')}
+                      className="w-full text-slate-400 hover:text-primary"
+                    >
+                      Change Email Address
+                    </Button>
+                  </form>
                 </motion.div>
               )}
 

@@ -1,14 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut,
-  signInAnonymously,
-  User as FirebaseUser 
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, googleProvider } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
+import { authService } from '@/services/auth.service';
 
 interface User {
   id: string;
@@ -23,76 +15,73 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
-  loginQuickly: (data: { fullName?: string; phone?: string }) => Promise<void>;
+  sendOtp: (email: string) => Promise<void>;
+  verifyOtp: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   completeProfile: (data: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Fetch additional user data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            fullName: userData.fullName,
-            phone: userData.phone,
-            role: userData.role,
-            isProfileComplete: userData.isProfileComplete,
-          });
-        } else {
-          // New user, initial state
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            isProfileComplete: false,
-          });
-        }
+    // Check active sessions and sets the user
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await refreshProfile(session.user);
+      }
+      setLoading(false);
+    };
+
+    checkUser();
+
+    // Listen for changes on auth state (logged in, signed out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await refreshProfile(session.user);
       } else {
         setUser(null);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
+
+  const refreshProfile = async (supabaseUser: any) => {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', supabaseUser.id)
+      .single();
+
+    if (error) {
+      console.warn('Profile fetch error (might be new user):', error.message);
+    }
+
+    let role = profile?.role;
+    // Admin override
+    if (supabaseUser.email === '9162808640abcd@gmail.com') {
+      role = 'admin';
+    }
+
+    setUser({
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      fullName: profile?.full_name,
+      phone: profile?.phone,
+      role: role,
+      isProfileComplete: profile?.is_profile_complete || false,
+    });
+  };
 
   const loginWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const firebaseUser = result.user;
-      
-      // Check if user exists in Firestore, if not create basic profile
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          fullName: firebaseUser.displayName,
-          createdAt: serverTimestamp(),
-          isProfileComplete: false
-        });
-      }
+      await authService.signInWithGoogle();
     } catch (error) {
       console.error('Google Login Error:', error);
       throw error;
@@ -100,17 +89,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const completeProfile = async (profileData: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => {
-    if (!auth.currentUser) return;
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session?.user) return;
 
     try {
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      await setDoc(userRef, {
-        role: profileData.role,
-        fullName: profileData.fullName,
-        phone: profileData.phone,
-        isProfileComplete: true,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: session.user.id,
+          role: profileData.role,
+          full_name: profileData.fullName,
+          phone: profileData.phone,
+          is_profile_complete: true,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
 
       setUser(prev => prev ? {
         ...prev,
@@ -125,32 +119,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginQuickly = async (data: { fullName?: string; phone?: string }) => {
-    try {
-      const result = await signInAnonymously(auth);
-      const firebaseUser = result.user;
-      
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      await setDoc(userRef, {
-        uid: firebaseUser.uid,
-        fullName: data.fullName || '',
-        phone: data.phone || '',
-        createdAt: serverTimestamp(),
-        isProfileComplete: false,
-        authMethod: 'anonymous'
-      });
-    } catch (error) {
-      console.error('Quick Login Error:', error);
-      throw error;
-    }
+  const sendOtp = async (email: string) => {
+    await authService.sendOtp(email);
+  };
+
+  const verifyOtp = async (email: string, code: string) => {
+    await authService.verifyOtp(email, code);
   };
 
   const logout = async () => {
-    await signOut(auth);
+    await authService.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginQuickly, logout, completeProfile }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, sendOtp, verifyOtp, logout, completeProfile }}>
       {children}
     </AuthContext.Provider>
   );

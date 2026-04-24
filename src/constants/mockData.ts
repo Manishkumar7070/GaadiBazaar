@@ -99,6 +99,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     transmission: 'manual',
     kilometersDriven: 35000,
     ownership: '1st',
+    color: 'Red',
+    assemblyType: 'Local',
     city: 'Bhopal',
     state: 'Madhya Pradesh',
     images: ['https://images.unsplash.com/photo-1567818735868-e71b99932e29?q=80&w=1000&auto=format&fit=crop', 'https://picsum.photos/seed/car1-2/800/600'],
@@ -137,6 +139,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     createdAt: new Date().toISOString(),
     registrationNumber: 'BR01-XY-5678',
     mileage: '35 kmpl',
+    color: 'Gunmetal Grey',
+    assemblyType: 'Local',
   },
   {
     id: 'v3',
@@ -163,6 +167,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     createdAt: new Date().toISOString(),
     registrationNumber: 'CG04-MN-9012',
     mileage: '18 kmpl',
+    color: 'White',
+    assemblyType: 'Local',
   },
   {
     id: 'v4',
@@ -189,6 +195,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     createdAt: new Date().toISOString(),
     registrationNumber: 'MP04-CD-3456',
     mileage: '15 kmpl',
+    color: 'Red',
+    assemblyType: 'Local',
   },
   {
     id: 'v5',
@@ -215,6 +223,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     createdAt: new Date().toISOString(),
     registrationNumber: 'BR01-EF-7890',
     mileage: '20 kmpl',
+    color: 'Blue',
+    assemblyType: 'Local',
   },
   {
     id: 'v6',
@@ -293,6 +303,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     createdAt: new Date().toISOString(),
     registrationNumber: 'MP04-LM-5566',
     mileage: '450 km/charge',
+    color: 'Teal Blue',
+    assemblyType: 'Local',
   },
   {
     id: 'v9',

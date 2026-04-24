@@ -13,8 +13,7 @@ import { MOCK_VEHICLES } from '@/constants/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import { useWishlist } from '@/hooks/useWishlist';
 import { shopService } from '@/services/shop.service';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '@/lib/supabase';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 
 const Profile = () => {
@@ -80,10 +79,21 @@ const Profile = () => {
     setUploading(true);
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const filename = `${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, `shops/${user.id}/${filename}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        return await getDownloadURL(snapshot.ref);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shops')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('shops')
+          .getPublicUrl(filePath);
+
+        return publicUrl;
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);

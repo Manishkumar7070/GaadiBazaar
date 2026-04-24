@@ -31,6 +31,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { POPULAR_CITIES, INDIAN_STATES } from '@/constants/cities';
 import { vehicleService } from '@/services/vehicle.service';
 
+const POPULAR_BRANDS = [
+  'Maruti Suzuki', 'Hyundai', 'Tata', 'Toyota', 'Mahindra', 
+  'Honda', 'Kia', 'Volkswagen', 'MG', 'Skoda', 
+  'BMW', 'Mercedes-Benz', 'Audi', 'Jeep', 'Ford',
+  'Royal Enfield', 'KTM', 'Hero', 'Yamaha', 'Bajaj'
+];
+
+const YEAR_OPTIONS = Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i);
+
 const SearchPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -50,11 +59,18 @@ const SearchPage = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
   const ITEMS_PER_PAGE = 6;
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('recentSearches') || '[]');
     setRecentSearches(saved);
+    
+    const fetchMetadata = async () => {
+      const data = await vehicleService.fetchPopularMetadata();
+      setPopularMetadata(data);
+    };
+    fetchMetadata();
   }, []);
 
   const addToRecentSearches = (query: string) => {
@@ -84,16 +100,31 @@ const SearchPage = () => {
     if (debouncedSearchQuery.length > 0) {
       const query = debouncedSearchQuery.toLowerCase();
       
-      // 1. Match Vehicles (Brand or Model)
+      // 1. Match Popular Brands & Models
+      const brandMatches = popularMetadata.brands
+        .filter(b => b.toLowerCase().includes(query))
+        .map(b => ({ id: `pb-${b}`, text: b, type: 'vehicle' as const, subtext: 'Brand' }));
+
+      const modelMatches = popularMetadata.models
+        .filter(m => m.toLowerCase().includes(query))
+        .map(m => ({ id: `pm-${m}`, text: m, type: 'vehicle' as const, subtext: 'Model' }));
+
+      // 2. Match Vehicles from current results (more specific)
       const vehicleMatches = Array.from(new Set(vehicles
-        .filter(v => v.brand.toLowerCase().includes(query) || v.model.toLowerCase().includes(query))
+        .filter(v => (v.brand.toLowerCase().includes(query) || v.model.toLowerCase().includes(query)) && 
+                     !popularMetadata.brands.some(b => b.toLowerCase() === v.brand.toLowerCase()) &&
+                     !popularMetadata.models.some(m => m.toLowerCase() === v.model.toLowerCase()))
         .map(v => `${v.brand} ${v.model}`)))
         .slice(0, 3)
         .map(text => ({ id: `v-${text}`, text, type: 'vehicle' as const }));
 
-      // 2. Match Locations (City or State)
+      // 3. Match Locations (City or State)
+      const popularCityMatches = popularMetadata.cities
+        .filter(c => c.toLowerCase().includes(query))
+        .map(c => ({ id: `pc-${c}`, text: c, type: 'location' as const, subtext: 'Popular City' }));
+
       const cityMatches = POPULAR_CITIES
-        .filter(c => c.name.toLowerCase().includes(query))
+        .filter(c => c.name.toLowerCase().includes(query) && !popularMetadata.cities.includes(c.name))
         .slice(0, 2)
         .map(c => ({ id: `l-${c.name}`, text: c.name, subtext: c.state, type: 'location' as const, state: c.state }));
 
@@ -102,8 +133,7 @@ const SearchPage = () => {
         .slice(0, 2)
         .map(s => ({ id: `s-${s}`, text: s, type: 'location' as const, state: s }));
 
-      // 3. Combined Logic (e.g., "Swift in Bihar")
-      // Check if query contains "in"
+      // 4. Combined Logic (e.g., "Swift in Bihar")
       let combinedMatches: any[] = [];
       if (query.includes(' in ')) {
         const [carPart, locPart] = query.split(' in ');
@@ -117,18 +147,30 @@ const SearchPage = () => {
         }
       }
 
-      // 4. Match Recent Searches
+      // 5. Match Recent Searches
       const historyMatches = recentSearches
         .filter(s => s.toLowerCase().includes(query) && s.toLowerCase() !== query)
         .slice(0, 2)
         .map(s => ({ id: `h-${s}`, text: s, type: 'history' as const }));
 
-      setSuggestions([...combinedMatches, ...vehicleMatches, ...cityMatches, ...stateMatches, ...historyMatches]);
+      const genericSearch = { id: 'search-query', text: debouncedSearchQuery, type: 'combined' as const, subtext: `Search for "${debouncedSearchQuery}"` };
+
+      setSuggestions([
+        genericSearch,
+        ...combinedMatches, 
+        ...brandMatches, 
+        ...modelMatches, 
+        ...vehicleMatches, 
+        ...popularCityMatches,
+        ...cityMatches, 
+        ...stateMatches, 
+        ...historyMatches
+      ].slice(0, 8));
     } else {
       // Show recent searches when query is empty but focused
       setSuggestions(recentSearches.map(s => ({ id: `h-${s}`, text: s, type: 'history' as const })));
     }
-  }, [debouncedSearchQuery, recentSearches]);
+  }, [debouncedSearchQuery, recentSearches, popularMetadata, vehicles]);
 
   const handleClearRecentSearches = () => {
     setRecentSearches([]);
@@ -159,22 +201,33 @@ const SearchPage = () => {
   };
 
   const parseSmartQuery = (query: string) => {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim();
+    if (!q) {
+      setFilters(prev => ({ ...prev, brand: '' }));
+      return;
+    }
+
     if (q.includes(' in ')) {
       const [carPart, locPart] = q.split(' in ');
-      const state = INDIAN_STATES.find(s => s.toLowerCase() === locPart.trim());
-      const city = POPULAR_CITIES.find(c => c.name.toLowerCase() === locPart.trim());
+      const loc = locPart.trim();
+      const state = INDIAN_STATES.find(s => s.toLowerCase() === loc);
+      const city = POPULAR_CITIES.find(c => c.name.toLowerCase() === loc);
       
+      const vehiclePart = carPart.trim();
+      const matchedBrand = POPULAR_BRANDS.find(b => b.toLowerCase() === vehiclePart || b.toLowerCase().includes(vehiclePart));
+
       setFilters(prev => ({
         ...prev,
-        brand: carPart.trim(),
+        brand: matchedBrand || '',
+        model: !matchedBrand ? vehiclePart : undefined,
         state: state || (city ? city.state : undefined),
         city: city ? city.name : undefined
       }));
-      setSearchQuery(carPart.trim());
+      setSearchQuery(vehiclePart);
     } else {
-      const state = INDIAN_STATES.find(s => s.toLowerCase() === q.trim());
-      const city = POPULAR_CITIES.find(c => c.name.toLowerCase() === q.trim());
+      const state = INDIAN_STATES.find(s => s.toLowerCase() === q);
+      const city = POPULAR_CITIES.find(c => c.name.toLowerCase() === q);
+      const matchedBrand = POPULAR_BRANDS.find(b => b.toLowerCase() === q || b.toLowerCase().includes(q));
       
       if (state || city) {
         setFilters(prev => ({
@@ -184,8 +237,11 @@ const SearchPage = () => {
           brand: ''
         }));
         setSearchQuery('');
+      } else if (matchedBrand) {
+        setFilters(prev => ({ ...prev, brand: matchedBrand, model: undefined }));
       } else {
-        setFilters(prev => ({ ...prev, brand: query }));
+        // If not a location or direct brand, it might be a model or general query
+        setFilters(prev => ({ ...prev, brand: '', model: query }));
       }
     }
   };
@@ -294,21 +350,27 @@ const SearchPage = () => {
   };
 
   const filteredVehicles = vehicles.filter(v => {
+    // 1. Broad Text Match (Only if brand/model filters are NOT explicitly set, or to complement them)
     const matchesQuery = !debouncedSearchQuery || 
       v.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
-      v.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+      v.brand.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      v.model.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
     
+    // 2. Structural Filters (Explicit selection)
     const matchesType = !filters.vehicleType || v.vehicleType === filters.vehicleType;
-    const matchesMinPrice = !filters.minPrice || v.price >= filters.minPrice;
-    const matchesMaxPrice = !filters.maxPrice || v.price <= filters.maxPrice;
+    const matchesMinPrice = filters.minPrice === undefined || v.price >= filters.minPrice;
+    const matchesMaxPrice = filters.maxPrice === undefined || v.price <= filters.maxPrice;
     const matchesCity = !filters.city || v.city.toLowerCase() === filters.city.toLowerCase();
     const matchesState = !filters.state || v.state.toLowerCase() === filters.state.toLowerCase();
+    
+    // Exact brand match if selected from list, otherwise inclusion check
     const matchesBrand = !filters.brand || v.brand.toLowerCase().includes(filters.brand.toLowerCase());
     const matchesModel = !filters.model || v.model.toLowerCase().includes(filters.model.toLowerCase());
-    const matchesMinYear = !filters.minYear || v.year >= filters.minYear;
-    const matchesMaxYear = !filters.maxYear || v.year <= filters.maxYear;
-    const matchesMinKm = !filters.minKm || v.kilometersDriven >= filters.minKm;
-    const matchesMaxKm = !filters.maxKm || v.kilometersDriven <= filters.maxKm;
+    
+    const matchesMinYear = filters.minYear === undefined || v.year >= filters.minYear;
+    const matchesMaxYear = filters.maxYear === undefined || v.year <= filters.maxYear;
+    const matchesMinKm = filters.minKm === undefined || v.kilometersDriven >= filters.minKm;
+    const matchesMaxKm = filters.maxKm === undefined || v.kilometersDriven <= filters.maxKm;
     const matchesFuel = !filters.fuelType || v.fuelType === filters.fuelType;
     const matchesTrans = !filters.transmission || v.transmission === filters.transmission;
     const matchesOwnership = !filters.ownership || v.ownership === filters.ownership;
@@ -316,7 +378,8 @@ const SearchPage = () => {
     return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity && matchesState && 
            matchesBrand && matchesModel && matchesMinYear && matchesMaxYear && matchesMinKm && matchesMaxKm && 
            matchesFuel && matchesTrans && matchesOwnership;
-  }).sort((a, b) => {
+  })
+.sort((a, b) => {
     if (sortBy === 'price-asc') return a.price - b.price;
     if (sortBy === 'price-desc') return b.price - a.price;
     if (sortBy === 'newest') return b.year - a.year;
@@ -498,82 +561,112 @@ const SearchPage = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="text-sm font-bold">Make & Model</label>
-                    <div className="space-y-2">
-                      <Input 
-                        placeholder="e.g., Maruti Suzuki" 
-                        className="rounded-xl"
-                        value={filters.brand || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, brand: e.target.value }))}
-                      />
-                      <Input 
-                        placeholder="e.g., Swift" 
-                        className="rounded-xl"
-                        value={filters.model || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, model: e.target.value }))}
-                      />
-                    </div>
+                    <label className="text-sm font-bold">Brand (Make)</label>
+                    <select 
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      value={filters.brand || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, brand: e.target.value || undefined }))}
+                    >
+                      <option value="">All Brands</option>
+                      {POPULAR_BRANDS.map(brand => (
+                        <option key={brand} value={brand}>{brand}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-sm font-bold">Price Range</label>
-                    <div className="flex gap-4">
-                      <Input 
-                        type="number" 
-                        placeholder="Min Price" 
-                        className="rounded-xl"
-                        value={filters.minPrice || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      />
-                      <Input 
-                        type="number" 
-                        placeholder="Max Price" 
-                        className="rounded-xl"
-                        value={filters.maxPrice || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      />
+                    <label className="text-sm font-bold">Model</label>
+                    <Input 
+                      placeholder="e.g., Swift, Classic 350" 
+                      className="rounded-xl"
+                      value={filters.model || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, model: e.target.value || undefined }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold">Year Range</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">From Year</label>
+                      <select 
+                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={filters.minYear || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, minYear: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      >
+                        <option value="">Any</option>
+                        {YEAR_OPTIONS.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">To Year</label>
+                      <select 
+                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        value={filters.maxYear || ''}
+                        onChange={(e) => setFilters(prev => ({ ...prev, maxYear: e.target.value ? parseInt(e.target.value) : undefined }))}
+                      >
+                        <option value="">Any</option>
+                        {YEAR_OPTIONS.filter(y => !filters.minYear || y >= filters.minYear).map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="text-sm font-bold">Year Range</label>
+                    <label className="text-sm font-bold">Price Range</label>
                     <div className="flex gap-4">
-                      <Input 
-                        type="number" 
-                        placeholder="Min Year" 
-                        className="rounded-xl"
-                        value={filters.minYear || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, minYear: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      />
-                      <Input 
-                        type="number" 
-                        placeholder="Max Year" 
-                        className="rounded-xl"
-                        value={filters.maxYear || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, maxYear: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      />
+                      <div className="flex-1 space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Min Price (₹)</label>
+                        <Input 
+                          type="number" 
+                          placeholder="e.g., 100000" 
+                          className="rounded-xl"
+                          value={filters.minPrice || ''}
+                          onChange={(e) => setFilters(prev => ({ ...prev, minPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Max Price (₹)</label>
+                        <Input 
+                          type="number" 
+                          placeholder="e.g., 500000" 
+                          className="rounded-xl"
+                          value={filters.maxPrice || ''}
+                          onChange={(e) => setFilters(prev => ({ ...prev, maxPrice: e.target.value ? parseInt(e.target.value) : undefined }))}
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <label className="text-sm font-bold">Kilometers Driven</label>
                     <div className="flex gap-4">
-                      <Input 
-                        type="number" 
-                        placeholder="Min KM" 
-                        className="rounded-xl"
-                        value={filters.minKm || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, minKm: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      />
-                      <Input 
-                        type="number" 
-                        placeholder="Max KM" 
-                        className="rounded-xl"
-                        value={filters.maxKm || ''}
-                        onChange={(e) => setFilters(prev => ({ ...prev, maxKm: e.target.value ? parseInt(e.target.value) : undefined }))}
-                      />
+                      <div className="flex-1 space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Min KM</label>
+                        <Input 
+                          type="number" 
+                          placeholder="Min KM" 
+                          className="rounded-xl"
+                          value={filters.minKm || ''}
+                          onChange={(e) => setFilters(prev => ({ ...prev, minKm: e.target.value ? parseInt(e.target.value) : undefined }))}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Max KM</label>
+                        <Input 
+                          type="number" 
+                          placeholder="Max KM" 
+                          className="rounded-xl"
+                          value={filters.maxKm || ''}
+                          onChange={(e) => setFilters(prev => ({ ...prev, maxKm: e.target.value ? parseInt(e.target.value) : undefined }))}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

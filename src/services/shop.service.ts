@@ -1,95 +1,132 @@
 import { Shop } from '@/types';
-import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
 
 export const shopService = {
   async fetchShops(): Promise<Shop[]> {
-    const path = 'shops';
     try {
-      const q = query(collection(db, path), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: (doc.data().createdAt as Timestamp)?.toDate()?.toISOString() || new Date().toISOString()
-      } as Shop));
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []).map(s => ({
+        ...s,
+        ownerId: s.owner_id,
+        verificationStatus: s.verification_status,
+        createdAt: s.created_at,
+        updatedAt: s.updated_at
+      })) as any;
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, path);
+      console.error('Error fetching shops:', error);
       return [];
     }
   },
 
   async fetchUserShop(userId: string): Promise<Shop | null> {
-    const path = 'shops';
     try {
-      const q = query(collection(db, path), where('ownerId', '==', userId));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
-      const docData = snapshot.docs[0];
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('owner_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!data) return null;
+
       return {
-        id: docData.id,
-        ...docData.data(),
-        createdAt: (docData.data().createdAt as Timestamp)?.toDate()?.toISOString() || new Date().toISOString()
-      } as Shop;
+        ...data,
+        ownerId: data.owner_id,
+        verificationStatus: data.verification_status,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      } as any;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error('Error fetching user shop:', error);
       return null;
     }
   },
 
   async fetchShopById(shopId: string): Promise<Shop | null> {
-    const path = `shops/${shopId}`;
     try {
-      const docRef = doc(db, 'shops', shopId);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) return null;
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('id', shopId)
+        .single();
+
+      if (error) throw error;
       return {
-        id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: (docSnap.data().createdAt as Timestamp)?.toDate()?.toISOString() || new Date().toISOString()
-      } as Shop;
+        ...data,
+        ownerId: data.owner_id,
+        verificationStatus: data.verification_status,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      } as any;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error('Error fetching shop by ID:', error);
       return null;
     }
   },
 
   async createShop(shopData: Partial<Shop>): Promise<Shop> {
-    const path = 'shops';
     try {
-      const docRef = await addDoc(collection(db, path), {
-        ...shopData,
-        verificationStatus: 'pending',
-        createdAt: serverTimestamp(),
-      });
-      return { id: docRef.id, ...shopData } as Shop;
+      const { data, error } = await supabase
+        .from('shops')
+        .insert([{
+          owner_id: shopData.ownerId,
+          name: shopData.name,
+          description: shopData.description,
+          address: shopData.address,
+          city: shopData.city,
+          state: shopData.state,
+          phone: shopData.phone,
+          images: shopData.images,
+          verification_status: 'pending'
+        }])
+        .select();
+
+      if (error) throw error;
+      return data[0] as any;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+      console.error('Error creating shop:', error);
       throw error;
     }
   },
 
   async updateShopVerification(shopId: string, status: 'verified' | 'rejected'): Promise<void> {
-    const path = `shops/${shopId}`;
     try {
-      const docRef = doc(db, 'shops', shopId);
-      await updateDoc(docRef, { verificationStatus: status });
+      const { error } = await supabase
+        .from('shops')
+        .update({ verification_status: status })
+        .eq('id', shopId);
+      
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error('Error updating shop verification:', error);
       throw error;
     }
   },
 
   async updateShop(shopId: string, shopData: Partial<Shop>): Promise<void> {
-    const path = `shops/${shopId}`;
     try {
-      const docRef = doc(db, 'shops', shopId);
-      await updateDoc(docRef, {
-        ...shopData,
-        updatedAt: serverTimestamp(),
-      });
+      const { error } = await supabase
+        .from('shops')
+        .update({
+          name: shopData.name,
+          description: shopData.description,
+          address: shopData.address,
+          city: shopData.city,
+          state: shopData.state,
+          phone: shopData.phone,
+          images: shopData.images,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', shopId);
+
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error('Error updating shop:', error);
       throw error;
     }
   }

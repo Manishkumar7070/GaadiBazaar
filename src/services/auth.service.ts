@@ -1,31 +1,54 @@
+import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 
 export const authService = {
-  async sendOtp(email: string): Promise<void> {
-    const response = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+  async signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to send OTP');
-    }
+    if (error) throw error;
+    return data;
   },
 
-  async verifyOtp(email: string, code: string): Promise<any> {
-    const response = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
+  async signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  async sendOtp(email: string) {
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
     });
+    if (error) throw error;
+    return data;
+  },
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Invalid OTP');
+  async verifyOtp(email: string, token: string) {
+    // Try 'email' type first (standard for OTP/MagicLink)
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email'
+      });
+      if (error) throw error;
+      return data;
+    } catch (err: any) {
+      // If it fails with 'email' type, it might be a first-time 'signup'
+      // Supabase requires the 'signup' type for the initial email confirmation code
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup'
+      });
+      if (error) throw error;
+      return data;
     }
-
-    return response.json();
   }
 };

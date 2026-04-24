@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { shopService } from '@/services/shop.service';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from '@/lib/supabase';
+import { validateShop, ShopErrors } from '@/lib/validations';
+import { cn } from '@/lib/utils';
 
 const CreateShop = () => {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ const CreateShop = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errors, setErrors] = useState<ShopErrors>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState(() => {
@@ -56,6 +58,10 @@ const CreateShop = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (errors[name as keyof ShopErrors]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const handleImageAdd = () => {
@@ -69,10 +75,21 @@ const CreateShop = () => {
     setUploading(true);
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const filename = `${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, `shops/${user.id}/${filename}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        return await getDownloadURL(snapshot.ref);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('shops')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('shops')
+          .getPublicUrl(filePath);
+
+        return publicUrl;
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
@@ -89,6 +106,18 @@ const CreateShop = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    const validationErrors = validateShop(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      // Scroll to first error
+      const firstError = Object.keys(validationErrors)[0];
+      const element = document.getElementsByName(firstError)[0];
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
 
     setLoading(true);
     try {
@@ -146,8 +175,9 @@ const CreateShop = () => {
                 required 
                 value={formData.name}
                 onChange={handleChange}
-                className="rounded-xl"
+                className={cn("rounded-xl", errors.name && "border-red-500")}
               />
+              {errors.name && <p className="text-xs text-red-500 font-medium">{errors.name}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Description</label>
@@ -158,8 +188,12 @@ const CreateShop = () => {
                 rows={4}
                 value={formData.description}
                 onChange={handleChange}
-                className="w-full flex min-h-[80px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className={cn(
+                  "w-full flex min-h-[80px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                   errors.description && "border-red-500"
+                )}
               />
+              {errors.description && <p className="text-xs text-red-500 font-medium">{errors.description}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Contact Phone</label>
@@ -171,9 +205,10 @@ const CreateShop = () => {
                   required 
                   value={formData.phone}
                   onChange={handleChange}
-                  className="rounded-xl pl-10"
+                  className={cn("rounded-xl pl-10", errors.phone && "border-red-500")}
                 />
               </div>
+              {errors.phone && <p className="text-xs text-red-500 font-medium">{errors.phone}</p>}
             </div>
           </CardContent>
         </Card>
@@ -195,8 +230,9 @@ const CreateShop = () => {
                 required 
                 value={formData.address}
                 onChange={handleChange}
-                className="rounded-xl"
+                className={cn("rounded-xl", errors.address && "border-red-500")}
               />
+              {errors.address && <p className="text-xs text-red-500 font-medium">{errors.address}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -207,8 +243,9 @@ const CreateShop = () => {
                   required 
                   value={formData.city}
                   onChange={handleChange}
-                  className="rounded-xl"
+                  className={cn("rounded-xl", errors.city && "border-red-500")}
                 />
+                {errors.city && <p className="text-xs text-red-500 font-medium">{errors.city}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">State</label>
@@ -218,8 +255,9 @@ const CreateShop = () => {
                   required 
                   value={formData.state}
                   onChange={handleChange}
-                  className="rounded-xl"
+                  className={cn("rounded-xl", errors.state && "border-red-500")}
                 />
+                {errors.state && <p className="text-xs text-red-500 font-medium">{errors.state}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Pincode</label>
@@ -229,8 +267,9 @@ const CreateShop = () => {
                   required 
                   value={formData.pincode}
                   onChange={handleChange}
-                  className="rounded-xl"
+                  className={cn("rounded-xl", errors.pincode && "border-red-500")}
                 />
+                {errors.pincode && <p className="text-xs text-red-500 font-medium">{errors.pincode}</p>}
               </div>
             </div>
           </CardContent>

@@ -72,6 +72,8 @@ export interface Vehicle {
   createdAt: string;
   registrationNumber?: string;
   mileage?: string;
+  color?: string;
+  assemblyType?: string;
 }
 
 export interface SearchFilters {

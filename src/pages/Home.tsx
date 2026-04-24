@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import VehicleCardSkeleton from '@/features/vehicles/VehicleCardSkeleton';
+import SearchSuggestions from '@/features/search/SearchSuggestions';
 import { motion } from 'motion/react';
 import { Vehicle } from '@/types';
 import { Link, useNavigate } from 'react-router-dom';
@@ -60,6 +61,54 @@ const Home = () => {
     : vehicles.filter(v => v.vehicleType === activeCategory);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
+
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      const data = await vehicleService.fetchPopularMetadata();
+      setPopularMetadata(data);
+    };
+    fetchMetadata();
+  }, []);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const query = debouncedQuery.toLowerCase().trim();
+    
+    if (!query) {
+      const popularSuggestions = [
+        ...popularMetadata.brands.map(b => ({ id: `b-${b}`, text: b, type: 'vehicle' as const, subtext: 'Popular Brand' })),
+        ...popularMetadata.cities.map(c => ({ id: `c-${c}`, text: c, type: 'location' as const, subtext: 'Popular City' }))
+      ].slice(0, 8);
+      setSuggestions(popularSuggestions);
+      return;
+    }
+
+    const brandMatches = popularMetadata.brands
+      .filter(b => b.toLowerCase().includes(query))
+      .map(b => ({ id: `b-${b}`, text: b, type: 'vehicle' as const, subtext: 'Brand' }));
+
+    const modelMatches = popularMetadata.models
+      .filter(m => m.toLowerCase().includes(query))
+      .map(m => ({ id: `m-${m}`, text: m, type: 'vehicle' as const, subtext: 'Model' }));
+
+    const cityMatches = popularMetadata.cities
+      .filter(c => c.toLowerCase().includes(query))
+      .map(c => ({ id: `c-${c}`, text: c, type: 'location' as const, subtext: 'City' }));
+
+    const genericSearch = { id: 'search-query', text: debouncedQuery, type: 'combined' as const, subtext: `Search for "${debouncedQuery}"` };
+
+    setSuggestions([genericSearch, ...brandMatches, ...modelMatches, ...cityMatches].slice(0, 8));
+  }, [debouncedQuery, popularMetadata]);
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -73,6 +122,16 @@ const Home = () => {
     } else {
       navigate('/search');
     }
+  };
+
+  const handleSuggestionSelect = (suggestion: any) => {
+    setSearchQuery(suggestion.text);
+    if (suggestion.type === 'location') {
+      navigate(`/search?city=${encodeURIComponent(suggestion.text)}`);
+    } else {
+      navigate(`/search?q=${encodeURIComponent(suggestion.text)}`);
+    }
+    setShowSuggestions(false);
   };
 
   return (
@@ -119,23 +178,33 @@ const Home = () => {
             </motion.p>
           </div>
           
-          <motion.form 
-            onSubmit={handleSearch}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/10 backdrop-blur-xl p-3 rounded-[2rem] border border-white/20 shadow-2xl max-w-3xl"
-          >
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <Input 
-                placeholder="Search brand, model..." 
-                className="bg-transparent border-none text-white placeholder:text-slate-400 h-12 pl-12 focus-visible:ring-0 text-base w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="w-px bg-white/20 hidden sm:block h-8" />
+            <motion.form 
+              onSubmit={handleSearch}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/10 backdrop-blur-xl p-3 rounded-[2rem] border border-white/20 shadow-2xl max-w-3xl"
+            >
+              <div className="flex-1 relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                <Input 
+                  placeholder="Search brand, model..." 
+                  className="bg-transparent border-none text-white placeholder:text-slate-400 h-12 pl-12 focus-visible:ring-0 text-base w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                />
+                <div className="text-slate-900">
+                  <SearchSuggestions 
+                    suggestions={suggestions}
+                    query={searchQuery}
+                    isVisible={showSuggestions}
+                    onSelect={handleSuggestionSelect}
+                  />
+                </div>
+              </div>
+              <div className="w-px bg-white/20 hidden sm:block h-8" />
             <div className="flex items-center gap-2 px-4 py-2 sm:py-0">
               <MapPin className="text-primary shrink-0" size={20} />
               <span className="text-sm font-medium whitespace-nowrap">Bhopal, MP</span>
@@ -220,6 +289,11 @@ const Home = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Featured Listings</h2>
           <div className="flex gap-2">
+            <Link to="/search">
+              <Button variant="ghost" className="text-primary font-bold">
+                View All Listings
+              </Button>
+            </Link>
             <Button variant="outline" size="icon" className="rounded-full">
               <Filter size={18} />
             </Button>
