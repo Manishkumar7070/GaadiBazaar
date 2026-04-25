@@ -11,14 +11,15 @@ import Logo from '@/components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 
 const LoginPage = () => {
-  const { user, loginWithGoogle, completeProfile, sendOtp, verifyOtp } = useAuth();
+  const { user, completeProfile, sendOtp, verifyOtp } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [step, setStep] = useState<'login' | 'otp' | 'permissions' | 'role' | 'profile'>('login');
   const [loading, setLoading] = useState(false);
   
-  // Login fields
+  // Auth fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -45,7 +46,11 @@ const LoginPage = () => {
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !email) return;
+    if (mode === 'signup' && !fullName) {
+      alert('Please enter your full name');
+      return;
+    }
+    if (!email) return;
 
     setLoading(true);
     try {
@@ -67,23 +72,9 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await verifyOtp(email, otp);
-      // Wait a bit for onAuthStateChange to fire and update user state
-      // profile completion will be handled by useEffect
     } catch (error: any) {
       console.error('OTP Verify Error:', error);
       alert(`Invalid code: ${error.message || 'Please try again'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      await loginWithGoogle();
-    } catch (error: any) {
-      console.error('Google Login Error:', error);
-      alert(`Failed to login with Google: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -166,21 +157,53 @@ const LoginPage = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
+                  <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">
+                    <button 
+                      type="button"
+                      onClick={() => setMode('signin')}
+                      className={cn(
+                        "flex-1 py-3 text-sm font-bold rounded-xl transition-all",
+                        mode === 'signin' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      )}
+                    >
+                      Login
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setMode('signup')}
+                      className={cn(
+                        "flex-1 py-3 text-sm font-bold rounded-xl transition-all",
+                        mode === 'signup' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      )}
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+
                   <form onSubmit={handleContinue} className="space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <Input 
-                          type="text" 
-                          placeholder="Enter your name" 
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          required
-                          className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
-                        />
-                      </div>
-                    </div>
+                    <AnimatePresence mode="wait">
+                      {mode === 'signup' && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-2 overflow-hidden"
+                        >
+                          <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                          <div className="relative">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <Input 
+                              type="text" 
+                              placeholder="Enter your name" 
+                              value={fullName}
+                              onChange={(e) => setFullName(e.target.value)}
+                              required={mode === 'signup'}
+                              className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                     <div className="space-y-2">
                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
@@ -202,24 +225,9 @@ const LoginPage = () => {
                       disabled={loading}
                       className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      {loading ? <Loader2 className="animate-spin" size={24} /> : 'Continue'}
+                      {loading ? <Loader2 className="animate-spin" size={24} /> : (mode === 'signup' ? 'Create Account' : 'Login')}
                     </Button>
                   </form>
-
-                  <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-                    <div className="relative flex justify-center text-[10px] uppercase tracking-widest"><span className="bg-white px-4 text-slate-400 font-black">Or continue with</span></div>
-                  </div>
-
-                  <Button 
-                    onClick={handleGoogleLogin}
-                    disabled={loading}
-                    variant="outline"
-                    className="w-full h-14 rounded-2xl border-2 border-slate-100 hover:bg-slate-50 text-slate-700 font-bold text-lg flex gap-3 transition-all"
-                  >
-                    <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                    Google
-                  </Button>
                 </motion.div>
               )}
 

@@ -44,27 +44,32 @@ const MobileNav = () => {
 
         if (item.primary) {
           return (
-            <div key={index} className="relative -top-8 flex flex-col items-center">
+            <div key={index} className="relative -top-10 flex flex-col items-center">
               <motion.div
                 animate={{
-                  scale: [1, 1.05, 1],
+                  y: [0, -4, 0],
                 }}
                 transition={{
                   duration: 2,
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="relative"
+                className="relative flex flex-col items-center"
               >
+                {/* CTA Badge */}
+                <div className="absolute -top-6 bg-slate-900 text-white text-[9px] font-black px-2 py-0.5 rounded-full whitespace-nowrap shadow-xl border border-white/20 animate-bounce">
+                  SELL NOW
+                </div>
+                
                 <button
                   onClick={item.onClick}
-                  className="w-16 h-16 bg-primary text-white rounded-full shadow-[0_8px_25px_-5px_rgba(249,115,22,0.5)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 border-4 border-white ring-2 ring-slate-100 flex-shrink-0"
+                  className="w-16 h-16 bg-gradient-to-br from-primary to-orange-600 text-white rounded-full shadow-[0_12px_30px_-10px_rgba(249,115,22,0.6)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 border-4 border-white ring-2 ring-slate-100 flex-shrink-0"
                 >
-                  <Icon size={28} strokeWidth={2.5} />
+                  <Icon size={30} strokeWidth={2.5} />
                 </button>
-                <div className="absolute inset-0 -z-10 rounded-full bg-primary/20 animate-ping opacity-75" />
+                <div className="absolute inset-0 -z-10 rounded-full bg-primary/30 animate-pulse scale-150 blur-xl" />
               </motion.div>
-              <span className="text-[11px] font-black text-primary mt-1 uppercase tracking-widest drop-shadow-sm">
+              <span className="text-[11px] font-black text-slate-800 mt-2 uppercase tracking-widest drop-shadow-sm">
                 {item.label}
               </span>
             </div>

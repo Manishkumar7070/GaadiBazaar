@@ -2,17 +2,6 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 
 export const authService = {
-  async signInWithGoogle() {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
-    if (error) throw error;
-    return data;
-  },
-
   async signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -22,6 +11,7 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        // Use the current origin for redirection
         emailRedirectTo: window.location.origin,
       },
     });
@@ -30,25 +20,22 @@ export const authService = {
   },
 
   async verifyOtp(email: string, token: string) {
-    // Try 'email' type first (standard for OTP/MagicLink)
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'email'
-      });
-      if (error) throw error;
-      return data;
-    } catch (err: any) {
-      // If it fails with 'email' type, it might be a first-time 'signup'
-      // Supabase requires the 'signup' type for the initial email confirmation code
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'signup'
-      });
-      if (error) throw error;
-      return data;
+    // Try both 'email' and 'signup' types to be safe
+    const types: ('email' | 'signup')[] = ['email', 'signup'];
+    
+    for (const type of types) {
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({
+          email,
+          token,
+          type
+        });
+        if (!error && data.user) return data;
+      } catch (err) {
+        console.warn(`Failed verification with type ${type}`, err);
+      }
     }
+    
+    throw new Error('Verification failed. Please check your code or try again.');
   }
 };

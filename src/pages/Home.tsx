@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
 
 const Home = () => {
-  const { user, loginWithGoogle } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');

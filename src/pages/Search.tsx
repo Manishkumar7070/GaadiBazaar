@@ -259,6 +259,9 @@ const SearchPage = () => {
     maxPrice: undefined,
     vehicleType: undefined,
     city: undefined,
+    fuelType: undefined,
+    transmission: undefined,
+    ownership: undefined,
   });
 
   useEffect(() => {
@@ -698,6 +701,7 @@ const SearchPage = () => {
                       <option value="">All Transmissions</option>
                       <option value="manual">Manual</option>
                       <option value="automatic">Automatic</option>
+                      <option value="semi-automatic">Semi-Automatic</option>
                     </select>
                   </div>
 
@@ -815,6 +819,54 @@ const SearchPage = () => {
           >
             City: A-Z
           </Button>
+
+          <div className="h-6 w-px bg-slate-200 mx-1 flex-shrink-0" />
+
+          <select 
+            className={cn(
+              "h-8 rounded-full px-3 text-xs font-medium border-none outline-none flex-shrink-0 transition-colors",
+              filters.fuelType ? "bg-primary text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+            value={filters.fuelType || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, fuelType: e.target.value as any || undefined }))}
+          >
+            <option value="">Fuel: All</option>
+            <option value="petrol">Petrol</option>
+            <option value="diesel">Diesel</option>
+            <option value="electric">Electric</option>
+            <option value="cng">CNG</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+
+          <select 
+            className={cn(
+              "h-8 rounded-full px-3 text-xs font-medium border-none outline-none flex-shrink-0 transition-colors",
+              filters.transmission ? "bg-primary text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+            value={filters.transmission || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, transmission: e.target.value as any || undefined }))}
+          >
+            <option value="">Trans: All</option>
+            <option value="manual">Manual</option>
+            <option value="automatic">Automatic</option>
+            <option value="semi-automatic">Semi-Auto</option>
+          </select>
+
+          <select 
+            className={cn(
+              "h-8 rounded-full px-3 text-xs font-medium border-none outline-none flex-shrink-0 transition-colors",
+              filters.ownership ? "bg-primary text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+            value={filters.ownership || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, ownership: e.target.value as any || undefined }))}
+          >
+            <option value="">Owner: All</option>
+            <option value="1st">1st Owner</option>
+            <option value="2nd">2nd Owner</option>
+            <option value="3rd">3rd Owner</option>
+            <option value="4th">4th Owner</option>
+            <option value="4th+">4th+ Owner</option>
+          </select>
         </div>
       </div>
 

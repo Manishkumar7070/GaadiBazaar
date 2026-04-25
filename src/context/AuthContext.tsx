@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { authService } from '@/services/auth.service';
+import { AlertCircle } from 'lucide-react';
 
 interface User {
   id: string;
@@ -14,7 +15,6 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginWithGoogle: () => Promise<void>;
   sendOtp: (email: string) => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,6 +26,32 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle size={32} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Configuration Needed</h1>
+          <p className="text-slate-600 mb-8 leading-relaxed">
+            Supabase environment variables are missing. If you've deployed this to Vercel, 
+            make sure to add <code className="bg-slate-100 px-1 rounded text-sm font-mono tracking-tight text-pink-600">VITE_SUPABASE_URL</code> and 
+            <code className="bg-slate-100 px-1 rounded text-sm font-mono tracking-tight text-pink-600">VITE_SUPABASE_ANON_KEY</code> in your project settings.
+          </p>
+          <a 
+            href="https://supabase.com/dashboard" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-colors"
+          >
+            Go to Supabase Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -79,15 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const loginWithGoogle = async () => {
-    try {
-      await authService.signInWithGoogle();
-    } catch (error) {
-      console.error('Google Login Error:', error);
-      throw error;
-    }
-  };
-
   const completeProfile = async (profileData: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => {
     const session = (await supabase.auth.getSession()).data.session;
     if (!session?.user) return;
@@ -132,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, sendOtp, verifyOtp, logout, completeProfile }}>
+    <AuthContext.Provider value={{ user, loading, sendOtp, verifyOtp, logout, completeProfile }}>
       {children}
     </AuthContext.Provider>
   );

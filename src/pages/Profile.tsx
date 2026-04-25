@@ -13,6 +13,7 @@ import { MOCK_VEHICLES } from '@/constants/mockData';
 import { useAuth } from '@/hooks/useAuth';
 import { useWishlist } from '@/hooks/useWishlist';
 import { shopService } from '@/services/shop.service';
+import { vehicleService } from '@/services/vehicle.service';
 import { supabase } from '@/lib/supabase';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 
@@ -20,8 +21,11 @@ const Profile = () => {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
   const { wishlist, loading: wishlistLoading, toggleWishlist } = useWishlist();
+  const [activeTab, setActiveTab] = useState('overview');
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Vehicle[]>([]);
+  const [myVehicles, setMyVehicles] = useState<Vehicle[]>([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [shop, setShop] = useState<Shop | null>(null);
   const [shopLoading, setShopLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -35,21 +39,41 @@ const Profile = () => {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    const loadShop = async () => {
-      if (user && (user.role === 'dealer' || user.role === 'admin')) {
-        setShopLoading(true);
+    const loadData = async () => {
+      if (user) {
+        // Load Vehicles
+        setVehiclesLoading(true);
         try {
-          const userShop = await shopService.fetchUserShop(user.id);
-          setShop(userShop);
+          const fetchedVehicles = await vehicleService.fetchVehicles({ sellerId: user.id });
+          setMyVehicles(fetchedVehicles);
         } catch (error) {
-          console.error('Error loading shop:', error);
+          console.error('Error loading my vehicles:', error);
         } finally {
-          setShopLoading(false);
+          setVehiclesLoading(false);
+        }
+
+        // Load Shop if applicable
+        if (user.role === 'dealer' || user.role === 'admin') {
+          setShopLoading(true);
+          try {
+            const userShop = await shopService.fetchUserShop(user.id);
+            setShop(userShop);
+          } catch (error) {
+            console.error('Error loading shop:', error);
+          } finally {
+            setShopLoading(false);
+          }
         }
       }
     };
-    loadShop();
+    loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (shop) {
+      setActiveTab('shop');
+    }
+  }, [shop]);
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('savedSearches') || '[]');
@@ -122,13 +146,15 @@ const Profile = () => {
   };
 
   const menuItems = [
-    { icon: Package, label: 'My Listings', count: 0 },
-    { icon: Heart, label: 'Wishlist', count: wishlist.length },
-    { icon: Bell, label: 'Notifications', count: 5 },
+    { icon: Package, label: 'My Listings', count: myVehicles.length, value: 'listings' },
+    { icon: Heart, label: 'Wishlist', count: wishlist.length, value: 'wishlist' },
+    { icon: Bookmark, label: 'Saved Searches', count: savedSearches.length, value: 'saved' },
+    { icon: Clock, label: 'Recently Viewed', count: recentlyViewed.length, value: 'recent' },
+    { icon: Bell, label: 'Notifications', count: 0 },
     { 
       icon: Shield, 
-      label: 'Verification Status', 
-      status: shop ? shop.verificationStatus : 'Not Registered',
+      label: 'Security & Verification', 
+      status: shop ? shop.verificationStatus : 'Individual',
       statusColor: shop?.verificationStatus === 'verified' ? 'text-green-500' : 
                    shop?.verificationStatus === 'rejected' ? 'text-red-500' : 'text-orange-500'
     },
@@ -205,14 +231,17 @@ const Profile = () => {
         )}
       </div>
 
-      <Tabs defaultValue={shop ? "shop" : "menu"} className="w-full flex flex-col gap-6">
-        <TabsList className={`grid ${shop ? 'grid-cols-5' : 'grid-cols-4'} w-full rounded-2xl bg-slate-100 p-1 gap-1 h-12`}>
-          {shop && <TabsTrigger value="shop" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">My Shop</TabsTrigger>}
-          <TabsTrigger value="menu" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Menu</TabsTrigger>
-          <TabsTrigger value="wishlist" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Wishlist</TabsTrigger>
-          <TabsTrigger value="saved" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Saved</TabsTrigger>
-          <TabsTrigger value="recent" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm py-0 text-xs sm:text-sm md:text-base transition-all h-full">Recent</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col gap-6">
+        <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <TabsList className={`flex min-w-max rounded-2xl bg-slate-100 p-1 gap-1 h-12 w-full`}>
+            {shop && <TabsTrigger value="shop" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">My Shop</TabsTrigger>}
+            <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Overview</TabsTrigger>
+            <TabsTrigger value="listings" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Listings</TabsTrigger>
+            <TabsTrigger value="wishlist" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Wishlist</TabsTrigger>
+            <TabsTrigger value="saved" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Saved</TabsTrigger>
+            <TabsTrigger value="recent" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Recent</TabsTrigger>
+          </TabsList>
+        </div>
         
         {shop && (
           <TabsContent value="shop" className="mt-6 space-y-6">
@@ -308,14 +337,17 @@ const Profile = () => {
           </TabsContent>
         )}
         
-        <TabsContent value="menu" className="mt-6">
+        <TabsContent value="overview" className="mt-6">
           <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {menuItems.map((item, i) => {
                 const Icon = item.icon;
                 return (
                   <React.Fragment key={item.label}>
-                    <button className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
+                    <button 
+                      className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors"
+                      onClick={() => item.value && setActiveTab(item.value)}
+                    >
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
                           <Icon size={20} />
@@ -323,7 +355,7 @@ const Profile = () => {
                         <span className="font-semibold">{item.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {item.count !== undefined && (
+                        {item.count !== undefined && item.count > 0 && (
                           <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-bold">
                             {item.count}
                           </span>
@@ -333,6 +365,7 @@ const Profile = () => {
                             {item.status}
                           </span>
                         )}
+                        {item.value && <ChevronRight size={16} className="text-slate-300" />}
                       </div>
                     </button>
                     {i < menuItems.length - 1 && <Separator />}
@@ -341,6 +374,46 @@ const Profile = () => {
               })}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="listings" className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg">My Vehicles</h3>
+            <Link to="/list-vehicle">
+              <Button size="sm" className="rounded-xl flex gap-2">
+                <PlusCircle size={16} /> List New
+              </Button>
+            </Link>
+          </div>
+
+          {vehiclesLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+          ) : myVehicles.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200 space-y-3">
+              <Package className="mx-auto text-slate-300" size={40} />
+              <p className="text-slate-500">You haven't listed any vehicles yet.</p>
+              <Link to="/list-vehicle">
+                <Button variant="link" className="text-primary font-bold">Start Selling</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {myVehicles.map((vehicle) => (
+                <div key={vehicle.id} className="relative group">
+                  <VehicleCard vehicle={vehicle} />
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Link to={`/edit-vehicle/${vehicle.id}`}>
+                      <Button variant="secondary" size="sm" className="rounded-lg h-8 px-2 text-xs font-bold shadow-lg">
+                        Edit
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="wishlist" className="mt-6 space-y-4">

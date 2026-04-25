@@ -3,12 +3,30 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase credentials missing! The application will not function correctly. Please visit the Settings > Secrets menu and provide VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+const isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!isConfigured) {
+  console.warn('Supabase credentials missing! The application will not function correctly. Please visit the Settings > Secrets menu and provide VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 
-// Default to a safe object structure if initialization fails to prevent total app breakage
-// though most features will still fail, it won't be an "Uncaught Error" on load.
-export const supabase = supabaseUrl && supabaseAnonKey 
+// Export the "isConfigured" flag to allow components to handle it gracefully
+export const isSupabaseConfigured = isConfigured;
+
+export const supabase = isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
-  : (null as any);
+  : new Proxy({} as any, {
+      get: (_, prop) => {
+        if (prop === 'auth') {
+          return new Proxy({} as any, {
+            get: (_, authProp) => {
+              return () => {
+                throw new Error('Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment variables.');
+              };
+            }
+          });
+        }
+        return () => {
+          throw new Error('Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your environment variables.');
+        };
+      }
+    });
