@@ -78,16 +78,26 @@ async function startServer() {
     max: 150, // Limit each IP to 150 requests per windowMs
     standardHeaders: true,
     legacyHeaders: false,
-    message: "Too many requests from this IP, please try again after 15 minutes",
+    handler: (req, res) => {
+      res.status(429).json({ 
+        error: "Too many requests", 
+        message: "Too many requests from this IP, please try again after 15 minutes" 
+      });
+    }
   });
 
   // 3. Strict Auth Rate Limiting (Prevent Brute Force/Abuse)
   const authLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 10, // Limit each IP to 10 OTP requests per hour
-    message: "Too many login attempts. Please try again in an hour.",
     standardHeaders: true,
     legacyHeaders: false,
+    handler: (req, res) => {
+      res.status(429).json({ 
+        error: "Rate limit exceeded", 
+        message: "Too many login attempts. Please try again in an hour." 
+      });
+    }
   });
 
   app.use("/api/", speedLimiter);
@@ -243,8 +253,9 @@ async function startServer() {
       return res.json({ message: "OTP sent successfully", status: "sent" });
 
     } catch (error: any) {
-      console.error("[AUTH] Error sending OTP:", error.message);
-      res.status(500).json({ error: error.message });
+      console.error("[AUTH] Error sending OTP:", error);
+      const errorMessage = error instanceof Error ? error.message : "Internal server error during OTP dispatch";
+      res.status(500).json({ error: errorMessage });
     }
   });
 

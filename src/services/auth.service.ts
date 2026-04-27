@@ -14,8 +14,21 @@ export const authService = {
       body: JSON.stringify(identifier),
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
+    const contentType = response.headers.get('content-type');
+    let data: any;
+
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        data = await response.json();
+      } catch (err) {
+        throw new Error('Server returned invalid JSON response');
+      }
+    } else {
+      const text = await response.text();
+      throw new Error(text || `Server error: ${response.status} ${response.statusText}`);
+    }
+
+    if (!response.ok) throw new Error(data?.error || data?.message || 'Failed to send OTP');
     return data;
   },
 
@@ -26,8 +39,21 @@ export const authService = {
       body: JSON.stringify({ ...identifier, code }),
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Failed to verify OTP');
+    const contentType = response.headers.get('content-type');
+    let data: any;
+
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        data = await response.json();
+      } catch (err) {
+        throw new Error('Server returned invalid JSON response');
+      }
+    } else {
+      const text = await response.text();
+      throw new Error(text || `Server error: ${response.status} ${response.statusText}`);
+    }
+
+    if (!response.ok) throw new Error(data?.error || data?.message || 'Failed to verify OTP');
 
     // If verification was successful, use the magic link logic to complete the session
     if (data.status === 'verified' && data.hashedToken) {
