@@ -478,7 +478,7 @@ const SearchPage = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase">Search Name</label>
                   <Input 
-                    placeholder="e.g., Budget SUVs in Bhopal" 
+                    placeholder="e.g., Budget SUVs in Mumbai" 
                     value={searchName}
                     onChange={(e) => setSearchName(e.target.value)}
                     className="rounded-xl"

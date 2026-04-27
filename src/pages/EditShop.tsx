@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { Shop } from '@/types';
 import { validateShop, ShopErrors } from '@/lib/validations';
 import { cn } from '@/lib/utils';
+import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
 
 const EditShop = () => {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ const EditShop = () => {
     pincode: '',
     phone: '',
     images: [] as string[],
+    mapEmbedUrl: '',
   });
 
   useEffect(() => {
@@ -49,6 +51,7 @@ const EditShop = () => {
             pincode: userShop.pincode || '',
             phone: userShop.phone,
             images: userShop.images || [],
+            mapEmbedUrl: userShop.mapEmbedUrl || '',
           });
         } else {
           navigate('/profile');
@@ -63,11 +66,15 @@ const EditShop = () => {
     loadShop();
   }, [user, navigate]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name as keyof ShopErrors]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+    // Reset city if state changes
+    if (name === 'state') {
+      setFormData(prev => ({ ...prev, city: '' }));
     }
   };
 
@@ -188,7 +195,7 @@ const EditShop = () => {
               <label className="text-sm font-semibold text-slate-700">Showroom Name</label>
               <Input 
                 name="name" 
-                placeholder="e.g. Bhopal Motors" 
+                placeholder="e.g. AsOne Motors" 
                 required 
                 value={formData.name}
                 onChange={handleChange}
@@ -227,6 +234,17 @@ const EditShop = () => {
               </div>
               {errors.phone && <p className="text-xs text-red-500 font-medium">{errors.phone}</p>}
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">3D Map Embed Link (Google Maps)</label>
+              <Input 
+                name="mapEmbedUrl" 
+                placeholder="e.g. https://www.google.com/maps/embed?pb=..." 
+                value={formData.mapEmbedUrl}
+                onChange={handleChange}
+                className="rounded-xl"
+              />
+              <p className="text-[10px] text-slate-500">Go to Google Maps → Share → Embed a map → Copy HTML src URL</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -253,28 +271,56 @@ const EditShop = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">City</label>
-                <Input 
-                  name="city" 
-                  placeholder="e.g. Bhopal" 
-                  required 
-                  value={formData.city}
-                  onChange={handleChange}
-                  className={cn("rounded-xl", errors.city && "border-red-500")}
-                />
-                {errors.city && <p className="text-xs text-red-500 font-medium">{errors.city}</p>}
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">State</label>
-                <Input 
+                <select 
                   name="state" 
-                  placeholder="e.g. Madhya Pradesh" 
-                  required 
                   value={formData.state}
                   onChange={handleChange}
-                  className={cn("rounded-xl", errors.state && "border-red-500")}
-                />
+                  required
+                  className={cn(
+                    "w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary",
+                    errors.state && "border-red-500"
+                  )}
+                >
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
                 {errors.state && <p className="text-xs text-red-500 font-medium">{errors.state}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">City</label>
+                {formData.state && MAJOR_CITIES_BY_STATE[formData.state] ? (
+                  <select
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    required
+                    className={cn(
+                      "w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary",
+                      errors.city && "border-red-500"
+                    )}
+                  >
+                    <option value="">Select City</option>
+                    {MAJOR_CITIES_BY_STATE[formData.state].map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                    <option value="Other">Other</option>
+                  </select>
+                ) : (
+                  <Input 
+                    name="city" 
+                    placeholder={formData.state ? "e.g. Mumbai" : "Select state first"} 
+                    required 
+                    disabled={!formData.state}
+                    value={formData.city}
+                    onChange={handleChange}
+                    className={cn("rounded-xl", errors.city && "border-red-500")}
+                  />
+                )}
+                {errors.city && <p className="text-xs text-red-500 font-medium">{errors.city}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Pincode</label>

@@ -183,7 +183,7 @@ const Home = () => {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-primary text-sm font-bold"
             >
               <Badge className="bg-primary hover:bg-primary text-white border-none">New</Badge>
-              <span>Verified Listings in Bhopal</span>
+              <span>Verified Listings in India</span>
             </motion.div>
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
@@ -232,7 +232,7 @@ const Home = () => {
               <div className="w-px bg-white/20 hidden sm:block h-8" />
             <div className="flex items-center gap-2 px-4 py-2 sm:py-0">
               <MapPin className="text-primary shrink-0" size={20} />
-              <span className="text-sm font-medium whitespace-nowrap">Bhopal, MP</span>
+              <span className="text-sm font-medium whitespace-nowrap">India</span>
             </div>
             <Button 
               type="submit"

@@ -93,17 +93,19 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             {vehicle.isFeatured && (
               <Badge className="bg-primary text-white border-none">Featured</Badge>
             )}
-            {vehicle.verificationStatus === 'verified' ? (
+            {vehicle.verificationStatus === 'verified' && (
               <Badge className="bg-green-500 text-white border-none flex gap-1 items-center">
                 <ShieldCheck size={12} /> Verified
               </Badge>
-            ) : user?.id === vehicle.sellerId && (
-              <Badge 
-                variant={vehicle.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
-                className={`border-none flex gap-1 items-center ${vehicle.verificationStatus === 'pending' ? 'bg-orange-500 text-white' : ''}`}
-              >
-                {vehicle.verificationStatus === 'pending' ? <Clock size={12} /> : <XCircle size={12} />} 
-                {vehicle.verificationStatus.charAt(0).toUpperCase() + vehicle.verificationStatus.slice(1)}
+            )}
+            {vehicle.verificationStatus === 'pending' && (
+              <Badge className="bg-orange-500 text-white border-none flex gap-1 items-center">
+                <Clock size={12} /> Pending Verification
+              </Badge>
+            )}
+            {vehicle.verificationStatus === 'rejected' && (
+              <Badge className="bg-red-500 text-white border-none flex gap-1 items-center">
+                <XCircle size={12} /> Verification Rejected
               </Badge>
             )}
           </div>

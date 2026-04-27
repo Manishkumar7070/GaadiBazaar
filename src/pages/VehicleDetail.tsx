@@ -15,6 +15,7 @@ import {
   Phone,
   MessageSquare,
   Clock,
+  XCircle,
   FileText,
   Droplets,
   ArrowLeftRight,
@@ -360,8 +361,20 @@ const VehicleDetail = () => {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-2">
                 <div className="flex gap-2">
-                  {vehicle.isVerified && (
-                    <Badge className="bg-green-500 text-white border-none">Verified Listing</Badge>
+                  {vehicle.verificationStatus === 'verified' && (
+                    <Badge className="bg-green-500 text-white border-none flex gap-1 items-center">
+                      <ShieldCheck size={14} /> Verified listing
+                    </Badge>
+                  )}
+                  {vehicle.verificationStatus === 'pending' && (
+                    <Badge className="bg-orange-500 text-white border-none flex gap-1 items-center">
+                      <Clock size={14} /> Pending Verification
+                    </Badge>
+                  )}
+                  {vehicle.verificationStatus === 'rejected' && (
+                    <Badge className="bg-red-500 text-white border-none flex gap-1 items-center">
+                      <XCircle size={14} /> Verification Rejected
+                    </Badge>
                   )}
                   <Badge variant="outline" className="border-primary text-primary">{vehicle.brand}</Badge>
                 </div>

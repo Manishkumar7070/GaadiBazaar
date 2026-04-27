@@ -1,14 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Search, Heart, User, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const MobileNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showBadge, setShowBadge] = useState(true);
+  const scrollRef = React.useRef(0);
+
+  useEffect(() => {
+    // Initial hide timeout
+    const hideTimeout = setTimeout(() => {
+      setShowBadge(false);
+    }, 3000);
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > scrollRef.current + 10) {
+        // Scrolling down
+        setShowBadge(false);
+      } else if (currentScrollY < scrollRef.current - 20) {
+        // Scrolling up
+        setShowBadge(true);
+      }
+      
+      scrollRef.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(hideTimeout);
+    };
+  }, []);
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
@@ -56,10 +85,18 @@ const MobileNav = () => {
                 }}
                 className="relative flex flex-col items-center"
               >
-                {/* CTA Badge */}
-                <div className="absolute -top-7 bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-2xl border-2 border-white ring-1 ring-primary/20 animate-bounce tracking-tight">
-                  FREE LISTING
-                </div>
+                <AnimatePresence>
+                  {showBadge && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.5, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.5, y: 10 }}
+                      className="absolute -top-7 bg-primary text-white text-[10px] font-black px-3 py-1 rounded-full whitespace-nowrap shadow-2xl border-2 border-white ring-1 ring-primary/20 animate-bounce tracking-tight z-20"
+                    >
+                      FREE LISTING
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 
                 <button
                   onClick={item.onClick}

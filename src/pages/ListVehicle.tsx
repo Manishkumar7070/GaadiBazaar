@@ -9,6 +9,8 @@ import { vehicleService } from '@/services/vehicle.service';
 import { supabase } from '@/lib/supabase';
 import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop } from '@/types';
 import { shopService } from '@/services/shop.service';
+import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
+import { cn } from '@/lib/utils';
 
 const ListVehicle = () => {
   const { user } = useAuth();
@@ -17,6 +19,7 @@ const ListVehicle = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   const [success, setSuccess] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [shop, setShop] = useState<Shop | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
@@ -96,6 +99,38 @@ const ListVehicle = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error for this field
+    if (errors[name]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+
+    // Reset city if state changes
+    if (name === 'state') {
+      setFormData(prev => ({ ...prev, city: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.price || Number(formData.price) <= 0) newErrors.price = 'Valid price is required';
+    if (!formData.brand.trim()) newErrors.brand = 'Brand is required';
+    if (!formData.model.trim()) newErrors.model = 'Model is required';
+    if (!formData.state) newErrors.state = 'State is required';
+    if (!formData.city.trim()) newErrors.city = 'City is required';
+    
+    const requiredPhotos = ['front', 'back', 'left', 'right', 'interior', 'exterior'];
+    const missingPhotos = requiredPhotos.filter(cat => !formData.categorizedImages[cat]);
+    if (missingPhotos.length > 0) {
+      newErrors.images = `Missing photos: ${missingPhotos.join(', ')}`;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleImageAdd = () => {
@@ -205,12 +240,9 @@ const ListVehicle = () => {
     e.preventDefault();
     if (!user) return;
 
-    // Validate that all required photos are present
-    const requiredPhotos = ['front', 'back', 'left', 'right', 'interior', 'exterior'];
-    const missingPhotos = requiredPhotos.filter(cat => !formData.categorizedImages[cat]);
-    
-    if (missingPhotos.length > 0) {
-      alert(`Please upload all required photos: ${missingPhotos.join(', ')}`);
+    if (!validateForm()) {
+      const firstErrorField = Object.keys(errors)[0];
+      alert(`Please fix form errors: ${errors[firstErrorField] || 'Required fields missing'}`);
       return;
     }
 
@@ -285,8 +317,9 @@ const ListVehicle = () => {
                 required 
                 value={formData.title}
                 onChange={handleChange}
-                className="rounded-xl"
+                className={cn("rounded-xl", errors.title && "border-red-500 focus-visible:ring-red-500")}
               />
+              {errors.title && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.title}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Description</label>
@@ -311,8 +344,9 @@ const ListVehicle = () => {
                   required 
                   value={formData.price}
                   onChange={handleChange}
-                  className="rounded-xl"
+                  className={cn("rounded-xl", errors.price && "border-red-500")}
                 />
+                {errors.price && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.price}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Vehicle Type</label>
@@ -561,26 +595,65 @@ const ListVehicle = () => {
           <CardContent className="p-6 space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">City</label>
-                <Input 
-                  name="city" 
-                  placeholder="e.g. Mumbai" 
-                  required 
-                  value={formData.city}
-                  onChange={handleChange}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">State</label>
-                <Input 
+                <select 
                   name="state" 
-                  placeholder="e.g. Maharashtra" 
-                  required 
                   value={formData.state}
                   onChange={handleChange}
-                  className="rounded-xl"
-                />
+                  required
+                  className={cn(
+                    "w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary",
+                    errors.state && "border-red-500"
+                  )}
+                >
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+                {errors.state && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.state}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">City</label>
+                {formData.state && MAJOR_CITIES_BY_STATE[formData.state] ? (
+                  <select
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    required
+                    className={cn(
+                      "w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary",
+                      errors.city && "border-red-500"
+                    )}
+                  >
+                    <option value="">Select City</option>
+                    {MAJOR_CITIES_BY_STATE[formData.state].map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                    <option value="Other">Other</option>
+                  </select>
+                ) : (
+                  <Input 
+                    name="city" 
+                    placeholder={formData.state ? "e.g. Mumbai" : "Select state first"} 
+                    required 
+                    disabled={!formData.state}
+                    value={formData.city}
+                    onChange={handleChange}
+                    className={cn("rounded-xl", errors.city && "border-red-500")}
+                  />
+                )}
+                {errors.city && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.city}</p>}
+                {formData.city === 'Other' && (
+                  <Input 
+                    name="otherCity"
+                    placeholder="Enter city name"
+                    required
+                    className="mt-2 rounded-xl"
+                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  />
+                )}
               </div>
             </div>
 

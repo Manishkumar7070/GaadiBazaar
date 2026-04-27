@@ -38,6 +38,7 @@ export interface Shop {
   longitude?: number;
   phone: string;
   images: string[];
+  mapEmbedUrl?: string;
   verificationStatus: VerificationStatus;
   rating?: number;
   reviewCount?: number;

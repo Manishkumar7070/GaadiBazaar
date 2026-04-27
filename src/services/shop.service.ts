@@ -14,6 +14,7 @@ export const shopService = {
         ...s,
         ownerId: s.owner_id,
         verificationStatus: s.verification_status,
+        mapEmbedUrl: s.map_embed_url,
         createdAt: s.created_at,
         updatedAt: s.updated_at
       })) as any;
@@ -38,6 +39,7 @@ export const shopService = {
         ...data,
         ownerId: data.owner_id,
         verificationStatus: data.verification_status,
+        mapEmbedUrl: data.map_embed_url,
         createdAt: data.created_at,
         updatedAt: data.updated_at
       } as any;
@@ -60,6 +62,7 @@ export const shopService = {
         ...data,
         ownerId: data.owner_id,
         verificationStatus: data.verification_status,
+        mapEmbedUrl: data.map_embed_url,
         createdAt: data.created_at,
         updatedAt: data.updated_at
       } as any;
@@ -82,6 +85,7 @@ export const shopService = {
           state: shopData.state,
           phone: shopData.phone,
           images: shopData.images,
+          map_embed_url: shopData.mapEmbedUrl,
           verification_status: 'pending'
         }])
         .select();
@@ -120,6 +124,7 @@ export const shopService = {
           state: shopData.state,
           phone: shopData.phone,
           images: shopData.images,
+          map_embed_url: shopData.mapEmbedUrl,
           updated_at: new Date().toISOString()
         })
         .eq('id', shopId);

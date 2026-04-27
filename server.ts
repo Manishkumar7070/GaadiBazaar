@@ -218,6 +218,34 @@ async function startServer() {
     try {
       const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
       
+      // If it's an email and we have Resend configured, prefer Resend for reliability
+      // unless the user explicitly wants Twilio Verify for everything.
+      if (email && process.env.RESEND_API_KEY) {
+        const code = generateOTP();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        
+        await supabase.from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
+        
+        await resend.emails.send({
+          from: 'One Dealer <onboarding@resend.dev>',
+          to: email,
+          subject: `${code} is your One Dealer verification code`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 400px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+              <h2 style="color: #2563eb; margin-bottom: 20px;">One Dealer</h2>
+              <p style="font-size: 16px; color: #333;">Welcome to the premium automotive marketplace.</p>
+              <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <span style="font-size: 32px; font-weight: 800; letter-spacing: 5px; color: #1e293b;">${code}</span>
+              </div>
+              <p style="font-size: 12px; color: #64748b;">This code expires in 10 minutes. If you did not request this, please ignore this email.</p>
+            </div>
+          `
+        });
+
+        console.log(`[AUTH] Sent Resend OTP to ${email}`);
+        return res.json({ message: "OTP sent successfully via Email", status: "sent" });
+      }
+
       if (!verifyServiceSid) {
         console.warn("[AUTH] Twilio Verify Service SID missing. Falling back to manual mode for development.");
         // Fallback to manual if Twilio is not configured
@@ -243,11 +271,26 @@ async function startServer() {
       }
 
       // Use Twilio Verify
-      await twilioBreaker.fire(async () => {
-        await getTwilioClient().verify.v2
-          .services(verifyServiceSid)
-          .verifications.create({ to: identifier, channel });
-      });
+      try {
+        await twilioBreaker.fire(async () => {
+          await getTwilioClient().verify.v2
+            .services(verifyServiceSid)
+            .verifications.create({ to: identifier, channel });
+        });
+      } catch (error: any) {
+        console.error("[AUTH] Twilio error:", error);
+        
+        if (error.message === 'Breaker is open') {
+          throw new Error('Our SMS service is currently under heavy load. Please try again in 30 seconds.');
+        }
+        
+        // Handle Twilio "Authenticate" error (20003)
+        if (error.message && (error.message.includes('Authenticate') || error.status === 401)) {
+          throw new Error('Verification service is temporarily unavailable (Configuration Error). Please contact support.');
+        }
+
+        throw error;
+      }
       
       console.log(`[AUTH] Sent Twilio OTP to ${identifier}`);
       return res.json({ message: "OTP sent successfully", status: "sent" });
@@ -286,12 +329,20 @@ async function startServer() {
         }
       } else {
         // Verify with Twilio
-        const verification = await getTwilioClient().verify.v2
-          .services(verifyServiceSid)
-          .verificationChecks.create({ to: identifier, code });
+        try {
+          const verification = await getTwilioClient().verify.v2
+            .services(verifyServiceSid)
+            .verificationChecks.create({ to: identifier, code });
 
-        if (verification.status === "approved") {
-          isVerified = true;
+          if (verification.status === "approved") {
+            isVerified = true;
+          }
+        } catch (error: any) {
+          console.error("[AUTH] Twilio verification error:", error);
+          if (error.message && (error.message.includes('Authenticate') || error.status === 401)) {
+            throw new Error('Verification service is temporarily unavailable (Configuration Error).');
+          }
+          throw error;
         }
       }
 
@@ -303,38 +354,49 @@ async function startServer() {
       let user = null;
       const loginEmail = email || `${phone.replace('+', '')}@phone.verify`;
 
-      const { data: userData } = await supabase.auth.admin.listUsers();
-      const existingUser = userData?.users?.find((u: any) => u.email === loginEmail || u.user_metadata?.phone === phone);
+      try {
+        const { data: userData, error: listError } = await supabase.auth.admin.listUsers();
+        if (listError) throw listError;
+        
+        const existingUser = userData?.users?.find((u: any) => u.email === loginEmail || u.user_metadata?.phone === phone);
 
-      if (existingUser) {
-        user = existingUser;
-      } else {
-        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+        if (existingUser) {
+          user = existingUser;
+        } else {
+          const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+            email: loginEmail,
+            email_confirm: true,
+            user_metadata: { 
+              auth_method: "twilio_otp",
+              phone: phone 
+            }
+          });
+          if (createError) throw createError;
+          user = newUser.user;
+        }
+
+        // Generate session link
+        const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+          type: 'magiclink',
           email: loginEmail,
-          email_confirm: true,
-          user_metadata: { 
-            auth_method: "twilio_otp",
-            phone: phone 
-          }
+          options: { redirectTo: process.env.VITE_APP_URL || 'https://ais-dev-2eljun55on5j42d5korshe-821825135031.asia-southeast1.run.app' }
         });
-        if (createError) throw createError;
-        user = newUser.user;
+
+        if (linkError) throw linkError;
+
+        return res.json({ 
+          status: "verified", 
+          user,
+          hashedToken: linkData.properties.hashed_token
+        });
+
+      } catch (authError: any) {
+        console.error("[AUTH] Supabase Admin Error:", authError);
+        const msg = authError.message === "Authenticate" 
+          ? "System authentication error. Our team has been notified. Please try again later."
+          : authError.message;
+        throw new Error(msg);
       }
-
-      // Generate session link
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: loginEmail,
-        options: { redirectTo: process.env.VITE_APP_URL || 'http://localhost:3000' }
-      });
-
-      if (linkError) throw linkError;
-
-      return res.json({ 
-        status: "verified", 
-        user,
-        hashedToken: linkData.properties.hashed_token
-      });
 
     } catch (error: any) {
       console.error("[AUTH] Error verifying OTP:", error.message);
@@ -378,7 +440,7 @@ async function startServer() {
         return await retry(async (bail) => {
           const { data, error } = await supabase.from("vehicles").select("*");
           if (error) {
-            if (error.code === "429") bail(new Error("Rate limited by Supabase"));
+            if (error.code === "429") bail(new Error("Supabase is temporarily rate limiting requests."));
             throw error;
           }
           return data;
@@ -387,6 +449,11 @@ async function startServer() {
           minTimeout: 1000,
           maxTimeout: 5000,
         });
+      }).catch(err => {
+        if (err.message === 'Breaker is open') {
+          throw new Error('Database is temporarily unavailable due to high traffic. Retrying in a few seconds...');
+        }
+        throw err;
       });
       
       // Cache for 5 minutes
@@ -401,6 +468,18 @@ async function startServer() {
   app.post("/api/vehicles", async (req, res) => {
     try {
       const vehicleData = req.body;
+      
+      // Server-side validation
+      const requiredFields = ["title", "price", "brand", "model", "city", "state", "sellerId"];
+      const missingFields = requiredFields.filter(f => !vehicleData[f]);
+      
+      if (missingFields.length > 0) {
+        return res.status(400).json({ 
+          error: "Validation Failed", 
+          message: `Missing required fields: ${missingFields.join(", ")}` 
+        });
+      }
+
       const data = await supabaseBreaker.fire(async () => {
         return await retry(async (bail) => {
           const { data, error } = await supabase
@@ -418,13 +497,18 @@ async function startServer() {
             .select();
 
           if (error) {
-            if (error.code === "400") bail(new Error("Invalid vehicle data"));
+            if (error.code === "400") bail(new Error("The provided vehicle information is invalid. Please check and try again."));
             throw error;
           }
           return data[0];
         }, {
           retries: 2,
         });
+      }).catch(err => {
+        if (err.message === 'Breaker is open') {
+          throw new Error('Our database is currently processing too many requests. Please wait a moment.');
+        }
+        throw err;
       });
 
       // Invalidate cache

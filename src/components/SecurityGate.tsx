@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, ShieldAlert, Loader2, Lock, MousePointer2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
@@ -9,50 +9,42 @@ interface SecurityGateProps {
 
 export const SecurityGate: React.FC<SecurityGateProps> = ({ children }) => {
   const [isVerified, setIsVerified] = useState(false);
-  const [status, setStatus] = useState<'scanning' | 'challenge' | 'blocked' | 'success'>('scanning');
-  const [progress, setProgress] = useState(0);
-  const [isHolding, setIsHolding] = useState(false);
+  const [status, setStatus] = useState<'splash' | 'scanning' | 'blocked' | 'success'>('splash');
   const [botScore, setBotScore] = useState(0);
 
-  const verifyHuman = useCallback(() => {
-    // Basic bot detection heuristics
-    let score = 0;
-    if (navigator.webdriver) score += 50;
-    if (!navigator.languages || navigator.languages.length === 0) score += 30;
-    if (window.innerWidth === 0 || window.innerHeight === 0) score += 20;
-    
-    setBotScore(score);
-    
-    if (score >= 80) {
-      setStatus('blocked');
-    } else {
-      setTimeout(() => setStatus('challenge'), 1500);
-    }
+  const completeVerification = useCallback(() => {
+    setStatus('success');
+    localStorage.setItem('security_verified', 'true');
+    setTimeout(() => setIsVerified(true), 600); // Shorter duration
   }, []);
 
-  useEffect(() => {
-    verifyHuman();
-  }, [verifyHuman]);
+  const verifyHuman = useCallback(() => {
+    // Basic bot detection
+    const isBot = navigator.webdriver || !navigator.languages?.length;
+    
+    if (isBot) {
+      setStatus('blocked');
+    } else {
+      // Automate the "success" after a very brief scanning period
+      setTimeout(() => completeVerification(), 800);
+    }
+  }, [completeVerification]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isHolding && status === 'challenge') {
-      interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setStatus('success');
-            setTimeout(() => setIsVerified(true), 800);
-            return 100;
-          }
-          return prev + 2;
-        });
-      }, 20);
-    } else {
-      setProgress((prev) => Math.max(0, prev - 5));
+    // Check for previous verification
+    const previouslyVerified = localStorage.getItem('security_verified');
+    if (previouslyVerified === 'true') {
+      setIsVerified(true);
+      return;
     }
-    return () => clearInterval(interval);
-  }, [isHolding, status]);
+
+    // Show splash screen for 1 second then start scanning
+    const timer = setTimeout(() => {
+      setStatus('scanning');
+      verifyHuman();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [verifyHuman]);
 
   if (isVerified) return <>{children}</>;
 
@@ -64,6 +56,75 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ children }) => {
       />
       
       <AnimatePresence mode="wait">
+        {status === 'splash' && (
+          <motion.div
+            key="splash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            className="flex flex-col items-center"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="mb-8 relative"
+            >
+              <div className="w-28 h-28 bg-white rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/30 transform rotate-3 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-white opacity-50" />
+                <span className="text-5xl font-black text-blue-600 tracking-tighter relative z-10">O</span>
+                <div className="absolute top-0 right-0 p-2 opacity-10">
+                   <ShieldCheck className="w-8 h-8 text-blue-600" />
+                </div>
+              </div>
+              <motion.div 
+                animate={{ rotate: -360 }}
+                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                className="absolute -inset-6 border border-blue-500/10 rounded-full"
+              />
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute -inset-10 border border-blue-500/5 rounded-full border-dashed"
+              />
+            </motion.div>
+            <div className="text-center">
+              <motion.h1 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-4xl font-black text-white tracking-tighter flex items-center justify-center"
+              >
+                One<span className="text-blue-500">Dealer</span>
+              </motion.h1>
+              <div className="mt-6 w-32 h-1 bg-slate-900 rounded-full mx-auto overflow-hidden relative">
+                <motion.div 
+                  initial={{ left: "-100%" }}
+                  animate={{ left: "100%" }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500 to-transparent w-full h-full"
+                />
+              </div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 0.5, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-[8px] text-blue-500/50 font-bold uppercase tracking-[0.2em] mt-3"
+              >
+                Syncing Engine...
+              </motion.p>
+            </div>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-6"
+            >
+              Automotive Intelligence
+            </motion.p>
+          </motion.div>
+        )}
+
         {status === 'scanning' && (
           <motion.div 
             key="scanning"
@@ -78,57 +139,6 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ children }) => {
             </div>
             <h2 className="text-xl font-bold text-white tracking-tight">Security Check</h2>
             <p className="text-slate-400 text-sm mt-2 font-medium uppercase tracking-widest">Validating session integrity...</p>
-          </motion.div>
-        )}
-
-        {status === 'challenge' && (
-          <motion.div 
-            key="challenge"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-sm w-full px-6 text-center"
-          >
-            <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 relative group">
-              <div className="absolute inset-0 bg-blue-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <ShieldCheck className="w-10 h-10 text-blue-400 relative z-10" />
-            </div>
-            
-            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Verify You Are Human</h2>
-            <p className="text-slate-400 text-sm mb-12">Press and hold the button below to confirm your identity and prevent bot activity.</p>
-            
-            <div className="relative group">
-              <button
-                onMouseDown={() => setIsHolding(true)}
-                onMouseUp={() => setIsHolding(false)}
-                onMouseLeave={() => setIsHolding(false)}
-                onTouchStart={() => setIsHolding(true)}
-                onTouchEnd={() => setIsHolding(false)}
-                className={cn(
-                  "w-full py-6 rounded-2xl font-bold text-lg select-none transition-all duration-300 relative overflow-hidden",
-                  isHolding ? "bg-blue-600 scale-[0.98]" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                )}
-              >
-                <div 
-                  className="absolute left-0 top-0 bottom-0 bg-blue-500 transition-all duration-75" 
-                  style={{ width: `${progress}%` }} 
-                />
-                <span className="relative z-10 flex items-center justify-center gap-2 uppercase tracking-widest text-xs">
-                  {isHolding ? (
-                    <>Verifying {progress}%</>
-                  ) : (
-                    <>
-                      <MousePointer2 className="w-4 h-4" />
-                      Hold to Verify
-                    </>
-                  )}
-                </span>
-              </button>
-            </div>
-            
-            <div className="mt-8 flex items-center justify-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-              <Lock className="w-3 h-3" />
-              Secured by AsOne Shield
-            </div>
           </motion.div>
         )}
 

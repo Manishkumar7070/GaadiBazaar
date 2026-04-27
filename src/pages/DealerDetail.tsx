@@ -199,15 +199,25 @@ const DealerDetail = () => {
       {/* Location Section */}
       <section className="space-y-4">
         <h3 className="text-xl font-bold flex items-center gap-2">
-          <MapPin className="text-primary" /> Store Location
+          <MapPin className="text-primary" /> Store Location {dealer.mapEmbedUrl && "& 3D View"}
         </h3>
-        <Card className="border-none shadow-sm rounded-3xl overflow-hidden h-64 bg-slate-100 relative">
-          <div className="absolute inset-0 flex items-center justify-center text-slate-400 flex-col gap-2">
-            <MapPin size={48} />
-            <p className="font-bold">Map View: {dealer.city}</p>
-            <p className="text-sm">({dealer.latitude}, {dealer.longitude})</p>
-          </div>
-          {/* In a real app, a Google Maps component would go here */}
+        <Card className="border-none shadow-sm rounded-3xl overflow-hidden h-96 bg-slate-100 relative">
+          {dealer.mapEmbedUrl ? (
+            <iframe 
+              src={dealer.mapEmbedUrl}
+              className="w-full h-full border-none"
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="Shop Location"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-slate-400 flex-col gap-2">
+              <MapPin size={48} />
+              <p className="font-bold">Map View: {dealer.city}</p>
+              <p className="text-sm">({dealer.latitude}, {dealer.longitude})</p>
+            </div>
+          )}
         </Card>
       </section>
 
