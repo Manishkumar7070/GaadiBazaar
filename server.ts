@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
+import { Resend } from "resend";
 import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
 import CircuitBreaker from "opossum";
@@ -106,6 +107,9 @@ async function startServer() {
     ? createClient(supabaseUrl, supabaseServiceKey)
     : (null as any);
 
+  // Initialize Resend
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   // Twilio Client (Lazy initialization)
   let twilioClientInstance: any = null;
   const getTwilioClient = () => {
@@ -156,132 +160,147 @@ async function startServer() {
     }
   });
 
-  // OTP Send Route
+  // Manual OTP Generator (6 digits)
+  const generateOTP = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // OTP Send Route (Twilio Implementation)
   app.post("/api/auth/send-otp", async (req, res) => {
     const { email, phone } = req.body;
     const identifier = email || phone;
     const channel = email ? "email" : "sms";
 
+    console.log(`[AUTH] OTP request for: ${identifier} via ${channel}`);
+
     if (!identifier) return res.status(400).json({ error: "Email or Phone is required" });
 
-    // Development / Mock Mode
-    // If Twilio is not configured, we "simulate" success for testing
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-
-    if (!accountSid || !authToken || !verifyServiceSid) {
-      console.warn("Twilio not configured. Using MOCK OTP mode.");
-      // In mock mode, we just return success. The "code" to verify will be '000000'
-      return res.json({ 
-        message: "OTP sent successfully (MOCK MODE)", 
-        isMock: true,
-        note: "Twilio credentials missing. Use '000000' to verify." 
-      });
-    }
-
     try {
+      const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+      
+      if (!verifyServiceSid) {
+        console.warn("[AUTH] Twilio Verify Service SID missing. Falling back to manual mode for development.");
+        // Fallback to manual if Twilio is not configured
+        const code = generateOTP();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        
+        await supabase.from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
+        
+        if (email) {
+          await resend.emails.send({
+            from: 'One Dealer <auth@resend.dev>',
+            to: email,
+            subject: `${code} is your One Dealer verification code`,
+            html: `<p>Your code is: <b>${code}</b></p>`
+          });
+        }
+        
+        return res.json({ 
+          message: "OTP sent successfully (Manual Mode)",
+          isManual: true,
+          note: process.env.NODE_ENV !== "production" ? `Your code is: ${code}` : undefined
+        });
+      }
+
+      // Use Twilio Verify
       await twilioBreaker.fire(async () => {
         await getTwilioClient().verify.v2
           .services(verifyServiceSid)
           .verifications.create({ to: identifier, channel });
       });
       
-      return res.json({ message: "OTP sent successfully" });
+      console.log(`[AUTH] Sent Twilio OTP to ${identifier}`);
+      return res.json({ message: "OTP sent successfully", status: "sent" });
+
     } catch (error: any) {
-      console.error("Error sending OTP:", error);
-      
-      // Handle specific Twilio Authentication Error (20003)
-      if (error.code === 20003 || (error.status === 401 && error.message?.includes('Authenticate'))) {
-        return res.status(401).json({ 
-          error: "Twilio Authentication Failed", 
-          message: "The Twilio Account SID or Auth Token provided in your secrets is incorrect. Please verify them in the Settings > Secrets menu." 
-        });
-      }
-
-      // Handle invalid service SID (20404)
-      if (error.code === 20404) {
-        return res.status(404).json({
-          error: "Invalid Verify Service SID",
-          message: "The TWILIO_VERIFY_SERVICE_SID is invalid. Please create a Verify Service in your Twilio console and update your secrets."
-        });
-      }
-
+      console.error("[AUTH] Error sending OTP:", error.message);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // OTP Verify Route
+  // OTP Verify Route (Twilio Implementation)
   app.post("/api/auth/verify-otp", async (req, res) => {
     const { email, phone, code } = req.body;
     const identifier = email || phone;
 
     if (!identifier || !code) return res.status(400).json({ error: "Identifier and code are required" });
 
-    // Mock Verification
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-
-    if (!accountSid || !authToken || !verifyServiceSid) {
-      if (code === "000000") {
-        return res.json({ status: "verified", user: { email: email || "mock@example.com", id: "mock-user-id" } });
-      } else {
-        return res.status(401).json({ error: "Invalid MOCK OTP. Use '000000'." });
-      }
-    }
-
     try {
-      const verification = await getTwilioClient().verify.v2
-        .services(verifyServiceSid)
-        .verificationChecks.create({ to: identifier, code });
+      let isVerified = false;
+      const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-      if (verification.status === "approved") {
-        // 1. Create or get user in Supabase
-        let supabaseUser = null;
-        try {
-          const userEmail = email || `${phone}@mobile.user`;
-          
-          // Try to find existing user first
-          const { data: existingUsers, error: searchError } = await supabase.auth.admin.listUsers();
-          const existingUser = (existingUsers as any)?.users?.find((u: any) => u.email === userEmail || u.user_metadata?.phone === phone);
+      if (!verifyServiceSid) {
+        // Fallback check in DB
+        const { data: otpData } = await supabase
+          .from("otps")
+          .select("*")
+          .eq("email", identifier)
+          .eq("code", code)
+          .gt("expires_at", new Date().toISOString())
+          .limit(1);
 
-          if (existingUser) {
-            supabaseUser = existingUser;
-          } else {
-            const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-              email: userEmail,
-              email_confirm: true,
-              user_metadata: { phone, auth_method: "otp" }
-            });
-            if (createError) throw createError;
-            supabaseUser = newUser.user;
-          }
-        } catch (supabaseError) {
-          console.error("Supabase User Management Error:", supabaseError);
+        if (otpData && otpData.length > 0) {
+          isVerified = true;
+          await supabase.from("otps").delete().eq("email", identifier);
         }
-        
-        return res.json({ 
-          status: "verified", 
-          user: supabaseUser || { email: identifier } 
-        });
       } else {
-        return res.status(401).json({ error: "Invalid OTP" });
-      }
-    } catch (error: any) {
-      console.error("Error verifying OTP:", error);
+        // Verify with Twilio
+        const verification = await getTwilioClient().verify.v2
+          .services(verifyServiceSid)
+          .verificationChecks.create({ to: identifier, code });
 
-      // Handle specific Twilio Authentication Error (20003)
-      if (error.code === 20003 || (error.status === 401 && error.message?.includes('Authenticate'))) {
-        return res.status(401).json({ 
-          error: "Twilio Authentication Failed", 
-          message: "The Twilio Account SID or Auth Token provided in your secrets is incorrect. Please verify them in the Settings > Secrets menu." 
+        if (verification.status === "approved") {
+          isVerified = true;
+        }
+      }
+
+      if (!isVerified) {
+        return res.status(401).json({ error: "Invalid or expired OTP code" });
+      }
+
+      // Login/User logic
+      let user = null;
+      const loginEmail = email || `${phone.replace('+', '')}@phone.verify`;
+
+      const { data: userData } = await supabase.auth.admin.listUsers();
+      const existingUser = userData?.users?.find((u: any) => u.email === loginEmail || u.user_metadata?.phone === phone);
+
+      if (existingUser) {
+        user = existingUser;
+      } else {
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+          email: loginEmail,
+          email_confirm: true,
+          user_metadata: { 
+            auth_method: "twilio_otp",
+            phone: phone 
+          }
         });
+        if (createError) throw createError;
+        user = newUser.user;
       }
 
+      // Generate session link
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: loginEmail,
+        options: { redirectTo: process.env.VITE_APP_URL || 'http://localhost:3000' }
+      });
+
+      if (linkError) throw linkError;
+
+      return res.json({ 
+        status: "verified", 
+        user,
+        hashedToken: linkData.properties.hashed_token
+      });
+
+    } catch (error: any) {
+      console.error("[AUTH] Error verifying OTP:", error.message);
       res.status(500).json({ error: error.message });
     }
   });
+
 
   // Complete Profile Route
   app.post("/api/auth/complete-profile", async (req, res) => {

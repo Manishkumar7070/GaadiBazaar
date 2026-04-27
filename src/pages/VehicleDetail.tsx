@@ -405,6 +405,67 @@ const VehicleDetail = () => {
               {vehicle.description}
             </p>
           </section>
+
+          {/* Video Evidence Section */}
+          {(vehicle.engineStartVideo || vehicle.engineSoundVideo || vehicle.walkaroundVideo) && (
+            <section className="space-y-6 pt-4">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 h-6">Vehicle Proof</Badge>
+                <h2 className="text-xl font-bold tracking-tight">Sound & Video Evidence</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {vehicle.engineStartVideo && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                       <ShieldCheck size={16} className="text-green-500" />
+                       Engine Cold Start
+                    </p>
+                    <div className="aspect-video rounded-[2rem] overflow-hidden shadow-xl border border-slate-100 bg-black group relative">
+                      <video 
+                        src={vehicle.engineStartVideo} 
+                        className="w-full h-full object-cover" 
+                        controls 
+                        playsInline 
+                      />
+                    </div>
+                  </div>
+                )}
+                {vehicle.engineSoundVideo && (
+                  <div className="space-y-3">
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                       <ShieldCheck size={16} className="text-green-500" />
+                       Engine Sound / Rev
+                    </p>
+                    <div className="aspect-video rounded-[2rem] overflow-hidden shadow-xl border border-slate-100 bg-black group relative">
+                      <video 
+                        src={vehicle.engineSoundVideo} 
+                        className="w-full h-full object-cover" 
+                        controls 
+                        playsInline 
+                      />
+                    </div>
+                  </div>
+                )}
+                {vehicle.walkaroundVideo && (
+                  <div className="space-y-3 sm:col-span-2">
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                       <ShieldCheck size={16} className="text-green-500" />
+                       360° Walkaround Video
+                    </p>
+                    <div className="aspect-video rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-black group relative">
+                      <video 
+                        src={vehicle.walkaroundVideo} 
+                        className="w-full h-full object-cover" 
+                        controls 
+                        playsInline 
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
         </div>
 
         {/* Right Column: Seller Info & Actions */}

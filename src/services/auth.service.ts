@@ -7,33 +7,38 @@ export const authService = {
     if (error) throw error;
   },
 
-  async sendOtp(email: string) {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        // Use the current origin for redirection
-        emailRedirectTo: window.location.origin,
-      },
+  async sendOtp(identifier: { email?: string; phone?: string }) {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(identifier),
     });
-    if (error) throw error;
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to send OTP');
     return data;
   },
 
-  async verifyOtp(email: string, token: string) {
-    // Try both 'email' and 'signup' types to be safe
-    const types: ('email' | 'signup')[] = ['email', 'signup'];
-    
-    for (const type of types) {
-      try {
-        const { data, error } = await supabase.auth.verifyOtp({
-          email,
-          token,
-          type
-        });
-        if (!error && data.user) return data;
-      } catch (err) {
-        console.warn(`Failed verification with type ${type}`, err);
-      }
+  async verifyOtp(identifier: { email?: string; phone?: string }, code: string) {
+    const response = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...identifier, code }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to verify OTP');
+
+    // If verification was successful, use the magic link logic to complete the session
+    if (data.status === 'verified' && data.hashedToken) {
+      const email = identifier.email || `${identifier.phone?.replace('+', '')}@phone.verify`;
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: data.hashedToken,
+        type: 'magiclink'
+      });
+      if (error) throw error;
+      return { user: data.user };
     }
     
     throw new Error('Verification failed. Please check your code or try again.');

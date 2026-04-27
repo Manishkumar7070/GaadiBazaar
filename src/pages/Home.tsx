@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Car, Bike, Truck, Clock } from 'lucide-react';
+import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,31 +13,38 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
+import { shopService } from '@/services/shop.service';
+import { Shop } from '@/types';
 
 const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');
   const [recentlyViewed, setRecentlyViewed] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadVehicles = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
-        // If no vehicles in Firestore, use mock data for demo
-        setVehicles(data.length > 0 ? data : MOCK_VEHICLES);
+        const [vehicleData, shopData] = await Promise.all([
+          vehicleService.fetchVehicles({ verificationStatus: 'verified' }),
+          shopService.fetchShops()
+        ]);
+        setVehicles(vehicleData.length > 0 ? vehicleData : MOCK_VEHICLES);
+        // Map common fields if missing in mock logic, though fetchAllShops handles it
+        setShops(shopData);
       } catch (error) {
-        console.error('Error loading vehicles:', error);
+        console.error('Error loading data:', error);
         setVehicles(MOCK_VEHICLES);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadVehicles();
+    loadData();
 
     const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
     // Ensure unique IDs
@@ -283,6 +290,57 @@ const Home = () => {
           })}
         </div>
       </section>
+
+      {/* Top Showrooms */}
+      {shops.length > 0 && (
+        <section className="space-y-6">
+          <div className="flex items-end justify-between">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                <Store className="text-primary" /> Trusted Showrooms
+              </h2>
+              <p className="text-slate-500 font-medium">Verified dealerships with best track records.</p>
+            </div>
+            <Link to="/search" className="group flex items-center gap-1 text-primary font-bold hover:text-primary/80 transition-colors">
+              Explore All
+              <ChevronRight size={20} className="transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+          <div className="flex gap-6 overflow-x-auto pb-4 px-1 no-scrollbar">
+            {shops.map((shop) => (
+              <Link 
+                key={shop.id} 
+                to={`/dealer/${shop.id}`}
+                className="flex-none w-[280px] group"
+              >
+                <div className="bg-white rounded-[2rem] border border-slate-100 p-4 space-y-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                  <div className="aspect-[16/10] rounded-2xl overflow-hidden bg-slate-100">
+                    <img 
+                      src={shop.images[0] || 'https://picsum.photos/seed/shop/800/600'} 
+                      alt={shop.name} 
+                      className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors truncate pr-2">{shop.name}</h3>
+                      <div className="flex items-center gap-1 text-orange-500 text-sm font-bold bg-orange-50 px-2 py-0.5 rounded-lg">
+                        <Star size={14} fill="currentColor" />
+                        <span>{shop.rating || '4.5'}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-400 text-xs font-medium">
+                      <MapPin size={14} className="text-slate-300" />
+                      <span>{shop.city}, {shop.state}</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Featured Listings */}
       <section className="space-y-4">

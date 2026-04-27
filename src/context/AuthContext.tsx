@@ -15,8 +15,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  sendOtp: (email: string) => Promise<void>;
-  verifyOtp: (email: string, code: string) => Promise<void>;
+  sendOtp: (identifier: { email?: string; phone?: string }) => Promise<void>;
+  verifyOtp: (identifier: { email?: string; phone?: string }, code: string) => Promise<void>;
   logout: () => Promise<void>;
   completeProfile: (data: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => Promise<void>;
 }
@@ -136,12 +136,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const sendOtp = async (email: string) => {
-    await authService.sendOtp(email);
+  const sendOtp = async (identifier: { email?: string; phone?: string }) => {
+    await authService.sendOtp(identifier);
   };
 
-  const verifyOtp = async (email: string, code: string) => {
-    await authService.verifyOtp(email, code);
+  const verifyOtp = async (identifier: { email?: string; phone?: string }, code: string) => {
+    await authService.verifyOtp(identifier, code);
   };
 
   const logout = async () => {

@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { POPULAR_CITIES, INDIAN_STATES } from '@/constants/cities';
 import { vehicleService } from '@/services/vehicle.service';
+import { searchService } from '@/services/search.service';
 
 const POPULAR_BRANDS = [
   'Maruti Suzuki', 'Hyundai', 'Tata', 'Toyota', 'Mahindra', 
@@ -326,30 +327,26 @@ const SearchPage = () => {
     setCurrentPage(1);
   }, [searchQuery, filters]);
 
-  const handleSaveSearch = () => {
+  const handleSaveSearch = async () => {
     if (!user) {
       navigate('/login?reason=save_search&redirect=/search');
       return;
     }
     if (!searchName.trim()) return;
 
-    const newSavedSearch: SavedSearch = {
-      id: Math.random().toString(36).substr(2, 9),
-      userId: user.id,
-      name: searchName,
-      filters: { 
+    try {
+      await searchService.saveSearch(user.id, searchName, { 
         ...filters,
         brand: searchQuery || filters.brand 
-      },
-      createdAt: new Date().toISOString(),
-    };
-
-    const existing = JSON.parse(localStorage.getItem('savedSearches') || '[]');
-    localStorage.setItem('savedSearches', JSON.stringify([...existing, newSavedSearch]));
-    
-    setIsSaveDialogOpen(false);
-    setSearchName('');
-    alert('Search saved successfully! You can find it in your profile.');
+      });
+      
+      setIsSaveDialogOpen(false);
+      setSearchName('');
+      alert('Search saved successfully! You can find it in your profile.');
+    } catch (error) {
+      console.error('Error saving search:', error);
+      alert('Failed to save search. Please try again.');
+    }
   };
 
   const filteredVehicles = vehicles.filter(v => {

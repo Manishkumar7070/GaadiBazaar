@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWishlist } from '@/hooks/useWishlist';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
+import { searchService } from '@/services/search.service';
 import { supabase } from '@/lib/supabase';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 
@@ -52,6 +53,14 @@ const Profile = () => {
           setVehiclesLoading(false);
         }
 
+        // Load Saved Searches
+        try {
+          const searches = await searchService.fetchSavedSearches(user.id);
+          setSavedSearches(searches);
+        } catch (error) {
+          console.error('Error loading saved searches:', error);
+        }
+
         // Load Shop if applicable
         if (user.role === 'dealer' || user.role === 'admin') {
           setShopLoading(true);
@@ -70,17 +79,6 @@ const Profile = () => {
   }, [user]);
 
   useEffect(() => {
-    if (shop) {
-      setActiveTab('shop');
-    }
-  }, [shop]);
-
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('savedSearches') || '[]');
-    // Ensure unique IDs for saved searches
-    const uniqueSaved = Array.from(new Map(saved.map((s: any) => [s.id, s])).values()) as SavedSearch[];
-    setSavedSearches(uniqueSaved);
-
     const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
     // Ensure unique IDs for recently viewed
     const uniqueIds = Array.from(new Set(viewedIds)) as string[];
@@ -90,10 +88,14 @@ const Profile = () => {
     setRecentlyViewed(viewedVehicles);
   }, []);
 
-  const deleteSavedSearch = (id: string) => {
-    const updated = savedSearches.filter(s => s.id !== id);
-    setSavedSearches(updated);
-    localStorage.setItem('savedSearches', JSON.stringify(updated));
+  const handleDeleteSavedSearch = async (id: string) => {
+    try {
+      await searchService.deleteSavedSearch(id);
+      setSavedSearches(prev => prev.filter(s => s.id !== id));
+    } catch (error) {
+      console.error('Error deleting saved search:', error);
+      alert('Failed to delete search.');
+    }
   };
 
   const handleShopPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -479,7 +481,7 @@ const Profile = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500" onClick={() => deleteSavedSearch(search.id)}>
+                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500" onClick={() => handleDeleteSavedSearch(search.id)}>
                       <Trash2 size={18} />
                     </Button>
                     <Link to={`/search?q=${search.filters.brand || ''}&type=${search.filters.vehicleType || ''}&city=${search.filters.city || ''}&min=${search.filters.minPrice || ''}&max=${search.filters.maxPrice || ''}`}>

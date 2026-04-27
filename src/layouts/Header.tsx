@@ -158,11 +158,11 @@ const Header = () => {
 
         <div className="flex items-center gap-1 sm:gap-2">
           <Button 
-            className="md:hidden bg-primary text-white font-bold h-9 px-3 rounded-xl gap-1.5 shadow-sm"
+            className="md:hidden bg-gradient-to-r from-primary to-orange-500 text-white font-black h-10 px-4 rounded-xl gap-1.5 shadow-[0_4px_12px_rgba(249,115,22,0.3)] border border-white/20 active:scale-95 transition-all animate-in fade-in zoom-in duration-500"
             onClick={handleSellClick}
           >
-            <PlusCircle size={16} />
-            <span className="text-xs">Sell</span>
+            <PlusCircle size={18} strokeWidth={2.5} />
+            <span className="text-xs uppercase tracking-tight">Sell</span>
           </Button>
 
           <Button 
@@ -284,9 +284,17 @@ const Header = () => {
                         <span className="font-bold text-primary">Admin Dashboard</span>
                       </Link>
                     )}
-                    <button onClick={handleSellClick} className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors text-left">
-                      <PlusCircle size={20} className="text-slate-400" />
-                      <span className="font-semibold text-slate-700">Sell Your Vehicle</span>
+                    <button 
+                      onClick={handleSellClick} 
+                      className="w-full flex items-center gap-4 p-4 bg-primary/5 hover:bg-primary/10 rounded-2xl transition-all border border-primary/20 group"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-transform">
+                        <PlusCircle size={22} strokeWidth={2.5} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-900">Sell Your Vehicle</span>
+                        <span className="text-[10px] text-primary font-black uppercase tracking-widest">Free Listing</span>
+                      </div>
                     </button>
                     {user && (
                       <>

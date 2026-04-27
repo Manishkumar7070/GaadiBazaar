@@ -34,6 +34,9 @@ export const vehicleService = {
         fuelType: v.fuel_type,
         registrationNumber: v.registration_number,
         assemblyType: v.assembly_type,
+        engineStartVideo: v.engine_start_video,
+        engineSoundVideo: v.engine_sound_video,
+        walkaroundVideo: v.walkaround_video,
         createdAt: v.created_at,
         updatedAt: v.updated_at
       })) as any;
@@ -64,6 +67,9 @@ export const vehicleService = {
           city: vehicleData.city,
           state: vehicleData.state,
           images: vehicleData.images,
+          engine_start_video: vehicleData.engineStartVideo,
+          engine_sound_video: vehicleData.engineSoundVideo,
+          walkaround_video: vehicleData.walkaroundVideo,
           status: 'active',
           verification_status: 'pending'
         }])
@@ -96,6 +102,9 @@ export const vehicleService = {
           city: vehicleData.city,
           state: vehicleData.state,
           images: vehicleData.images,
+          engine_start_video: vehicleData.engineStartVideo,
+          engine_sound_video: vehicleData.engineSoundVideo,
+          walkaround_video: vehicleData.walkaroundVideo,
           status: vehicleData.status,
           updated_at: new Date().toISOString()
         })

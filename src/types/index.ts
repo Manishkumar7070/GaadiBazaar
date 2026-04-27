@@ -74,6 +74,9 @@ export interface Vehicle {
   mileage?: string;
   color?: string;
   assemblyType?: string;
+  engineStartVideo?: string;
+  engineSoundVideo?: string;
+  walkaroundVideo?: string;
 }
 
 export interface SearchFilters {

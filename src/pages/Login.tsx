@@ -19,9 +19,12 @@ const LoginPage = () => {
   const [step, setStep] = useState<'login' | 'otp' | 'permissions' | 'role' | 'profile'>('login');
   const [loading, setLoading] = useState(false);
   
+  const [authType, setAuthType] = useState<'email' | 'phone'>('email');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  
   // Auth fields
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [countdown, setCountdown] = useState(0);
 
@@ -50,15 +53,16 @@ const LoginPage = () => {
       alert('Please enter your full name');
       return;
     }
-    if (!email) return;
+    if (authType === 'email' && !email) return;
+    if (authType === 'phone' && !phone) return;
 
     setLoading(true);
     try {
-      await sendOtp(email);
+      await sendOtp(authType === 'email' ? { email } : { phone });
       setStep('otp');
       setCountdown(60);
     } catch (error: any) {
-      console.error('Supabase Email Auth Error:', error);
+      console.error('Auth Error:', error);
       alert(`Failed to send code: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
@@ -71,7 +75,7 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      await verifyOtp(email, otp);
+      await verifyOtp(authType === 'email' ? { email } : { phone }, otp);
     } catch (error: any) {
       console.error('OTP Verify Error:', error);
       alert(`Invalid code: ${error.message || 'Please try again'}`);
@@ -85,7 +89,7 @@ const LoginPage = () => {
     
     setLoading(true);
     try {
-      await sendOtp(email);
+      await sendOtp(authType === 'email' ? { email } : { phone });
       setCountdown(60);
       alert('Code resent successfully!');
     } catch (error: any) {
@@ -181,6 +185,29 @@ const LoginPage = () => {
                   </div>
 
                   <form onSubmit={handleContinue} className="space-y-5">
+                    <div className="flex bg-slate-50 p-1 rounded-xl mb-4 border border-slate-100">
+                      <button 
+                        type="button"
+                        onClick={() => setAuthType('email')}
+                        className={cn(
+                          "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
+                          authType === 'email' ? "bg-white text-primary shadow-sm" : "text-slate-400"
+                        )}
+                      >
+                        Email
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setAuthType('phone')}
+                        className={cn(
+                          "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
+                          authType === 'phone' ? "bg-white text-primary shadow-sm" : "text-slate-400"
+                        )}
+                      >
+                        Phone
+                      </button>
+                    </div>
+
                     <AnimatePresence mode="wait">
                       {mode === 'signup' && (
                         <motion.div 
@@ -206,17 +233,35 @@ const LoginPage = () => {
                     </AnimatePresence>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
+                        {authType === 'email' ? 'Email Address' : 'Phone Number'}
+                      </label>
                       <div className="relative">
-                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <Input 
-                          type="email" 
-                          placeholder="Enter your email" 
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                          className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
-                        />
+                         {authType === 'email' ? (
+                           <>
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <Input 
+                              type="email" 
+                              placeholder="Enter your email" 
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              required
+                              className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
+                            />
+                           </>
+                         ) : (
+                           <>
+                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <Input 
+                              type="tel" 
+                              placeholder="+91 12345 67890" 
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              required
+                              className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
+                            />
+                           </>
+                         )}
                       </div>
                     </div>
 
@@ -240,8 +285,8 @@ const LoginPage = () => {
                   className="space-y-6"
                 >
                   <div className="text-center space-y-2">
-                    <h2 className="text-xl font-bold">Verify your email</h2>
-                    <p className="text-sm text-slate-500">Enter the 6-digit code sent to {email}</p>
+                    <h2 className="text-xl font-bold">Verify your {authType === 'email' ? 'email' : 'phone'}</h2>
+                    <p className="text-sm text-slate-500">Enter the 6-digit code sent to {authType === 'email' ? email : phone}</p>
                   </div>
 
                   <form onSubmit={handleVerifyOtp} className="space-y-5">
@@ -286,7 +331,7 @@ const LoginPage = () => {
                       onClick={() => setStep('login')}
                       className="w-full text-slate-400 hover:text-primary"
                     >
-                      Change Email Address
+                      Change {authType === 'email' ? 'Email' : 'Phone'} Info
                     </Button>
                   </form>
                 </motion.div>
