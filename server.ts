@@ -151,12 +151,42 @@ async function startServer() {
   // Kubernetes Liveness & Readiness Probes
   app.get("/healthz", (req, res) => res.status(200).send("OK"));
   app.get("/readyz", async (req, res) => {
+    const health = {
+      status: "UP",
+      timestamp: new Date().toISOString(),
+      checks: {
+        cache: "UNKNOWN",
+        supabase: "UNKNOWN",
+        twilio: "NOT_CONFIGURED"
+      }
+    };
+
     try {
-      // Check dependencies
+      // 1. Check Cache
       await cache.ping();
-      res.status(200).send("READY");
-    } catch (err) {
-      res.status(503).send("NOT READY");
+      health.checks.cache = "UP";
+
+      // 2. Check Supabase (Lite query)
+      const { error } = await supabase.from("vehicles").select("id").limit(1);
+      health.checks.supabase = error ? "DOWN" : "UP";
+
+      // 3. Check Twilio Configuration
+      if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+        health.checks.twilio = "CONFIGURED";
+      }
+
+      const isUnhealthy = health.checks.cache === "DOWN" || health.checks.supabase === "DOWN";
+      
+      if (isUnhealthy) {
+        health.status = "DOWN";
+        return res.status(503).json(health);
+      }
+
+      res.status(200).json(health);
+    } catch (err: any) {
+      health.status = "DOWN";
+      console.error("Readiness check failed:", err.message);
+      res.status(503).json(health);
     }
   });
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Upload, Loader2, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Upload, Loader2, CheckCircle2, Activity, Eye, PlayCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,6 +15,7 @@ const ListVehicle = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   const [success, setSuccess] = useState(false);
   const [shop, setShop] = useState<Shop | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -175,7 +176,7 @@ const ListVehicle = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    setUploading(true);
+    setUploadingFields(prev => ({ ...prev, [field]: true }));
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${field}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -196,7 +197,7 @@ const ListVehicle = () => {
       console.error('Error uploading video:', error);
       alert('Failed to upload video.');
     } finally {
-      setUploading(false);
+      setUploadingFields(prev => ({ ...prev, [field]: false }));
     }
   };
 
@@ -489,57 +490,65 @@ const ListVehicle = () => {
           <CardContent className="p-6 space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {[
-                { id: 'engineStartVideo', label: 'Engine Cold Start', desc: 'Buyers love to hear the ignition' },
-                { id: 'engineSoundVideo', label: 'Engine Sound', desc: 'Rev the engine slightly' },
-                { id: 'walkaroundVideo', label: 'Walkaround', desc: 'A quick 360° video tour' },
-              ].map((video) => (
-                <div key={video.id} className="space-y-3">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-700">{video.label}</span>
-                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{video.desc}</span>
-                  </div>
-                  
-                  <div className="aspect-video rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden relative group bg-slate-50 transition-all hover:border-primary/50">
-                    {formData[video.id] ? (
-                      <div className="w-full h-full relative">
-                        <video 
-                          src={formData[video.id]} 
-                          className="w-full h-full object-cover" 
-                          autoPlay 
-                          muted 
-                          loop 
-                          playsInline 
-                        />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button 
-                            type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, [video.id]: '' }))}
-                            className="bg-white/20 backdrop-blur-md text-white rounded-full px-3 py-1 text-xs font-bold hover:bg-white/30 transition-colors"
-                          >
-                            Remove
-                          </button>
+                { id: 'engineStartVideo', label: 'Engine Cold Start', desc: 'Buyers love to hear the ignition', icon: PlayCircle },
+                { id: 'engineSoundVideo', label: 'Engine Sound', desc: 'Rev the engine slightly', icon: Activity },
+                { id: 'walkaroundVideo', label: 'Walkaround', desc: 'A quick 360° video tour', icon: Eye },
+              ].map((video) => {
+                const VideoIcon = video.icon;
+                return (
+                  <div key={video.id} className="space-y-3">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-700">{video.label}</span>
+                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{video.desc}</span>
+                    </div>
+                    
+                    <div className="aspect-video rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden relative group bg-slate-50 transition-all hover:border-primary/50">
+                      {formData[video.id] ? (
+                        <div className="w-full h-full relative">
+                          <video 
+                            src={formData[video.id]} 
+                            className="w-full h-full object-cover" 
+                            autoPlay 
+                            muted 
+                            loop 
+                            playsInline 
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button 
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, [video.id]: '' }))}
+                              className="bg-white text-slate-900 rounded-full px-4 py-2 text-xs font-bold hover:bg-slate-100 transition-colors shadow-lg"
+                            >
+                              Change Video
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
-                        <Upload size={24} className="text-slate-400 mb-2" />
-                        <span className="text-xs font-bold text-slate-400">Upload Video</span>
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          accept="video/*"
-                          onChange={(e) => handleVideoUpload(e, video.id as any)}
-                        />
-                      </label>
-                    )}
-                    {uploading && !formData[video.id] && (
-                      <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-                        <Loader2 className="animate-spin text-primary" size={24} />
-                      </div>
-                    )}
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
+                          <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 mb-2 group-hover:text-primary transition-colors">
+                            <VideoIcon size={20} />
+                          </div>
+                          <span className="text-xs font-bold text-slate-400">Upload Video</span>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="video/*"
+                            onChange={(e) => handleVideoUpload(e, video.id as any)}
+                          />
+                        </label>
+                      )}
+                      {uploadingFields[video.id] && !formData[video.id] && (
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center space-y-2">
+                          <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="w-full h-full bg-primary animate-[upload_1.5s_infinite_linear]" />
+                          </div>
+                          <span className="text-[10px] font-bold text-primary animate-pulse uppercase tracking-widest">Uploading...</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

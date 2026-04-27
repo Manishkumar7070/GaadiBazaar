@@ -12,6 +12,7 @@ import { Vehicle } from '@/types';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 import { vehicleService } from '@/services/vehicle.service';
 import { shopService } from '@/services/shop.service';
 import { Shop } from '@/types';
@@ -34,7 +35,6 @@ const Home = () => {
           shopService.fetchShops()
         ]);
         setVehicles(vehicleData.length > 0 ? vehicleData : MOCK_VEHICLES);
-        // Map common fields if missing in mock logic, though fetchAllShops handles it
         setShops(shopData);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -46,6 +46,20 @@ const Home = () => {
 
     loadData();
 
+    // Set up Real-time subscription for vehicles
+    const channel = supabase
+      .channel('home_vehicles_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vehicles' 
+      }, async (payload) => {
+        console.log('Real-time update received:', payload);
+        const updatedVehicles = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
+        setVehicles(updatedVehicles);
+      })
+      .subscribe();
+
     const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
     // Ensure unique IDs
     const uniqueIds = Array.from(new Set(viewedIds)) as string[];
@@ -54,6 +68,10 @@ const Home = () => {
       .filter(Boolean)
       .slice(0, 4) as Vehicle[];
     setRecentlyViewed(viewedVehicles);
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const categories = [
