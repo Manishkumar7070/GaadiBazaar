@@ -18,35 +18,38 @@ import ComparisonBar from './layouts/ComparisonBar';
 import { ComparisonProvider } from './context/ComparisonContext';
 import { AuthProvider } from './context/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { SecurityGate } from './components/SecurityGate';
 
 export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <ComparisonProvider>
-          <Router>
-          <div className="min-h-screen flex flex-col pb-20 md:pb-0">
-            <Header />
-            <main className="flex-1 container mx-auto px-4 py-6">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/vehicle/:id" element={<VehicleDetail />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/compare" element={<Compare />} />
-                <Route path="/dealer/:id" element={<DealerDetail />} />
-                <Route path="/list-vehicle" element={<ListVehicle />} />
-                <Route path="/create-shop" element={<CreateShop />} />
-                <Route path="/edit-shop" element={<EditShop />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/login" element={<Login />} />
-              </Routes>
-            </main>
-            <ComparisonBar />
-            <MobileNav />
-          </div>
-        </Router>
-      </ComparisonProvider>
+          <SecurityGate>
+            <Router>
+            <div className="min-h-screen flex flex-col pb-20 md:pb-0">
+              <Header />
+              <main className="flex-1 container mx-auto px-4 py-6">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/vehicle/:id" element={<VehicleDetail />} />
+                  <Route path="/search" element={<Search />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/compare" element={<Compare />} />
+                  <Route path="/dealer/:id" element={<DealerDetail />} />
+                  <Route path="/list-vehicle" element={<ListVehicle />} />
+                  <Route path="/create-shop" element={<CreateShop />} />
+                  <Route path="/edit-shop" element={<EditShop />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/login" element={<Login />} />
+                </Routes>
+              </main>
+              <ComparisonBar />
+              <MobileNav />
+            </div>
+          </Router>
+          </SecurityGate>
+        </ComparisonProvider>
     </AuthProvider>
   </ErrorBoundary>
   );
