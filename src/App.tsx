@@ -17,6 +17,7 @@ import ComparisonBar from './layouts/ComparisonBar';
 
 import { ComparisonProvider } from './context/ComparisonContext';
 import { AuthProvider } from './context/AuthContext';
+import { LocationProvider } from './context/LocationContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { SecurityGate } from './components/SecurityGate';
 
@@ -24,8 +25,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <ComparisonProvider>
-          <SecurityGate>
+        <LocationProvider>
+          <ComparisonProvider>
+            <SecurityGate>
             <Router>
             <div className="min-h-screen flex flex-col pb-20 md:pb-0">
               <Header />
@@ -50,6 +52,7 @@ export default function App() {
           </Router>
           </SecurityGate>
         </ComparisonProvider>
+      </LocationProvider>
     </AuthProvider>
   </ErrorBoundary>
   );

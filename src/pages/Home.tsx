@@ -16,10 +16,13 @@ import { supabase } from '@/lib/supabase';
 import { vehicleService } from '@/services/vehicle.service';
 import { shopService } from '@/services/shop.service';
 import { Shop } from '@/types';
+import CitySelector from '@/components/shared/CitySelector';
+import { useLocation } from '@/context/LocationContext';
 
 const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { selectedCity } = useLocation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -137,15 +140,17 @@ const Home = () => {
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    const cityParam = selectedCity && selectedCity !== 'India' ? `&city=${encodeURIComponent(selectedCity)}` : '';
+    
     if (searchQuery.trim()) {
       // Save to recent searches
       const saved = JSON.parse(localStorage.getItem('recentSearches') || '[]');
       const updated = [searchQuery.trim(), ...saved.filter((s: string) => s !== searchQuery.trim())].slice(0, 5);
       localStorage.setItem('recentSearches', JSON.stringify(updated));
       
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}${cityParam}`);
     } else {
-      navigate('/search');
+      navigate(`/search?${cityParam.startsWith('&') ? cityParam.substring(1) : cityParam}`);
     }
   };
 
@@ -183,7 +188,7 @@ const Home = () => {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-primary text-sm font-bold"
             >
               <Badge className="bg-primary hover:bg-primary text-white border-none">New</Badge>
-              <span>Verified Listings in India</span>
+              <span>Verified Listings in {selectedCity}</span>
             </motion.div>
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
@@ -229,11 +234,10 @@ const Home = () => {
                   />
                 </div>
               </div>
-              <div className="w-px bg-white/20 hidden sm:block h-8" />
-            <div className="flex items-center gap-2 px-4 py-2 sm:py-0">
-              <MapPin className="text-primary shrink-0" size={20} />
-              <span className="text-sm font-medium whitespace-nowrap">India</span>
-            </div>
+            <div className="w-px bg-white/20 hidden sm:block h-8" />
+            <CitySelector 
+              className="bg-transparent hover:bg-white/10 text-white border-none h-12 px-6"
+            />
             <Button 
               type="submit"
               className="bg-primary hover:bg-primary/90 h-12 px-8 rounded-xl font-bold shadow-lg shadow-primary/20 w-full sm:w-auto"

@@ -22,7 +22,25 @@ export const vehicleService = {
 
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('Table "vehicles" not found in Supabase. Falling back to mock data.');
+          let fallback = MOCK_VEHICLES;
+          if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
+          if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
+          if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
+          return fallback;
+        }
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        let fallback = MOCK_VEHICLES;
+        if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
+        if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
+        if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
+        return fallback;
+      }
 
       return (data || []).map(v => ({
         ...v,
@@ -42,7 +60,11 @@ export const vehicleService = {
       })) as any;
     } catch (error) {
       console.error('Error fetching vehicles:', error);
-      return [];
+      let fallback = MOCK_VEHICLES;
+      if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
+      if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
+      if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
+      return fallback;
     }
   },
 

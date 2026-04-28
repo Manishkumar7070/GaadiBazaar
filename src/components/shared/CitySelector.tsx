@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ChevronDown, Search, Navigation } from 'lucide-react';
+import { MapPin, ChevronDown, Search, Navigation, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { POPULAR_CITIES, POPULAR_STATES } from '@/constants/cities';
 import { cn } from '@/lib/utils';
+import { useLocation } from '@/context/LocationContext';
 
 interface CitySelectorProps {
   onSelect?: (city: string) => void;
@@ -18,15 +19,60 @@ interface CitySelectorProps {
 }
 
 const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
-  const [selectedCity, setSelectedCity] = useState('New Delhi');
+  const { selectedCity, setSelectedCity } = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  const [isDetecting, setIsDetecting] = useState(false);
 
   const handleSelect = (city: string) => {
     setSelectedCity(city);
     setIsOpen(false);
     if (onSelect) onSelect(city);
+  };
+
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setIsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+          const data = await response.json();
+          
+          // Try to get city name, then locality, then subdivision
+          const cityName = data.city || data.locality || data.principalSubdivision;
+          
+          if (cityName) {
+            handleSelect(cityName);
+          } else {
+            console.error("Could not determine city name from coordinates");
+            alert("Could not determine your city. Please select manually.");
+          }
+        } catch (error) {
+          console.error("Error fetching location data:", error);
+          alert("Error detecting location. Please try again or select manually.");
+        } finally {
+          setIsDetecting(false);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        let errorMsg = "Unable to retrieve your location.";
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMsg = "Location access was denied. Please enable it in your browser settings.";
+        }
+        alert(errorMsg);
+        setIsDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   useEffect(() => {
@@ -53,8 +99,8 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
         render={
           <Button variant="ghost" className={cn("flex items-center gap-1 px-2 sm:px-4 hover:bg-slate-100 rounded-full h-10 transition-all duration-200", className)}>
             <MapPin size={18} className="text-primary shrink-0" />
-            <span className="font-semibold text-slate-700 hidden sm:inline truncate max-w-[100px]">{selectedCity}</span>
-            <ChevronDown size={16} className="text-slate-400 shrink-0" />
+            <span className="font-semibold hidden sm:inline truncate max-w-[100px]">{selectedCity}</span>
+            <ChevronDown size={16} className="opacity-50 shrink-0" />
           </Button>
         }
       />
@@ -75,10 +121,28 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button variant="outline" className="text-primary border-primary/20 hover:bg-primary/5 font-bold flex items-center gap-2 h-14 px-6 rounded-2xl transition-all">
-                <Navigation size={20} />
-                Use current location
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleSelect('India')}
+                  className="text-slate-600 border-slate-200 hover:bg-slate-50 font-bold h-14 px-6 rounded-2xl transition-all"
+                >
+                  India
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleCurrentLocation}
+                  disabled={isDetecting}
+                  className="text-primary border-primary/20 hover:bg-primary/5 font-bold flex items-center gap-2 h-14 px-6 rounded-2xl transition-all disabled:opacity-70"
+                >
+                  {isDetecting ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    <Navigation size={20} />
+                  )}
+                  {isDetecting ? 'Detecting...' : 'Current City'}
+                </Button>
+              </div>
             </div>
           )}
         </DialogHeader>

@@ -66,5 +66,12 @@ export const MAJOR_CITIES_BY_STATE: Record<string, string[]> = {
   "Uttar Pradesh": ["Lucknow", "Kanpur", "Ghaziabad", "Agra", "Meerut", "Varanasi", "Noida"],
   "Uttarakhand": ["Dehradun", "Haridwar", "Roorkee", "Haldwani"],
   "West Bengal": ["Kolkata", "Howrah", "Asansol", "Siliguri", "Durgapur"],
-  "Delhi": ["New Delhi", "North Delhi", "South Delhi", "West Delhi"]
+  "Delhi": ["New Delhi", "North Delhi", "South Delhi", "West Delhi"],
+  "Andaman and Nicobar Islands": ["Port Blair", "Diglipur", "Mayabunder"],
+  "Chandigarh": ["Chandigarh"],
+  "Dadra and Nagar Haveli and Daman and Diu": ["Daman", "Diu", "Silvassa"],
+  "Jammu and Kashmir": ["Srinagar", "Jammu", "Anantnag", "Baramulla"],
+  "Ladakh": ["Leh", "Kargil"],
+  "Lakshadweep": ["Kavaratti", "Agatti", "Amini"],
+  "Puducherry": ["Puducherry", "Karaikal", "Mahe", "Yanam"]
 };

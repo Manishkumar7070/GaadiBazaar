@@ -292,34 +292,22 @@ const EditShop = () => {
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">City</label>
-                {formData.state && MAJOR_CITIES_BY_STATE[formData.state] ? (
-                  <select
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    required
-                    className={cn(
-                      "w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary",
-                      errors.city && "border-red-500"
-                    )}
-                  >
-                    <option value="">Select City</option>
-                    {MAJOR_CITIES_BY_STATE[formData.state].map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                    <option value="Other">Other</option>
-                  </select>
-                ) : (
-                  <Input 
-                    name="city" 
-                    placeholder={formData.state ? "e.g. Mumbai" : "Select state first"} 
-                    required 
-                    disabled={!formData.state}
-                    value={formData.city}
-                    onChange={handleChange}
-                    className={cn("rounded-xl", errors.city && "border-red-500")}
-                  />
-                )}
+                <select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  required
+                  disabled={!formData.state}
+                  className={cn(
+                    "w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50",
+                    errors.city && "border-red-500"
+                  )}
+                >
+                  <option value="">Select City</option>
+                  {formData.state && MAJOR_CITIES_BY_STATE[formData.state]?.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
                 {errors.city && <p className="text-xs text-red-500 font-medium">{errors.city}</p>}
               </div>
               <div className="space-y-2">

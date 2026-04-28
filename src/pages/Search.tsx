@@ -28,9 +28,12 @@ import {
 import { SavedSearch, SearchFilters, Vehicle } from '@/types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
-import { POPULAR_CITIES, INDIAN_STATES } from '@/constants/cities';
+import { useLocation } from '@/context/LocationContext';
+import { POPULAR_CITIES } from '@/constants/cities';
+import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
 import { vehicleService } from '@/services/vehicle.service';
 import { searchService } from '@/services/search.service';
+import CitySelector from '@/components/shared/CitySelector';
 
 const POPULAR_BRANDS = [
   'Maruti Suzuki', 'Hyundai', 'Tata', 'Toyota', 'Mahindra', 
@@ -44,6 +47,7 @@ const YEAR_OPTIONS = Array.from({ length: 16 }, (_, i) => new Date().getFullYear
 const SearchPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { selectedCity } = useLocation();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
@@ -80,6 +84,12 @@ const SearchPage = () => {
     setRecentSearches(updated);
     localStorage.setItem('recentSearches', JSON.stringify(updated));
   };
+
+  useEffect(() => {
+    if (selectedCity && selectedCity !== 'India' && !filters.city) {
+      setFilters(prev => ({ ...prev, city: selectedCity }));
+    }
+  }, [selectedCity]);
 
   useEffect(() => {
     const loadVehicles = async () => {
@@ -402,11 +412,11 @@ const SearchPage = () => {
   return (
     <div className="space-y-6">
       <div className="sticky top-16 z-30 bg-background/80 backdrop-blur-md py-4 space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
-              placeholder="Search cars, bikes, or 'Swift in Bihar'..." 
+              placeholder="Search brand, model..." 
               className="pl-10 pr-24 h-12 rounded-xl" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -452,21 +462,28 @@ const SearchPage = () => {
               onClearRecent={handleClearRecentSearches}
             />
           </div>
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-12 w-12 rounded-xl text-primary border-primary/20 hover:bg-primary/5"
-            onClick={() => {
-              if (!user) {
-                navigate(`/login?reason=save_search&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-              } else {
-                setIsSaveDialogOpen(true);
-              }
-            }}
-          >
-            <Bookmark size={20} />
-          </Button>
+
+          <div className="flex gap-2">
+            <CitySelector 
+              className="bg-white h-12 border border-slate-200 rounded-xl px-4 min-w-[140px]"
+            />
+            
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-12 w-12 rounded-xl text-primary border-primary/20 hover:bg-primary/5"
+              onClick={() => {
+                if (!user) {
+                  navigate(`/login?reason=save_search&redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+                } else {
+                  setIsSaveDialogOpen(true);
+                }
+              }}
+            >
+              <Bookmark size={20} />
+            </Button>
+          </div>
+        </div>
 
           <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
             <DialogContent className="rounded-3xl">
@@ -729,17 +746,32 @@ const SearchPage = () => {
                         value={filters.city || ''}
                         onChange={(e) => {
                           const city = e.target.value;
-                          const cityData = POPULAR_CITIES.find(c => c.name === city);
+                          const popularCity = POPULAR_CITIES.find(c => c.name === city);
+                          
+                          // Also try to find state from the comprehensive list if not in popular
+                          let derivedState = popularCity?.state;
+                          if (!derivedState) {
+                            for (const [s, cities] of Object.entries(MAJOR_CITIES_BY_STATE)) {
+                              if (cities.includes(city)) {
+                                derivedState = s;
+                                break;
+                              }
+                            }
+                          }
+                          
                           setFilters(prev => ({ 
                             ...prev, 
                             city: city || undefined,
-                            state: cityData ? cityData.state : prev.state
+                            state: derivedState || prev.state
                           }));
                         }}
                       >
                         <option value="">All Cities</option>
-                        {POPULAR_CITIES.map(city => (
-                          <option key={city.name} value={city.name}>{city.name}</option>
+                        {(filters.state && MAJOR_CITIES_BY_STATE[filters.state]
+                          ? MAJOR_CITIES_BY_STATE[filters.state]
+                          : POPULAR_CITIES.map(c => c.name)
+                        ).map(cityName => (
+                          <option key={cityName} value={cityName}>{cityName}</option>
                         ))}
                       </select>
                     </div>
@@ -752,7 +784,14 @@ const SearchPage = () => {
                       >
                         <option value="">All States</option>
                         {(filters.city 
-                          ? [POPULAR_CITIES.find(c => c.name === filters.city)?.state].filter(Boolean)
+                          ? (() => {
+                              const popularCityState = POPULAR_CITIES.find(c => c.name === filters.city)?.state;
+                              if (popularCityState) return [popularCityState];
+                              for (const [s, cities] of Object.entries(MAJOR_CITIES_BY_STATE)) {
+                                if (cities.includes(filters.city)) return [s];
+                              }
+                              return [];
+                            })()
                           : INDIAN_STATES
                         ).map(state => (
                           <option key={state} value={state}>{state}</option>
@@ -865,7 +904,6 @@ const SearchPage = () => {
             <option value="4th+">4th+ Owner</option>
           </select>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (

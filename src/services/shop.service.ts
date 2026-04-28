@@ -1,5 +1,6 @@
 import { Shop } from '@/types';
 import { supabase } from '@/lib/supabase';
+import { MOCK_DEALERS } from '@/constants/mockData';
 
 export const shopService = {
   async fetchShops(): Promise<Shop[]> {
@@ -9,7 +10,16 @@ export const shopService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('Table "shops" not found in Supabase. Falling back to mock data.');
+          return MOCK_DEALERS;
+        }
+        throw error;
+      }
+      
+      if (!data || data.length === 0) return MOCK_DEALERS;
+
       return (data || []).map(s => ({
         ...s,
         ownerId: s.owner_id,
@@ -20,7 +30,7 @@ export const shopService = {
       })) as any;
     } catch (error) {
       console.error('Error fetching shops:', error);
-      return [];
+      return MOCK_DEALERS;
     }
   },
 
@@ -32,7 +42,14 @@ export const shopService = {
         .eq('owner_id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        if (error.code === 'PGRST205') {
+          return MOCK_DEALERS.find(s => s.ownerId === userId) || null;
+        }
+        throw error;
+      }
+      
       if (!data) return null;
 
       return {
@@ -45,7 +62,7 @@ export const shopService = {
       } as any;
     } catch (error) {
       console.error('Error fetching user shop:', error);
-      return null;
+      return MOCK_DEALERS.find(s => s.ownerId === userId) || null;
     }
   },
 
@@ -57,7 +74,13 @@ export const shopService = {
         .eq('id', shopId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST205') {
+          return MOCK_DEALERS.find(s => s.id === shopId) || null;
+        }
+        throw error;
+      }
+      
       return {
         ...data,
         ownerId: data.owner_id,
@@ -68,7 +91,7 @@ export const shopService = {
       } as any;
     } catch (error) {
       console.error('Error fetching shop by ID:', error);
-      return null;
+      return MOCK_DEALERS.find(s => s.id === shopId) || null;
     }
   },
 
