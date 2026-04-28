@@ -2,15 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { authService } from '@/services/auth.service';
 import { AlertCircle } from 'lucide-react';
-
-interface User {
-  id: string;
-  email: string;
-  fullName?: string;
-  phone?: string;
-  role?: 'buyer' | 'seller' | 'dealer' | 'admin';
-  isProfileComplete?: boolean;
-}
+import { User, MembershipTier } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -98,10 +90,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser({
       id: supabaseUser.id,
       email: supabaseUser.email || '',
-      fullName: profile?.full_name,
-      phone: profile?.phone,
-      role: role,
+      fullName: profile?.full_name || '',
+      phone: profile?.phone || '',
+      role: role || 'buyer',
       isProfileComplete: profile?.is_profile_complete || false,
+      walletBalance: profile?.wallet_balance || 0,
+      membershipTier: (profile?.membership_tier as MembershipTier) || 'none',
+      membershipExpiresAt: profile?.membership_expires_at,
+      createdAt: profile?.created_at || new Date().toISOString(),
     });
   };
 

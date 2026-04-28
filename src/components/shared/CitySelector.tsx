@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, ChevronDown, Search, Navigation, Loader2 } from 'lucide-react';
+import { MapPin, ChevronDown, Search, Navigation, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,20 +25,23 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const [isDetecting, setIsDetecting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSelect = (city: string) => {
     setSelectedCity(city);
     setIsOpen(false);
+    setErrorMessage(null);
     if (onSelect) onSelect(city);
   };
 
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      setErrorMessage("Geolocation is not supported by your browser");
       return;
     }
 
     setIsDetecting(true);
+    setErrorMessage(null);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -53,11 +56,11 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
             handleSelect(cityName);
           } else {
             console.error("Could not determine city name from coordinates");
-            alert("Could not determine your city. Please select manually.");
+            setErrorMessage("Could not determine your city. Please select manually.");
           }
         } catch (error) {
           console.error("Error fetching location data:", error);
-          alert("Error detecting location. Please try again or select manually.");
+          setErrorMessage("Error detecting location. Please try again or select manually.");
         } finally {
           setIsDetecting(false);
         }
@@ -68,7 +71,7 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
         if (error.code === error.PERMISSION_DENIED) {
           errorMsg = "Location access was denied. Please enable it in your browser settings.";
         }
-        alert(errorMsg);
+        setErrorMessage(errorMsg);
         setIsDetecting(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -97,10 +100,15 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger 
         render={
-          <Button variant="ghost" className={cn("flex items-center gap-1 px-2 sm:px-4 hover:bg-slate-100 rounded-full h-10 transition-all duration-200", className)}>
-            <MapPin size={18} className="text-primary shrink-0" />
-            <span className="font-semibold hidden sm:inline truncate max-w-[100px]">{selectedCity}</span>
-            <ChevronDown size={16} className="opacity-50 shrink-0" />
+          <Button variant="ghost" className={cn("flex items-center gap-1.5 px-3 sm:px-4 hover:bg-slate-100 rounded-full h-10 transition-all duration-200 border border-transparent hover:border-slate-200", className)}>
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary">
+              <MapPin size={14} fill="currentColor" />
+            </div>
+            <div className="flex flex-col items-start leading-none">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden sm:block font-sans">Location</span>
+              <span className="font-bold text-sm truncate max-w-[100px]">{selectedCity}</span>
+            </div>
+            <ChevronDown size={14} className="opacity-40 shrink-0 ml-1" />
           </Button>
         }
       />
@@ -111,38 +119,46 @@ const CitySelector: React.FC<CitySelectorProps> = ({ onSelect, className }) => {
           </div>
           
           {!isStandalone && (
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <Input 
-                  placeholder="Search for city or state" 
-                  className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-100 focus-visible:ring-primary focus-visible:bg-white transition-all text-lg"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <Input 
+                    placeholder="Search for city or state" 
+                    className="pl-12 h-14 rounded-2xl bg-slate-50 border-slate-100 focus-visible:ring-primary focus-visible:bg-white transition-all text-lg"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleSelect('India')}
+                    className="text-slate-600 border-slate-200 hover:bg-slate-50 font-bold h-14 px-6 rounded-2xl transition-all"
+                  >
+                    India
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleCurrentLocation}
+                    disabled={isDetecting}
+                    className="text-primary border-primary/20 hover:bg-primary/5 font-bold flex items-center gap-2 h-14 px-6 rounded-2xl transition-all disabled:opacity-70"
+                  >
+                    {isDetecting ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <Navigation size={20} />
+                    )}
+                    {isDetecting ? 'Detecting...' : 'Current City'}
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleSelect('India')}
-                  className="text-slate-600 border-slate-200 hover:bg-slate-50 font-bold h-14 px-6 rounded-2xl transition-all"
-                >
-                  India
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleCurrentLocation}
-                  disabled={isDetecting}
-                  className="text-primary border-primary/20 hover:bg-primary/5 font-bold flex items-center gap-2 h-14 px-6 rounded-2xl transition-all disabled:opacity-70"
-                >
-                  {isDetecting ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : (
-                    <Navigation size={20} />
-                  )}
-                  {isDetecting ? 'Detecting...' : 'Current City'}
-                </Button>
-              </div>
+              {errorMessage && (
+                <div className="bg-red-50 text-red-600 p-3 px-4 rounded-xl text-sm font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle size={16} />
+                  {errorMessage}
+                </div>
+              )}
             </div>
           )}
         </DialogHeader>

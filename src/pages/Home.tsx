@@ -33,8 +33,13 @@ const Home = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        const filters: any = { verificationStatus: 'verified' };
+        if (selectedCity && selectedCity !== 'India') {
+          filters.city = selectedCity;
+        }
+        
         const [vehicleData, shopData] = await Promise.all([
-          vehicleService.fetchVehicles({ verificationStatus: 'verified' }),
+          vehicleService.fetchVehicles(filters),
           shopService.fetchShops()
         ]);
         setVehicles(vehicleData.length > 0 ? vehicleData : MOCK_VEHICLES);
@@ -75,7 +80,7 @@ const Home = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [selectedCity]);
 
   const categories = [
     { id: 'all', label: 'All', icon: Search },

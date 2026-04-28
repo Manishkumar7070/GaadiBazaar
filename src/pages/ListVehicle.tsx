@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Upload, Loader2, CheckCircle2, Activity, Eye, PlayCircle } from 'lucide-react';
+import { ChevronLeft, Upload, Loader2, CheckCircle2, Activity, Eye, PlayCircle, Star, Zap, Crown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { vehicleService } from '@/services/vehicle.service';
 import { supabase } from '@/lib/supabase';
-import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop } from '@/types';
+import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop, ListingType } from '@/types';
 import { shopService } from '@/services/shop.service';
 import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
 import { cn } from '@/lib/utils';
+import { PRICING_TIERS } from '@/constants/pricing';
+import { motion } from 'motion/react';
 
 const ListVehicle = () => {
   const { user } = useAuth();
@@ -18,6 +20,7 @@ const ListVehicle = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [shop, setShop] = useState<Shop | null>(null);
@@ -50,6 +53,7 @@ const ListVehicle = () => {
       mileage: '',
       color: '',
       assemblyType: 'Local',
+      listingType: 'free' as ListingType,
       images: [] as string[],
       engineStartVideo: '',
       engineSoundVideo: '',
@@ -211,7 +215,23 @@ const ListVehicle = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    // Check file size (limit to 50MB for example)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Video file is too large. Please limit to 50MB.');
+      return;
+    }
+
     setUploadingFields(prev => ({ ...prev, [field]: true }));
+    setUploadProgress(prev => ({ ...prev, [field]: 0 }));
+
+    // Simulate progress as Supabase standard JS upload doesn't provide it natively
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => ({
+        ...prev,
+        [field]: Math.min((prev[field] || 0) + Math.random() * 15, 90)
+      }));
+    }, 400);
+
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${field}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -227,12 +247,16 @@ const ListVehicle = () => {
         .from('vehicles')
         .getPublicUrl(filePath);
       
+      setUploadProgress(prev => ({ ...prev, [field]: 100 }));
       setFormData(prev => ({ ...prev, [field]: publicUrl }));
     } catch (error) {
       console.error('Error uploading video:', error);
       alert('Failed to upload video.');
     } finally {
-      setUploadingFields(prev => ({ ...prev, [field]: false }));
+      clearInterval(progressInterval);
+      setTimeout(() => {
+        setUploadingFields(prev => ({ ...prev, [field]: false }));
+      }, 500);
     }
   };
 
@@ -266,6 +290,13 @@ const ListVehicle = () => {
         sellerId: user.id,
         shopId: shop?.id,
         images: allImages,
+        listingType: formData.listingType,
+        priorityScore: formData.listingType === 'sponsored' ? 100 : 
+                       formData.listingType === 'featured' ? 50 : 
+                       formData.listingType === 'premium' ? 25 : 0,
+        clicksCount: 0,
+        leadsCount: 0,
+        viewsCount: 0,
         engineStartVideo: formData.engineStartVideo,
         engineSoundVideo: formData.engineSoundVideo,
         walkaroundVideo: formData.walkaroundVideo,
@@ -513,72 +544,131 @@ const ListVehicle = () => {
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
-          <CardHeader className="bg-slate-50 border-b border-slate-100">
+        <Card className="rounded-3xl border-none shadow-sm overflow-hidden border-2 border-primary/5">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b border-slate-100">
             <CardTitle className="flex items-center gap-2">
-              <Upload className="text-primary" size={20} />
-              Video & Engine Sounds
+              <div className="bg-primary text-white p-1 rounded-lg">
+                <PlayCircle size={18} />
+              </div>
+              Vehicle Videos
             </CardTitle>
-            <CardDescription>Upload short videos to give buyers more confidence</CardDescription>
+            <CardDescription className="text-slate-500 font-medium italic">
+              Ads with videos get 4x more leads in Bihar.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <CardContent className="p-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
-                { id: 'engineStartVideo', label: 'Engine Cold Start', desc: 'Buyers love to hear the ignition', icon: PlayCircle },
-                { id: 'engineSoundVideo', label: 'Engine Sound', desc: 'Rev the engine slightly', icon: Activity },
-                { id: 'walkaroundVideo', label: 'Walkaround', desc: 'A quick 360° video tour', icon: Eye },
+                { 
+                  id: 'engineStartVideo', 
+                  label: 'Engine Cold Start', 
+                  desc: 'Record a 5-10s clip of starting the vehicle.', 
+                  icon: Zap,
+                  tip: 'Do this when engine is cold for best trust score.' 
+                },
+                { 
+                  id: 'engineSoundVideo', 
+                  label: 'Resting & Rev Sound', 
+                  desc: 'Record the engine idling and slight acceleration.', 
+                  icon: Activity,
+                  tip: 'Buyers check for abnormal sounds here.' 
+                },
+                { 
+                  id: 'walkaroundVideo', 
+                  label: 'Exterior Walkaround', 
+                  desc: 'A slow 15-20s video around the vehicle.', 
+                  icon: Eye,
+                  tip: 'Highlight any scratches for transparency.' 
+                },
               ].map((video) => {
                 const VideoIcon = video.icon;
+                const isUploading = uploadingFields[video.id];
+                const progress = uploadProgress[video.id] || 0;
+                
                 return (
-                  <div key={video.id} className="space-y-3">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">{video.label}</span>
-                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">{video.desc}</span>
+                  <div key={video.id} className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-900">{video.label}</span>
+                        {formData[video.id] && <CheckCircle2 className="text-green-500" size={16} />}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight">{video.desc}</p>
                     </div>
                     
-                    <div className="aspect-video rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden relative group bg-slate-50 transition-all hover:border-primary/50">
+                    <div className={cn(
+                      "aspect-[3/4] sm:aspect-video rounded-2xl border-2 border-dashed overflow-hidden relative group transition-all",
+                      formData[video.id] ? "border-green-100" : "border-slate-200 hover:border-primary/40 bg-slate-50"
+                    )}>
                       {formData[video.id] ? (
                         <div className="w-full h-full relative">
                           <video 
                             src={formData[video.id]} 
                             className="w-full h-full object-cover" 
-                            autoPlay 
                             muted 
                             loop 
-                            playsInline 
+                            onClick={(e) => (e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause())}
                           />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                              <button 
                               type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, [video.id]: '' }))}
-                              className="bg-white text-slate-900 rounded-full px-4 py-2 text-xs font-bold hover:bg-slate-100 transition-colors shadow-lg"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, [video.id]: '' }));
+                                setUploadProgress(prev => ({ ...prev, [video.id]: 0 }));
+                              }}
+                              className="bg-white text-red-600 rounded-full px-5 py-2.5 text-xs font-black shadow-2xl hover:bg-slate-50"
                             >
-                              Change Video
+                              Discard & Re-take
                             </button>
+                          </div>
+                          <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 text-white px-2 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">
+                            <Activity size={12} className="animate-pulse" /> Live Preview
                           </div>
                         </div>
                       ) : (
-                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
-                          <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 mb-2 group-hover:text-primary transition-colors">
-                            <VideoIcon size={20} />
+                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100/50 transition-colors px-6 text-center">
+                          <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 mb-3 group-hover:text-primary transition-all group-hover:scale-110">
+                            <VideoIcon size={24} />
                           </div>
-                          <span className="text-xs font-bold text-slate-400">Upload Video</span>
+                          <span className="text-xs font-black text-slate-400 group-hover:text-primary">Click to Upload Video</span>
+                          <span className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tighter">MP4, MOV up to 50MB</span>
                           <input 
                             type="file" 
                             className="hidden" 
                             accept="video/*"
-                            onChange={(e) => handleVideoUpload(e, video.id as any)}
+                            onChange={(e) => handleVideoUpload(e, video.id)}
+                            disabled={isUploading}
                           />
                         </label>
                       )}
-                      {uploadingFields[video.id] && !formData[video.id] && (
-                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center space-y-2">
-                          <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="w-full h-full bg-primary animate-[upload_1.5s_infinite_linear]" />
+
+                      {/* Progress Overlay */}
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 space-y-4 z-40">
+                          <div className="w-full space-y-2">
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-primary">
+                              <span>Uploading Video</span>
+                              <span>{Math.round(progress)}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                                className="h-full bg-primary"
+                              />
+                            </div>
                           </div>
-                          <span className="text-[10px] font-bold text-primary animate-pulse uppercase tracking-widest">Uploading...</span>
+                          <p className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-tight animate-pulse">
+                            Please stay on this page...
+                          </p>
                         </div>
                       )}
+                    </div>
+                    <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <Star size={14} className="text-amber-500 fill-amber-500 shrink-0" />
+                      <p className="text-[10px] font-medium text-slate-600 italic">
+                        <span className="font-black text-slate-900 not-italic uppercase mr-1">Pro Tip:</span>
+                        {video.tip}
+                      </p>
                     </div>
                   </div>
                 );
@@ -724,6 +814,69 @@ const ListVehicle = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b border-slate-100">
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="text-primary" size={20} />
+              Choose Selling Plan
+            </CardTitle>
+            <CardDescription>Boost your listing to sell up to 10x faster</CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {PRICING_TIERS.VEHICLES.map((plan) => {
+                const isSelected = formData.listingType === plan.type;
+                return (
+                  <label 
+                    key={plan.type}
+                    className={cn(
+                      "relative flex flex-col p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md",
+                      isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-slate-100 bg-white"
+                    )}
+                  >
+                    <input 
+                      type="radio" 
+                      name="listingType" 
+                      className="hidden" 
+                      checked={isSelected}
+                      onChange={() => setFormData(prev => ({ ...prev, listingType: plan.type as ListingType }))}
+                    />
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="space-y-1">
+                        <p className={cn("text-xs font-bold uppercase tracking-wider", isSelected ? "text-primary" : "text-slate-400")}>
+                          {plan.name}
+                        </p>
+                        <p className="text-xl font-black text-slate-900">
+                           {plan.price === 0 ? 'FREE' : `₹${plan.price}`}
+                           <span className="text-xs text-slate-400 font-medium ml-1">/ {plan.duration}</span>
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white">
+                          <Check size={14} strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
+                    <ul className="space-y-2 mb-2">
+                      {plan.features.map((f, i) => (
+                        <li key={i} className="text-[11px] text-slate-600 flex items-center gap-2">
+                           <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-primary" : "bg-slate-300")} />
+                           {f}
+                        </li>
+                      ))}
+                    </ul>
+                    {plan.recommended && (
+                      <div className="absolute top-0 right-8 -translate-y-1/2 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
+                        Recommended
+                      </div>
+                    )}
+                  </label>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

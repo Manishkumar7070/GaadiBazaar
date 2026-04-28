@@ -6,6 +6,9 @@ export type VehicleStatus = 'active' | 'sold' | 'pending' | 'inactive';
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 
+export type ListingType = 'free' | 'premium' | 'featured' | 'sponsored';
+export type MembershipTier = 'none' | 'dealer_basic' | 'dealer_premium';
+
 export interface User {
   id: string;
   email: string;
@@ -13,6 +16,9 @@ export interface User {
   phone: string;
   role: 'buyer' | 'seller' | 'dealer' | 'admin';
   isProfileComplete: boolean;
+  walletBalance?: number;
+  membershipTier?: MembershipTier;
+  membershipExpiresAt?: string;
   createdAt: string;
 }
 
@@ -40,11 +46,17 @@ export interface Shop {
   images: string[];
   mapEmbedUrl?: string;
   verificationStatus: VerificationStatus;
+  isPremium?: boolean;
   rating?: number;
   reviewCount?: number;
   reviews?: Review[];
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface PricePoint {
+  date: string;
+  price: number;
 }
 
 export interface Vehicle {
@@ -67,10 +79,15 @@ export interface Vehicle {
   images: string[];
   status: VehicleStatus;
   verificationStatus: VerificationStatus;
+  listingType: ListingType;
   isFeatured: boolean;
   isVerified: boolean;
   viewsCount: number;
+  clicksCount: number;
+  leadsCount: number;
+  priorityScore: number;
   createdAt: string;
+  listingExpiresAt?: string;
   registrationNumber?: string;
   mileage?: string;
   color?: string;
@@ -78,6 +95,7 @@ export interface Vehicle {
   engineStartVideo?: string;
   engineSoundVideo?: string;
   walkaroundVideo?: string;
+  priceHistory?: PricePoint[];
 }
 
 export interface SearchFilters {

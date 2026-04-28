@@ -389,17 +389,20 @@ const SearchPage = () => {
            matchesBrand && matchesModel && matchesMinYear && matchesMaxYear && matchesMinKm && matchesMaxKm && 
            matchesFuel && matchesTrans && matchesOwnership;
   })
-.sort((a, b) => {
-    if (sortBy === 'price-asc') return a.price - b.price;
-    if (sortBy === 'price-desc') return b.price - a.price;
-    if (sortBy === 'newest') return b.year - a.year;
-    if (sortBy === 'km-low') return a.kilometersDriven - b.kilometersDriven;
-    if (sortBy === 'city-asc') return a.city.localeCompare(b.city);
-    return 0;
-  });
+  const sortedVehicles = (() => {
+    const list = [...filteredVehicles];
+    if (sortBy === 'price-asc') return list.sort((a, b) => a.price - b.price);
+    if (sortBy === 'price-desc') return list.sort((a, b) => b.price - a.price);
+    if (sortBy === 'newest') return list.sort((a, b) => b.year - a.year);
+    if (sortBy === 'km-low') return list.sort((a, b) => a.kilometersDriven - b.kilometersDriven);
+    if (sortBy === 'city-asc') return list.sort((a, b) => a.city.localeCompare(b.city));
+    
+    // Default to priority sorting
+    return vehicleService.sortVehiclesByPriority(list);
+  })();
 
-  const totalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
-  const paginatedVehicles = filteredVehicles.slice(
+  const totalPages = Math.ceil(sortedVehicles.length / ITEMS_PER_PAGE);
+  const paginatedVehicles = sortedVehicles.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );

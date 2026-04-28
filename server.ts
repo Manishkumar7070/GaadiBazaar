@@ -379,7 +379,7 @@ async function startServer() {
         const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
           type: 'magiclink',
           email: loginEmail,
-          options: { redirectTo: process.env.VITE_APP_URL || 'https://ais-dev-2eljun55on5j42d5korshe-821825135031.asia-southeast1.run.app' }
+          options: { redirectTo: process.env.VITE_APP_URL || req.get('origin') || 'http://localhost:3000' }
         });
 
         if (linkError) throw linkError;

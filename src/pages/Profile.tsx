@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin, Eye, X } from 'lucide-react';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin, Eye, X, TrendingUp, Wallet, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import { vehicleService } from '@/services/vehicle.service';
 import { searchService } from '@/services/search.service';
 import { supabase } from '@/lib/supabase';
 import VehicleCard from '@/features/vehicles/VehicleCard';
+import SellerAnalytics from '@/features/seller/SellerAnalytics';
 
 const Profile = () => {
   const { user, loading, logout } = useAuth();
@@ -151,6 +152,7 @@ const Profile = () => {
     { icon: Package, label: 'My Listings', count: myVehicles.length, value: 'listings' },
     { icon: Heart, label: 'Wishlist', count: wishlist.length, value: 'wishlist' },
     { icon: Bookmark, label: 'Saved Searches', count: savedSearches.length, value: 'saved' },
+    { icon: TrendingUp, label: 'Performance & ROI', value: 'analytics' },
     { icon: Clock, label: 'Recently Viewed', count: recentlyViewed.length, value: 'recent' },
     { icon: Bell, label: 'Notifications', count: 0 },
     { 
@@ -238,6 +240,7 @@ const Profile = () => {
           <TabsList className={`flex min-w-max rounded-2xl bg-slate-100 p-1 gap-1 h-12 w-full`}>
             {shop && <TabsTrigger value="shop" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">My Shop</TabsTrigger>}
             <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Overview</TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Performance</TabsTrigger>
             <TabsTrigger value="listings" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Listings</TabsTrigger>
             <TabsTrigger value="wishlist" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Wishlist</TabsTrigger>
             <TabsTrigger value="saved" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm px-4 py-0 text-xs sm:text-sm font-bold transition-all h-full">Saved</TabsTrigger>
@@ -378,6 +381,10 @@ const Profile = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="analytics" className="mt-6">
+          <SellerAnalytics vehicles={myVehicles} walletBalance={user.walletBalance || 4500} />
+        </TabsContent>
+
         <TabsContent value="listings" className="mt-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-lg">My Vehicles</h3>
@@ -405,7 +412,19 @@ const Profile = () => {
               {myVehicles.map((vehicle) => (
                 <div key={vehicle.id} className="relative group">
                   <VehicleCard vehicle={vehicle} />
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  
+                  {/* Upsell Trigger Layer */}
+                  {vehicle.listingType === 'free' && (
+                    <div className="mt-2 bg-primary/5 p-3 rounded-2xl border border-primary/10 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <Zap size={16} className="text-primary animate-pulse" />
+                        <p className="text-[11px] font-bold text-slate-700">This free listing is getting 45% less views than premium ads. <span className="text-primary">Boost it now!</span></p>
+                      </div>
+                      <Button size="sm" className="h-8 bg-primary rounded-lg text-xs font-bold shrink-0">Boost Ad</Button>
+                    </div>
+                  )}
+
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-40">
                     <Link to={`/edit-vehicle/${vehicle.id}`}>
                       <Button variant="secondary" size="sm" className="rounded-lg h-8 px-2 text-xs font-bold shadow-lg">
                         Edit

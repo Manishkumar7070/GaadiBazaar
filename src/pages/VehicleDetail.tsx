@@ -39,6 +39,7 @@ import {
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import VehicleCard from '@/features/vehicles/VehicleCard';
+import PriceHistoryChart from '@/features/vehicles/PriceHistoryChart';
 import { useComparison } from '@/hooks/useComparison';
 import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
@@ -410,6 +411,11 @@ const VehicleDetail = () => {
               })}
             </div>
           </section>
+
+          {/* Price History Chart */}
+          {vehicle.priceHistory && vehicle.priceHistory.length > 0 && (
+            <PriceHistoryChart data={vehicle.priceHistory} className="pt-4" />
+          )}
 
           {/* Description */}
           <section className="space-y-4">

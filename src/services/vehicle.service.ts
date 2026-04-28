@@ -29,7 +29,9 @@ export const vehicleService = {
           if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
           if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
           if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
-          return fallback;
+          
+          // Sort fallback by priority
+          return this.sortVehiclesByPriority(fallback);
         }
         throw error;
       }
@@ -39,10 +41,11 @@ export const vehicleService = {
         if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
         if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
         if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
-        return fallback;
+        
+        return this.sortVehiclesByPriority(fallback);
       }
 
-      return (data || []).map(v => ({
+      const vehicles = (data || []).map(v => ({
         ...v,
         shopId: v.shop_id,
         sellerId: v.seller_id,
@@ -50,6 +53,8 @@ export const vehicleService = {
         kilometersDriven: v.kilometers_driven,
         vehicleType: v.vehicle_type,
         fuelType: v.fuel_type,
+        listingType: v.listing_type || 'free',
+        priorityScore: v.priority_score || 0,
         registrationNumber: v.registration_number,
         assemblyType: v.assembly_type,
         engineStartVideo: v.engine_start_video,
@@ -58,14 +63,37 @@ export const vehicleService = {
         createdAt: v.created_at,
         updatedAt: v.updated_at
       })) as any;
+
+      return this.sortVehiclesByPriority(vehicles);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       let fallback = MOCK_VEHICLES;
       if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
       if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
       if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
-      return fallback;
+      return this.sortVehiclesByPriority(fallback);
     }
+  },
+
+  sortVehiclesByPriority(vehicles: Vehicle[]): Vehicle[] {
+    const typeWeights = {
+      'sponsored': 10000,
+      'featured': 5000,
+      'premium': 2000,
+      'free': 0
+    };
+
+    return [...vehicles].sort((a, b) => {
+      const scoreA = (typeWeights[a.listingType] || 0) + (a.priorityScore || 0);
+      const scoreB = (typeWeights[b.listingType] || 0) + (b.priorityScore || 0);
+      
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA;
+      }
+      
+      // If scores are equal, sort by newest
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   },
 
   async createVehicle(vehicleData: Partial<Vehicle>): Promise<Vehicle> {
@@ -89,6 +117,11 @@ export const vehicleService = {
           city: vehicleData.city,
           state: vehicleData.state,
           images: vehicleData.images,
+          listing_type: vehicleData.listingType,
+          priority_score: vehicleData.priorityScore,
+          clicks_count: 0,
+          leads_count: 0,
+          views_count: 0,
           engine_start_video: vehicleData.engineStartVideo,
           engine_sound_video: vehicleData.engineSoundVideo,
           walkaround_video: vehicleData.walkaroundVideo,

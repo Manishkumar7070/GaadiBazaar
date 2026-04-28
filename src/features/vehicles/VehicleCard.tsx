@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle, Share2 } from 'lucide-react';
+import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle, Share2, Star, Zap, Crown } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Vehicle } from '@/types';
@@ -21,6 +22,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
   const { addToComparison, removeFromComparison, isVehicleSelected } = useComparison();
   const isSelected = isVehicleSelected(vehicle.id);
   const shop = vehicle.shopId ? MOCK_DEALERS.find(d => d.id === vehicle.shopId) : null;
+
+  const isSponsored = vehicle.listingType === 'sponsored';
+  const isFeaturedListing = vehicle.listingType === 'featured';
+  const isPremiumListing = vehicle.listingType === 'premium';
 
   const toggleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,49 +82,94 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
   };
 
   return (
-    <div 
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -5 }}
       onClick={() => navigate(`/vehicle/${vehicle.id}`)}
-      className="cursor-pointer"
+      className="cursor-pointer relative"
     >
-      <Card className="group overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-300 bg-white rounded-3xl">
+      {/* Premium Highlight Border */}
+      {(isSponsored || isFeaturedListing || isPremiumListing) && (
+        <div className={cn(
+          "absolute -inset-[2px] rounded-[34px] z-0 animate-pulse opacity-70 blur-[1px]",
+          isSponsored ? "bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" :
+          isFeaturedListing ? "bg-gradient-to-r from-blue-400 via-purple-500 to-blue-400" :
+          "bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400"
+        )} />
+      )}
+
+      <Card className={cn(
+        "group overflow-hidden border-none shadow-sm hover:shadow-2xl transition-all duration-300 bg-white rounded-3xl relative z-10",
+        isSponsored && "bg-gradient-to-b from-amber-50/30 to-white",
+        isFeaturedListing && "bg-gradient-to-b from-blue-50/30 to-white"
+      )}>
+        {/* Shimmer Effect for Premium listings */}
+        {(isSponsored || isPremiumListing) && (
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            <motion.div 
+              animate={{ x: ['100%', '-100%'] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] w-full h-full"
+            />
+          </div>
+        )}
+
         <div className="relative aspect-[4/3] overflow-hidden">
           <img 
             src={vehicle.images[0]} 
             alt={vehicle.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className={cn(
+              "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
+              isSponsored && "scale-[1.02]"
+            )}
             referrerPolicy="no-referrer"
           />
-          <div className="absolute top-4 left-4 flex gap-2">
-            {vehicle.isFeatured && (
-              <Badge className="bg-primary text-white border-none">Featured</Badge>
+
+          {/* Top Listing Ribbon */}
+          {isSponsored && (
+            <div className="absolute top-0 right-0 z-20">
+              <div className="bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider py-1 px-8 translate-x-[28%] translate-y-[45%] rotate-45 shadow-lg flex items-center gap-1 justify-center min-w-[140px]">
+                <Zap size={10} fill="currentColor" /> Sponsored Listing <Zap size={10} fill="currentColor" />
+              </div>
+            </div>
+          )}
+
+          <div className="absolute top-4 left-4 flex flex-wrap gap-2 pr-12">
+            {isSponsored && (
+              <Badge className="bg-amber-500 text-white border-none shadow-lg animate-bounce-slow flex gap-1 items-center">
+                <Crown size={12} fill="white" /> Top Ad
+              </Badge>
             )}
+            {isFeaturedListing && (
+              <Badge className="bg-blue-600 text-white border-none shadow-lg flex gap-1 items-center">
+                <Star size={12} fill="white" /> Featured
+              </Badge>
+            )}
+            {isPremiumListing && (
+              <Badge className="bg-emerald-600 text-white border-none shadow-lg flex gap-1 items-center">
+                <Star size={12} /> Premium
+              </Badge>
+            )}
+
             {vehicle.verificationStatus === 'verified' && (
-              <Badge className="bg-green-500 text-white border-none flex gap-1 items-center">
+              <Badge className="bg-white/90 backdrop-blur-sm text-green-600 border-none flex gap-1 items-center shadow-sm">
                 <ShieldCheck size={12} /> Verified
-              </Badge>
-            )}
-            {vehicle.verificationStatus === 'pending' && (
-              <Badge className="bg-orange-500 text-white border-none flex gap-1 items-center">
-                <Clock size={12} /> Pending Verification
-              </Badge>
-            )}
-            {vehicle.verificationStatus === 'rejected' && (
-              <Badge className="bg-red-500 text-white border-none flex gap-1 items-center">
-                <XCircle size={12} /> Verification Rejected
               </Badge>
             )}
           </div>
           
-          <div className="absolute top-4 right-4 flex flex-col gap-2">
+          <div className="absolute top-4 right-4 flex flex-col gap-2 z-30">
             <button 
               onClick={handleFavorite}
-              className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors"
+              className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 transition-all hover:scale-110 shadow-sm"
             >
               <Heart size={20} />
             </button>
             <button 
               onClick={handleShare}
-              className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-primary transition-colors"
+              className="w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-600 hover:text-primary transition-all hover:scale-110 shadow-sm"
               title="Share"
             >
               <Share2 size={20} />
@@ -127,7 +177,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             <button 
               onClick={toggleCompare}
               className={cn(
-                "w-10 h-10 backdrop-blur-sm rounded-full flex items-center justify-center transition-colors",
+                "w-10 h-10 backdrop-blur-sm rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-sm",
                 isSelected ? "bg-primary text-white" : "bg-white/80 text-slate-600 hover:text-primary"
               )}
             >
@@ -136,48 +186,89 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
           </div>
 
           <div className="absolute bottom-4 left-4">
-            <div className="bg-black/60 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-medium">
-              {vehicle.city}, {vehicle.state}
+            <div className="bg-black/40 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight">
+              {vehicle.city} • {vehicle.state}
             </div>
           </div>
         </div>
-        <CardContent className="p-5 space-y-4">
+        
+        <CardContent className="p-5 space-y-4 relative bg-transparent">
           <div className="space-y-1">
-            <h3 className="font-bold text-lg line-clamp-1 group-hover:text-primary transition-colors">
-              {vehicle.title}
-            </h3>
-            <div className="flex items-center gap-4 text-slate-500 text-sm">
+            <div className="flex justify-between items-start gap-2">
+              <h3 className="font-bold text-lg line-clamp-1 group-hover:text-primary transition-colors flex-1">
+                {vehicle.title}
+              </h3>
+              {vehicle.clicksCount > 100 && (
+                <div className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                  <Zap size={10} /> Hot Deal
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-4 text-slate-500 text-xs font-medium">
               <div className="flex items-center gap-1">
-                <Calendar size={14} />
+                <Calendar size={14} className="text-slate-400" />
                 <span>{vehicle.year}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Gauge size={14} />
+                <Gauge size={14} className="text-slate-400" />
                 <span>{vehicle.kilometersDriven.toLocaleString()} km</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-slate-400">
                 <User size={14} />
                 <span>{vehicle.ownership}</span>
               </div>
             </div>
           </div>
           
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <div className="text-2xl font-bold text-slate-900">
-                ₹{vehicle.price.toLocaleString()}
-              </div>
-              <Badge variant="secondary" className="bg-slate-100 text-slate-600 capitalize">
-                {vehicle.fuelType}
-              </Badge>
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <div className={cn(
+              "text-2xl font-black transition-all",
+              isSponsored ? "text-amber-600" : "text-slate-900"
+            )}>
+              ₹{vehicle.price.toLocaleString()}
             </div>
-            {shop && (
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <ShieldCheck size={14} className="text-green-500" />
-                <span>Sold by <Link to={`/dealer/${shop.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-slate-600 hover:text-primary transition-colors underline decoration-slate-200 underline-offset-2">{shop.name}</Link></span>
+            <Badge variant="secondary" className="bg-slate-50 text-slate-500 capitalize rounded-lg border-slate-100 text-[10px] font-bold">
+              {vehicle.fuelType}
+            </Badge>
+          </div>
+
+          {shop && (
+            <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-white shadow-sm shrink-0 border border-slate-100">
+                <img src={shop.images[0]} alt={shop.name} className="w-full h-full object-cover" />
               </div>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1">
+                  <Link 
+                    to={`/dealer/${shop.id}`} 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="text-xs font-bold text-slate-700 hover:text-primary transition-colors truncate"
+                  >
+                    {shop.name}
+                  </Link>
+                  {shop.isPremium && (
+                    <div className="bg-amber-100 text-amber-700 rounded-full p-0.5" title="Premium Seller">
+                      <Star size={8} fill="currentColor" />
+                    </div>
+                  )}
+                  {shop.verificationStatus === 'verified' && (
+                    <ShieldCheck size={12} className="text-blue-500 shrink-0" />
+                  )}
+                </div>
+                <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                   <Star size={10} className="fill-amber-400 text-amber-400" /> {shop.rating} • 100+ listings
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Button 
+            className={cn(
+              "w-full rounded-xl font-bold flex gap-2 h-11 transition-all active:scale-[0.98]",
+              isSponsored ? "bg-amber-500 hover:bg-amber-600 text-white" :
+              isFeaturedListing ? "bg-blue-600 hover:bg-blue-700 text-white" :
+              "bg-primary hover:bg-primary/90 text-white"
             )}
-            <Button 
-            className="w-full bg-primary hover:bg-primary/90 rounded-xl font-bold flex gap-2"
             onClick={handleContactSeller}
           >
             <Phone size={18} />
@@ -185,7 +276,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 };
 
