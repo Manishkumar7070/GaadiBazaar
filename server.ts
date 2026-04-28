@@ -103,22 +103,46 @@ async function startServer() {
   app.use("/api/", speedLimiter);
   app.use("/api/", limiter);
   app.use("/api/auth/send-otp", authLimiter);
-
-  // Supabase Client (Server-side)
-  // Use lazy check or safe init to prevent server crash if variables are missing
-  const supabaseUrl = process.env.SUPABASE_URL || "";
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
   
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("CRITICAL: Supabase server-side credentials missing. API routes depending on Supabase will fail.");
+  // Check for missing environment variables on startup (Log only, don't crash)
+  const requiredEnvVars = [
+    'SUPABASE_URL', 
+    'SUPABASE_SERVICE_ROLE_KEY', 
+    'RESEND_API_KEY', 
+    'TWILIO_ACCOUNT_SID', 
+    'TWILIO_AUTH_TOKEN'
+  ];
+  const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+  if (missingVars.length > 0) {
+    console.warn(`[WARN] Missing environment variables: ${missingVars.join(', ')}. Some API features will be disabled.`);
   }
 
-  const supabase = (supabaseUrl && supabaseServiceKey) 
-    ? createClient(supabaseUrl, supabaseServiceKey)
-    : (null as any);
+  // Supabase Client (Lazy initialization)
+  let supabaseClientInstance: any = null;
+  const getSupabaseClient = () => {
+    if (!supabaseClientInstance) {
+      const url = process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) {
+        throw new Error("Supabase credentials (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY) are required");
+      }
+      supabaseClientInstance = createClient(url, key);
+    }
+    return supabaseClientInstance;
+  };
 
-  // Initialize Resend
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  // Initialize Resend (Lazy initialization)
+  let resendClient: Resend | null = null;
+  const getResendClient = () => {
+    if (!resendClient) {
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        throw new Error("RESEND_API_KEY is required but not provided");
+      }
+      resendClient = new Resend(apiKey);
+    }
+    return resendClient;
+  };
 
   // Twilio Client (Lazy initialization)
   let twilioClientInstance: any = null;
@@ -177,12 +201,22 @@ async function startServer() {
       health.checks.cache = "UP";
 
       // 2. Check Supabase (Lite query)
-      const { error } = await supabase.from("vehicles").select("id").limit(1);
-      health.checks.supabase = error ? "DOWN" : "UP";
+      if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const { error } = await getSupabaseClient().from("vehicles").select("id").limit(1);
+          health.checks.supabase = error ? "DOWN" : "UP";
+        } catch (e) {
+          health.checks.supabase = "DOWN";
+        }
+      } else {
+        health.checks.supabase = "NOT_CONFIGURED";
+      }
 
       // 3. Check Twilio Configuration
       if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
-        health.checks.twilio = "CONFIGURED";
+        health.checks.twilio = process.env.TWILIO_VERIFY_SERVICE_SID ? "READY" : "CONFIGURED_NO_VERIFY";
+      } else {
+        health.checks.twilio = "NOT_CONFIGURED";
       }
 
       const isUnhealthy = health.checks.cache === "DOWN" || health.checks.supabase === "DOWN";
@@ -217,16 +251,40 @@ async function startServer() {
 
     try {
       const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
-      
-      // If it's an email and we have Resend configured, prefer Resend for reliability
-      // unless the user explicitly wants Twilio Verify for everything.
+
+      // PRIORITY 1: Twilio Verify (Natively supports SMS and Email)
+      if (verifyServiceSid) {
+        try {
+          await twilioBreaker.fire(async () => {
+            await getTwilioClient().verify.v2
+              .services(verifyServiceSid)
+              .verifications.create({ to: identifier, channel });
+          });
+          
+          console.log(`[AUTH] Sent Twilio Verify OTP to ${identifier} via ${channel}`);
+          return res.json({ message: `OTP sent successfully via Twilio ${channel}`, status: "sent" });
+        } catch (error: any) {
+          console.error("[AUTH] Twilio Verify error:", error);
+          
+          if (error.message === 'Breaker is open') {
+            throw new Error('Our verification service is currently under heavy load. Please try again in 30 seconds.');
+          }
+          
+          if (error.message && (error.message.includes('Authenticate') || error.status === 401)) {
+            throw new Error('Verification service configuration error. Please contact the administrator.');
+          }
+          throw error;
+        }
+      }
+
+      // PRIORITY 2: Resend (Fallback for Email if Twilio is not configured)
       if (email && process.env.RESEND_API_KEY) {
         const code = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
         
-        await supabase.from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
+        await getSupabaseClient().from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
         
-        await resend.emails.send({
+        await getResendClient().emails.send({
           from: 'One Dealer <onboarding@resend.dev>',
           to: email,
           subject: `${code} is your One Dealer verification code`,
@@ -242,58 +300,21 @@ async function startServer() {
           `
         });
 
-        console.log(`[AUTH] Sent Resend OTP to ${email}`);
+        console.log(`[AUTH] Sent Resend Email OTP to ${email}`);
         return res.json({ message: "OTP sent successfully via Email", status: "sent" });
       }
 
-      if (!verifyServiceSid) {
-        console.warn("[AUTH] Twilio Verify Service SID missing. Falling back to manual mode for development.");
-        // Fallback to manual if Twilio is not configured
-        const code = generateOTP();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-        
-        await supabase.from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
-        
-        if (email) {
-          await resend.emails.send({
-            from: 'One Dealer <auth@resend.dev>',
-            to: email,
-            subject: `${code} is your One Dealer verification code`,
-            html: `<p>Your code is: <b>${code}</b></p>`
-          });
-        }
-        
-        return res.json({ 
-          message: "OTP sent successfully (Manual Mode)",
-          isManual: true,
-          note: process.env.NODE_ENV !== "production" ? `Your code is: ${code}` : undefined
-        });
-      }
-
-      // Use Twilio Verify
-      try {
-        await twilioBreaker.fire(async () => {
-          await getTwilioClient().verify.v2
-            .services(verifyServiceSid)
-            .verifications.create({ to: identifier, channel });
-        });
-      } catch (error: any) {
-        console.error("[AUTH] Twilio error:", error);
-        
-        if (error.message === 'Breaker is open') {
-          throw new Error('Our SMS service is currently under heavy load. Please try again in 30 seconds.');
-        }
-        
-        // Handle Twilio "Authenticate" error (20003)
-        if (error.message && (error.message.includes('Authenticate') || error.status === 401)) {
-          throw new Error('Verification service is temporarily unavailable (Configuration Error). Please contact support.');
-        }
-
-        throw error;
-      }
+      // PRIORITY 3: Manual Development Mode (Last Resort)
+      console.warn("[AUTH] No verification service found. Falling back to manual mode.");
+      const code = generateOTP();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      await getSupabaseClient().from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
       
-      console.log(`[AUTH] Sent Twilio OTP to ${identifier}`);
-      return res.json({ message: "OTP sent successfully", status: "sent" });
+      return res.json({ 
+        message: "OTP sent (Manual/Dev Mode)",
+        isManual: true,
+        code: process.env.NODE_ENV !== "production" ? code : undefined
+      });
 
     } catch (error: any) {
       console.error("[AUTH] Error sending OTP:", error);
@@ -315,7 +336,7 @@ async function startServer() {
 
       if (!verifyServiceSid) {
         // Fallback check in DB
-        const { data: otpData } = await supabase
+        const { data: otpData } = await getSupabaseClient()
           .from("otps")
           .select("*")
           .eq("email", identifier)
@@ -325,7 +346,7 @@ async function startServer() {
 
         if (otpData && otpData.length > 0) {
           isVerified = true;
-          await supabase.from("otps").delete().eq("email", identifier);
+          await getSupabaseClient().from("otps").delete().eq("email", identifier);
         }
       } else {
         // Verify with Twilio
@@ -355,7 +376,7 @@ async function startServer() {
       const loginEmail = email || `${phone.replace('+', '')}@phone.verify`;
 
       try {
-        const { data: userData, error: listError } = await supabase.auth.admin.listUsers();
+        const { data: userData, error: listError } = await getSupabaseClient().auth.admin.listUsers();
         if (listError) throw listError;
         
         const existingUser = userData?.users?.find((u: any) => u.email === loginEmail || u.user_metadata?.phone === phone);
@@ -363,7 +384,7 @@ async function startServer() {
         if (existingUser) {
           user = existingUser;
         } else {
-          const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+          const { data: newUser, error: createError } = await getSupabaseClient().auth.admin.createUser({
             email: loginEmail,
             email_confirm: true,
             user_metadata: { 
@@ -376,7 +397,7 @@ async function startServer() {
         }
 
         // Generate session link
-        const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        const { data: linkData, error: linkError } = await getSupabaseClient().auth.admin.generateLink({
           type: 'magiclink',
           email: loginEmail,
           options: { redirectTo: process.env.VITE_APP_URL || req.get('origin') || 'http://localhost:3000' }
@@ -411,7 +432,7 @@ async function startServer() {
     if (!userId || !role) return res.status(400).json({ error: "User ID and role are required" });
 
     try {
-      const { data, error } = await supabase.auth.admin.updateUserById(userId, {
+      const { data, error } = await getSupabaseClient().auth.admin.updateUserById(userId, {
         user_metadata: {
           role,
           full_name: name,
@@ -438,7 +459,7 @@ async function startServer() {
 
       const data = await supabaseBreaker.fire(async () => {
         return await retry(async (bail) => {
-          const { data, error } = await supabase.from("vehicles").select("*");
+          const { data, error } = await getSupabaseClient().from("vehicles").select("*");
           if (error) {
             if (error.code === "429") bail(new Error("Supabase is temporarily rate limiting requests."));
             throw error;
@@ -482,7 +503,7 @@ async function startServer() {
 
       const data = await supabaseBreaker.fire(async () => {
         return await retry(async (bail) => {
-          const { data, error } = await supabase
+          const { data, error } = await getSupabaseClient()
             .from("vehicles")
             .insert([
               {
@@ -525,7 +546,7 @@ async function startServer() {
   app.get("/api/wishlist/:userId", async (req, res) => {
     const { userId } = req.params;
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("user_wishlist")
         .select("*, vehicles(*)")
         .eq("user_id", userId);
@@ -544,7 +565,7 @@ async function startServer() {
     if (!userId || !vehicleId) return res.status(400).json({ error: "User ID and Vehicle ID are required" });
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("user_wishlist")
         .insert([{ user_id: userId, vehicle_id: vehicleId }])
         .select();
@@ -564,7 +585,7 @@ async function startServer() {
   app.delete("/api/wishlist/:userId/:vehicleId", async (req, res) => {
     const { userId, vehicleId } = req.params;
     try {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("user_wishlist")
         .delete()
         .eq("user_id", userId)
