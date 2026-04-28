@@ -113,6 +113,7 @@ export interface SearchFilters {
   ownership?: OwnershipType;
   city?: string;
   state?: string;
+  isCertified?: boolean;
 }
 
 export interface SavedSearch {

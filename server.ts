@@ -4,7 +4,6 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
-import { Resend } from "resend";
 import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
 import CircuitBreaker from "opossum";
@@ -108,9 +107,9 @@ async function startServer() {
   const requiredEnvVars = [
     'SUPABASE_URL', 
     'SUPABASE_SERVICE_ROLE_KEY', 
-    'RESEND_API_KEY', 
     'TWILIO_ACCOUNT_SID', 
-    'TWILIO_AUTH_TOKEN'
+    'TWILIO_AUTH_TOKEN',
+    'TWILIO_VERIFY_SERVICE_SID'
   ];
   const missingVars = requiredEnvVars.filter(v => !process.env[v]);
   if (missingVars.length > 0) {
@@ -129,19 +128,6 @@ async function startServer() {
       supabaseClientInstance = createClient(url, key);
     }
     return supabaseClientInstance;
-  };
-
-  // Initialize Resend (Lazy initialization)
-  let resendClient: Resend | null = null;
-  const getResendClient = () => {
-    if (!resendClient) {
-      const apiKey = process.env.RESEND_API_KEY;
-      if (!apiKey) {
-        throw new Error("RESEND_API_KEY is required but not provided");
-      }
-      resendClient = new Resend(apiKey);
-    }
-    return resendClient;
   };
 
   // Twilio Client (Lazy initialization)
@@ -252,7 +238,7 @@ async function startServer() {
     try {
       const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-      // PRIORITY 1: Twilio Verify (Natively supports SMS and Email)
+      // Twilio Verify (Natively supports SMS and Email)
       if (verifyServiceSid) {
         try {
           await twilioBreaker.fire(async () => {
@@ -277,35 +263,8 @@ async function startServer() {
         }
       }
 
-      // PRIORITY 2: Resend (Fallback for Email if Twilio is not configured)
-      if (email && process.env.RESEND_API_KEY) {
-        const code = generateOTP();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-        
-        await getSupabaseClient().from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);
-        
-        await getResendClient().emails.send({
-          from: 'One Dealer <onboarding@resend.dev>',
-          to: email,
-          subject: `${code} is your One Dealer verification code`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 400px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-              <h2 style="color: #2563eb; margin-bottom: 20px;">One Dealer</h2>
-              <p style="font-size: 16px; color: #333;">Welcome to the premium automotive marketplace.</p>
-              <div style="background: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                <span style="font-size: 32px; font-weight: 800; letter-spacing: 5px; color: #1e293b;">${code}</span>
-              </div>
-              <p style="font-size: 12px; color: #64748b;">This code expires in 10 minutes. If you did not request this, please ignore this email.</p>
-            </div>
-          `
-        });
-
-        console.log(`[AUTH] Sent Resend Email OTP to ${email}`);
-        return res.json({ message: "OTP sent successfully via Email", status: "sent" });
-      }
-
-      // PRIORITY 3: Manual Development Mode (Last Resort)
-      console.warn("[AUTH] No verification service found. Falling back to manual mode.");
+      // PRIORITY 2: Manual Development Mode (Last Resort)
+      console.warn("[AUTH] No Twilio Verify service found. Falling back to manual mode.");
       const code = generateOTP();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       await getSupabaseClient().from("otps").insert([{ email: identifier, code, expires_at: expiresAt }]);

@@ -117,6 +117,12 @@ const Header = () => {
           <Link to="/search?type=bike" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             Bikes
           </Link>
+          <Link to="/find-dealers" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            Dealers
+          </Link>
+          <Link to="/blog/used-car-market-india" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors hidden xl:block">
+            Market Trends
+          </Link>
         </div>
 
         <div className="hidden md:flex flex-1 max-w-xl items-center gap-2">
@@ -277,6 +283,10 @@ const Header = () => {
                     <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
                       <Search size={20} className="text-slate-400" />
                       <span className="font-semibold text-slate-700">Browse Vehicles</span>
+                    </Link>
+                    <Link to="/find-dealers" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                      <MapPin size={20} className="text-slate-400" />
+                      <span className="font-semibold text-slate-700">Find Dealers</span>
                     </Link>
                     {user?.role === 'admin' && (
                       <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors border border-primary/10">

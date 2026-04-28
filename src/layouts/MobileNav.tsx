@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, Heart, User, PlusCircle } from 'lucide-react';
+import { Home, Search, Heart, User, PlusCircle, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,13 +49,7 @@ const MobileNav = () => {
         navigate('/list-vehicle');
       }
     }},
-    { icon: Heart, label: 'Wishlist', path: '/profile', onClick: () => {
-      if (!user) {
-        navigate('/login?reason=profile&redirect=/profile');
-      } else {
-        navigate('/profile');
-      }
-    }},
+    { icon: MapPin, label: 'Dealers', path: '/find-dealers' },
     { icon: User, label: 'Profile', path: '/profile', onClick: () => {
       if (!user) {
         navigate('/login?reason=profile&redirect=/profile');

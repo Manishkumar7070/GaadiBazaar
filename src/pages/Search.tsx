@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap, Mic, MicOff, X, History } from 'lucide-react';
+import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap, Mic, MicOff, X, History, Sparkles, Loader2, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { MOCK_VEHICLES } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import VehicleCardSkeleton from '@/features/vehicles/VehicleCardSkeleton';
 import SearchSuggestions from '@/features/search/SearchSuggestions';
+import PriceComparisonSection from '@/features/vehicles/PriceComparisonSection';
 import { 
   Pagination, 
   PaginationContent, 
@@ -34,6 +35,7 @@ import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
 import { vehicleService } from '@/services/vehicle.service';
 import { searchService } from '@/services/search.service';
 import CitySelector from '@/components/shared/CitySelector';
+import { aiSearchService } from '@/services/aiSearchService';
 
 const POPULAR_BRANDS = [
   'Maruti Suzuki', 'Hyundai', 'Tata', 'Toyota', 'Mahindra', 
@@ -52,6 +54,17 @@ const SearchPage = () => {
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   
+  const [filters, setFilters] = useState<SearchFilters>({
+    brand: initialQuery,
+    minPrice: undefined,
+    maxPrice: undefined,
+    vehicleType: undefined,
+    city: undefined,
+    fuelType: undefined,
+    transmission: undefined,
+    ownership: undefined,
+  });
+
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(initialQuery);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -59,10 +72,11 @@ const SearchPage = () => {
   const [searchName, setSearchName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | 'city-asc' | null>(null);
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | 'condition-best' | 'distance-closest' | 'city-asc' | null>(null);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
   const ITEMS_PER_PAGE = 6;
@@ -78,12 +92,12 @@ const SearchPage = () => {
     fetchMetadata();
   }, []);
 
-  const addToRecentSearches = (query: string) => {
+  const addToRecentSearches = useCallback((query: string) => {
     if (!query.trim()) return;
     const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
     setRecentSearches(updated);
     localStorage.setItem('recentSearches', JSON.stringify(updated));
-  };
+  }, [recentSearches]);
 
   useEffect(() => {
     if (selectedCity && selectedCity !== 'India' && !filters.city) {
@@ -211,7 +225,28 @@ const SearchPage = () => {
     recognition.start();
   };
 
-  const parseSmartQuery = (query: string) => {
+  const handleAISearch = useCallback(async (query: string) => {
+    if (!query.trim()) return;
+    setIsAiLoading(true);
+    try {
+      const result = await aiSearchService.parseNaturalLanguageQuery(query);
+      if (result && result.filters) {
+        setFilters(prev => ({
+          ...prev,
+          ...result.filters
+        }));
+        setSearchQuery(result.normalizedQuery || query);
+        addToRecentSearches(query);
+      }
+    } catch (error) {
+      console.error('Error in AI search:', error);
+    } finally {
+      setIsAiLoading(false);
+      setShowSuggestions(false);
+    }
+  }, [addToRecentSearches]);
+
+  const parseSmartQuery = useCallback((query: string) => {
     const q = query.toLowerCase().trim();
     if (!q) {
       setFilters(prev => ({ ...prev, brand: '' }));
@@ -255,7 +290,7 @@ const SearchPage = () => {
         setFilters(prev => ({ ...prev, brand: '', model: query }));
       }
     }
-  };
+  }, []);
 
   const handleSuggestionSelect = (suggestion: any) => {
     setSearchQuery(suggestion.text);
@@ -264,17 +299,6 @@ const SearchPage = () => {
     setShowSuggestions(false);
   };
   
-  const [filters, setFilters] = useState<SearchFilters>({
-    brand: initialQuery,
-    minPrice: undefined,
-    maxPrice: undefined,
-    vehicleType: undefined,
-    city: undefined,
-    fuelType: undefined,
-    transmission: undefined,
-    ownership: undefined,
-  });
-
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -310,7 +334,12 @@ const SearchPage = () => {
     if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner) {
       if (q) {
         setSearchQuery(q);
-        parseSmartQuery(q);
+        const wordsCount = q.trim().split(/\s+/).length;
+        if (wordsCount >= 3) {
+          handleAISearch(q);
+        } else {
+          parseSmartQuery(q);
+        }
       }
       setFilters({
         brand: brand || q || '',
@@ -331,7 +360,7 @@ const SearchPage = () => {
     }
     setCurrentPage(1);
     return () => clearTimeout(timer);
-  }, [searchParams]);
+  }, [searchParams, handleAISearch, parseSmartQuery]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -384,10 +413,11 @@ const SearchPage = () => {
     const matchesFuel = !filters.fuelType || v.fuelType === filters.fuelType;
     const matchesTrans = !filters.transmission || v.transmission === filters.transmission;
     const matchesOwnership = !filters.ownership || v.ownership === filters.ownership;
+    const matchesCertified = !filters.isCertified || v.verificationStatus === 'verified';
 
     return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity && matchesState && 
            matchesBrand && matchesModel && matchesMinYear && matchesMaxYear && matchesMinKm && matchesMaxKm && 
-           matchesFuel && matchesTrans && matchesOwnership;
+           matchesFuel && matchesTrans && matchesOwnership && matchesCertified;
   })
   const sortedVehicles = (() => {
     const list = [...filteredVehicles];
@@ -395,6 +425,8 @@ const SearchPage = () => {
     if (sortBy === 'price-desc') return list.sort((a, b) => b.price - a.price);
     if (sortBy === 'newest') return list.sort((a, b) => b.year - a.year);
     if (sortBy === 'km-low') return list.sort((a, b) => a.kilometersDriven - b.kilometersDriven);
+    if (sortBy === 'condition-best') return list.sort((a, b) => (b.isVerified ? 1 : 0) - (a.isVerified ? 1 : 0));
+    if (sortBy === 'distance-closest') return list.sort((a, b) => (a.city === selectedCity ? -1 : 1) - (b.city === selectedCity ? -1 : 1));
     if (sortBy === 'city-asc') return list.sort((a, b) => a.city.localeCompare(b.city));
     
     // Default to priority sorting
@@ -427,7 +459,12 @@ const SearchPage = () => {
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  parseSmartQuery(searchQuery);
+                  const wordsCount = searchQuery.trim().split(/\s+/).length;
+                  if (wordsCount >= 3) {
+                    handleAISearch(searchQuery);
+                  } else {
+                    parseSmartQuery(searchQuery);
+                  }
                   addToRecentSearches(searchQuery);
                   setShowSuggestions(false);
                 }
@@ -454,6 +491,19 @@ const SearchPage = () => {
                 onClick={handleVoiceSearch}
               >
                 {isListening ? <MicOff size={18} className="animate-pulse" /> : <Mic size={18} />}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn(
+                  "h-8 w-8 rounded-lg transition-colors",
+                  isAiLoading ? "text-primary animate-spin" : "text-slate-400 hover:text-primary"
+                )}
+                onClick={() => handleAISearch(searchQuery)}
+                disabled={isAiLoading || !searchQuery.trim()}
+                title="AI Smart Search"
+              >
+                {isAiLoading ? <Loader2 size={18} /> : <Sparkles size={18} />}
               </Button>
             </div>
 
@@ -851,6 +901,22 @@ const SearchPage = () => {
             Kilometers: Low
           </Button>
           <Button 
+            variant={sortBy === 'condition-best' ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full shrink-0"
+            onClick={() => setSortBy(prev => prev === 'condition-best' ? null : 'condition-best')}
+          >
+            Best Condition
+          </Button>
+          <Button 
+            variant={sortBy === 'distance-closest' ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full shrink-0"
+            onClick={() => setSortBy(prev => prev === 'distance-closest' ? null : 'distance-closest')}
+          >
+            Closest Dealer
+          </Button>
+          <Button 
             variant={sortBy === 'city-asc' ? 'default' : 'secondary'} 
             size="sm" 
             className="rounded-full"
@@ -906,6 +972,16 @@ const SearchPage = () => {
             <option value="4th">4th Owner</option>
             <option value="4th+">4th+ Owner</option>
           </select>
+
+          <Button 
+            variant={filters.isCertified ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full flex gap-1 items-center shrink-0"
+            onClick={() => setFilters(prev => ({ ...prev, isCertified: !prev.isCertified }))}
+          >
+            <ShieldCheck size={14} className={filters.isCertified ? "text-white" : "text-slate-400"} />
+            Certified Only
+          </Button>
         </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -914,8 +990,15 @@ const SearchPage = () => {
             <VehicleCardSkeleton key={i} />
           ))
         ) : paginatedVehicles.length > 0 ? (
-          paginatedVehicles.map((vehicle) => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+          paginatedVehicles.map((vehicle, index) => (
+            <React.Fragment key={vehicle.id}>
+              <VehicleCard vehicle={vehicle} />
+              {index === 0 && paginatedVehicles.length > 1 && (
+                <div className="col-span-full">
+                  <PriceComparisonSection vehicle={vehicle} allVehicles={vehicles} />
+                </div>
+              )}
+            </React.Fragment>
           ))
         ) : (
           <div className="col-span-full py-20 text-center space-y-4">

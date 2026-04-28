@@ -111,6 +111,8 @@ const VehicleDetail = () => {
   
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,6 +183,7 @@ const VehicleDetail = () => {
       navigate(`/login?reason=contact_seller&redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
+    setShowContactInfo(true);
   };
 
   useEffect(() => {
@@ -488,7 +491,7 @@ const VehicleDetail = () => {
         </div>
 
         {/* Right Column: Seller Info & Actions */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:sticky lg:top-8 self-start">
           {/* Seller Card */}
           <Card className="rounded-[2rem] border-none shadow-lg overflow-hidden">
             <CardContent className="p-6 space-y-6">
@@ -500,6 +503,13 @@ const VehicleDetail = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{shop.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">Online</span>
+                      </div>
                       {shop.verificationStatus === 'verified' && (
                         <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-100 flex items-center gap-1 px-2 py-0 h-5">
                           <ShieldCheck size={12} className="fill-green-600 text-white" />
@@ -519,7 +529,16 @@ const VehicleDetail = () => {
                     S
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg">Private Seller</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-lg">Private Seller</h3>
+                      <div className="flex items-center gap-1.5 border border-slate-100 px-2 py-0.5 rounded-full bg-white">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">Online</span>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
                       <span>★ 4.0</span>
                       <span className="text-slate-400 font-normal">(10 reviews)</span>
@@ -529,52 +548,68 @@ const VehicleDetail = () => {
               )}
 
               <div className="space-y-3">
-                {shop ? (
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
-                      <a 
-                        href={`tel:${shop.phone}`} 
-                        className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
-                      >
-                        <Phone size={18} />
-                        {shop.phone}
-                      </a>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-slate-200">Dealer</Badge>
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
-                      <a 
-                        href="tel:+919999999999" 
-                        className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
-                      >
-                        <Phone size={18} />
-                        +91 99999 99999
-                      </a>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-slate-200">Private</Badge>
-                  </div>
-                )}
-
-                <a 
-                  href={shop ? `tel:${shop.phone}` : "tel:+919999999999"} 
-                  className="block w-full"
-                  onClick={handleContactSeller}
-                >
-                  <Button className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold flex gap-2">
-                    <Phone size={20} /> Call Seller
+                {!showContactInfo ? (
+                  <Button 
+                    className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-black flex gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                    onClick={handleContactSeller}
+                  >
+                    <User size={20} /> Contact Seller
                   </Button>
-                </a>
-                <Button 
-                  variant="outline" 
-                  className="w-full h-14 rounded-2xl text-lg font-bold flex gap-2 border-slate-200"
-                  onClick={handleContactSeller}
-                >
-                  <MessageSquare size={20} /> Chat Now
-                </Button>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-3"
+                  >
+                    {shop ? (
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
+                          <a 
+                            href={`tel:${shop.phone}`} 
+                            className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
+                          >
+                            <Phone size={18} />
+                            {shop.phone}
+                          </a>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] border-slate-200">Dealer</Badge>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
+                          <a 
+                            href="tel:+919999999999" 
+                            className="text-lg font-bold text-primary hover:underline flex items-center gap-2"
+                          >
+                            <Phone size={18} />
+                            +91 99999 99999
+                          </a>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] border-slate-200">Private</Badge>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <a 
+                        href={shop ? `tel:${shop.phone}` : "tel:+919999999999"} 
+                        className="block"
+                      >
+                        <Button className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold flex gap-2 shadow-md shadow-primary/10">
+                          <Phone size={20} /> Call Now
+                        </Button>
+                      </a>
+                      <Button 
+                        variant="outline" 
+                        className="w-full h-14 rounded-2xl text-lg font-bold flex gap-2 border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                        onClick={() => setIsChatOpen(true)}
+                      >
+                        <MessageSquare size={20} /> Chat
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <Separator />
@@ -640,6 +675,64 @@ const VehicleDetail = () => {
           </div>
         </section>
       )}
+
+      {/* Mobile Sticky Contact Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-50 flex gap-3 md:hidden">
+        {!showContactInfo ? (
+          <Button 
+            className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-black shadow-lg shadow-primary/20"
+            onClick={handleContactSeller}
+          >
+            Contact Seller
+          </Button>
+        ) : (
+          <div className="flex w-full gap-3">
+             <a 
+              href={shop ? `tel:${shop.phone}` : "tel:+919999999999"} 
+              className="flex-1"
+            >
+              <Button className="w-full bg-primary hover:bg-primary/90 h-14 rounded-2xl text-lg font-bold flex gap-2">
+                <Phone size={20} /> Call Now
+              </Button>
+            </a>
+            <Button 
+              variant="outline" 
+              className="flex-1 h-14 rounded-2xl text-lg font-bold flex gap-2 border-slate-200 bg-white"
+              onClick={() => setIsChatOpen(true)}
+            >
+              <MessageSquare size={20} /> Chat
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Simulated Chat Dialog */}
+      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl p-0 overflow-hidden outline-none">
+          <div className="bg-primary p-6 text-white">
+            <h3 className="text-xl font-bold">Chat with {shop ? shop.name : "Private Seller"}</h3>
+            <p className="text-white/70 text-sm">Usually responds in 2 hours</p>
+          </div>
+          <div className="h-[400px] bg-slate-50 p-4 flex flex-col">
+            <div className="flex-1 overflow-y-auto space-y-4">
+              <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[80%] text-sm">
+                Hello! Is this {vehicle.title} still available?
+              </div>
+              <div className="bg-primary/10 p-3 rounded-2xl rounded-tr-none shadow-sm max-w-[80%] ml-auto text-sm text-primary font-medium">
+                Yes, it is available. Would you like to schedule a test drive?
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2 p-2 bg-white rounded-2xl border border-slate-200">
+              <input 
+                type="text" 
+                placeholder="Type your message..." 
+                className="flex-1 bg-transparent border-none outline-none px-2 text-sm"
+              />
+              <Button size="sm" className="rounded-xl px-4">Send</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

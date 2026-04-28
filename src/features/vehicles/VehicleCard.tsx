@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle, Share2, Star, Zap, Crown } from 'lucide-react';
+import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phone, Clock, XCircle, Share2, Star, Zap, Crown, TrendingDown } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,12 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
   const isSponsored = vehicle.listingType === 'sponsored';
   const isFeaturedListing = vehicle.listingType === 'featured';
   const isPremiumListing = vehicle.listingType === 'premium';
+
+  // Smart Badges Logic
+  const hasPriceHistory = vehicle.priceHistory && vehicle.priceHistory.length > 1;
+  const isPriceDropped = hasPriceHistory && vehicle.price < vehicle.priceHistory![vehicle.priceHistory!.length - 2].price;
+  const isBestDeal = vehicle.price < 400000 && vehicle.kilometersDriven < 50000; // Simplified logic
+  const isRecentlyListed = new Date().getTime() - new Date(vehicle.createdAt).getTime() < 3 * 24 * 60 * 60 * 1000;
 
   const toggleCompare = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -156,6 +162,24 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             {vehicle.verificationStatus === 'verified' && (
               <Badge className="bg-white/90 backdrop-blur-sm text-green-600 border-none flex gap-1 items-center shadow-sm">
                 <ShieldCheck size={12} /> Verified
+              </Badge>
+            )}
+
+            {isPriceDropped && (
+              <Badge className="bg-orange-500 text-white border-none shadow-lg animate-pulse flex gap-1 items-center">
+                <TrendingDown size={12} /> Recently Price Dropped
+              </Badge>
+            )}
+
+            {isBestDeal && (
+              <Badge className="bg-indigo-600 text-white border-none shadow-lg flex gap-1 items-center">
+                <Zap size={12} fill="white" /> Best Deal
+              </Badge>
+            )}
+
+            {isRecentlyListed && (
+              <Badge className="bg-slate-900 text-white border-none shadow-lg text-[10px] uppercase font-black tracking-widest h-5 px-2">
+                New Arrival
               </Badge>
             )}
           </div>

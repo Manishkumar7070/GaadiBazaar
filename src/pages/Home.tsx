@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight } from 'lucide-react';
+import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -369,8 +369,150 @@ const Home = () => {
         </section>
       )}
 
+      {/* Dealer Map Promotion Section */}
+      <section className="relative overflow-hidden rounded-[3rem] bg-indigo-900 p-8 sm:p-12 lg:p-16">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2000&auto=format&fit=crop" 
+            alt="Maps background" 
+            className="w-full h-full object-cover opacity-10"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-900 via-indigo-900/80 to-transparent" />
+        </div>
+
+        <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12">
+          <div className="flex-1 space-y-8">
+            <div className="space-y-4">
+              <Badge className="bg-indigo-500 hover:bg-indigo-600 text-white border-none py-1.5 px-4 rounded-full text-xs font-black uppercase tracking-widest">
+                Interactive Map
+              </Badge>
+              <h2 className="text-4xl lg:text-6xl font-black text-white leading-[0.95] tracking-tighter">
+                Explore Dealers <br />
+                <span className="text-indigo-400 italic">Right on the Map</span>
+              </h2>
+              <p className="text-indigo-100 text-xl max-w-xl font-medium leading-relaxed">
+                Looking for the nearest certified showroom? Use our built-in map to explore dealerships across India, see their current inventory, and get instant directions.
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button 
+                onClick={() => navigate('/find-dealers')}
+                className="bg-white text-indigo-900 hover:bg-indigo-50 h-16 px-10 rounded-2xl text-lg font-black shadow-2xl transition-all hover:scale-105"
+              >
+                Find Dealers Near Me <MapPin className="ml-2" size={24} />
+              </Button>
+              <div className="flex items-center gap-3 px-6 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-white">
+                <div className="flex -space-x-4">
+                   {[1,2,3].map(i => (
+                     <div key={i} className="w-10 h-10 rounded-full border-2 border-indigo-900 overflow-hidden">
+                       <img src={`https://i.pravatar.cc/150?u=${i}`} alt="User" referrerPolicy="no-referrer" />
+                     </div>
+                   ))}
+                </div>
+                <div className="text-xs font-bold leading-tight">
+                  <span className="text-indigo-300">Join 5,000+</span> <br />
+                  Verified Dealers
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 w-full lg:w-auto relative">
+             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white/20 transform md:rotate-2 hover:rotate-0 transition-transform duration-700 aspect-video lg:aspect-auto h-[300px] lg:h-[450px]">
+                {/* Mock map visual */}
+                <div className="absolute inset-0 bg-[#e5e3df] flex items-center justify-center">
+                   <div className="relative w-full h-full opacity-60">
+                     <img 
+                      src="https://static.vecteezy.com/system/resources/previews/000/094/281/original/vector-world-map.jpg" 
+                      alt="Map Visual"
+                      className="w-full h-full object-cover grayscale"
+                      referrerPolicy="no-referrer"
+                     />
+                   </div>
+                   <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="relative">
+                        <motion.div 
+                          animate={{ y: [0, -10, 0] }}
+                          transition={{ repeat: Infinity, duration: 2 }}
+                          className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white shadow-2xl shadow-primary/40 relative z-10"
+                        >
+                          <MapPin size={24} />
+                        </motion.div>
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-2 bg-black/20 rounded-full blur-sm" />
+                      </div>
+                   </div>
+                </div>
+                
+                {/* Floating card on mock map */}
+                <div className="absolute bottom-6 left-6 right-6 lg:right-auto lg:w-64 bg-white rounded-2xl p-4 shadow-xl animate-in slide-in-from-bottom-8 duration-1000">
+                   <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden">
+                        <img src="https://picsum.photos/seed/shop1/100/100" alt="Shop" referrerPolicy="no-referrer" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black text-slate-900 truncate">Bhopal Motors</p>
+                        <p className="text-[10px] text-slate-500">MP Nagar, Zone 1</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Market Insights / Blog Section */}
+      <section className="py-12 bg-slate-50 -mx-4 px-4 rounded-[3rem] mt-12 border border-slate-100 hidden md:block">
+        <div className="flex flex-col md:flex-row gap-12 items-center">
+          <div className="flex-1 space-y-6">
+            <h2 className="text-3xl lg:text-4xl font-black text-slate-900 leading-tight">
+              Master the <span className="text-primary italic">Second Hand Car Market</span> in India
+            </h2>
+            <p className="text-slate-600 text-lg leading-relaxed font-medium">
+              Thinking to <span className="font-bold text-slate-900">buy used cars India</span>? Our comprehensive guide covers trends in Bihar, Delhi, and Bangalore, along with popular models and expert tips to ensure you get the best value for your money.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">
+                <CheckCircle2 size={16} className="text-green-500" />
+                <span className="text-xs font-bold text-slate-700">1000+ Word Guide</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">
+                <Clock size={16} className="text-primary" />
+                <span className="text-xs font-bold text-slate-700">8 Min Read</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">
+                <TrendingUp size={16} className="text-primary" />
+                <span className="text-xs font-bold text-slate-700">2026 Trends</span>
+              </div>
+            </div>
+            <Link to="/blog/used-car-market-india">
+              <Button className="bg-slate-900 hover:bg-slate-800 text-white font-black h-14 px-8 rounded-2xl text-lg uppercase tracking-widest mt-4">
+                Read Full Guide <ArrowRight size={20} className="ml-2" />
+              </Button>
+            </Link>
+          </div>
+          <div className="flex-1 relative">
+            <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
+               <img 
+                 src="https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=1000&auto=format&fit=crop" 
+                 alt="Buying Used Cars Guide" 
+                 className="w-full h-full object-cover aspect-[4/3]"
+               />
+               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+               <div className="absolute bottom-8 left-8 right-8 text-white">
+                 <p className="text-xs font-black uppercase tracking-widest text-primary mb-2">Featured Article</p>
+                 <h3 className="text-2xl font-bold leading-tight">Navigating the Indian Used Car Market in 2026</h3>
+               </div>
+            </div>
+            {/* Decorative element */}
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl z-[-1]" />
+          </div>
+        </div>
+      </section>
+
       {/* Featured Listings */}
-      <section className="space-y-4">
+      <section className="space-y-4 pt-12">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Featured Listings</h2>
           <div className="flex gap-2">
