@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,10 @@ import { shopService } from '@/services/shop.service';
 import { Shop } from '@/types';
 import CitySelector from '@/components/shared/CitySelector';
 import { useLocation } from '@/context/LocationContext';
+import { generateStartupSpecPDF } from '@/services/pdfService';
+import { FileText } from 'lucide-react';
+
+import { Helmet } from 'react-helmet-async';
 
 const Home = () => {
   const { user } = useAuth();
@@ -171,85 +175,308 @@ const Home = () => {
 
   return (
     <div className="space-y-8">
+      <Helmet>
+        <title>Buy & Sell Used Cars in {selectedCity || 'India'} | AsoneDealer</title>
+        <meta name="description" content={`Find 100% verified used cars, bikes, and commercial vehicles in ${selectedCity || 'India'}. Connect directly with certified showrooms and dealers. Best prices and free paperwork.`} />
+        <meta name="keywords" content={`used cars ${selectedCity}, second hand cars Indian, buy used cars, sell my car, certified showrooms, asonedealer, car market India`} />
+        <link rel="canonical" href="https://asonedealer.com/" />
+      </Helmet>
       {/* Hero / Search Section */}
-      <section className="relative rounded-[2.5rem] overflow-hidden bg-slate-900 text-white p-6 sm:p-10 md:p-16 lg:p-24 min-h-[500px] lg:min-h-[90vh] flex items-center">
-        {/* Background Image */}
+      <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-24 pb-20 overflow-hidden bg-slate-50">
+        {/* Modern Graphic Background */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?q=80&w=2000&auto=format&fit=crop" 
-            alt="Hero Background" 
-            className="w-full h-full object-cover opacity-40 object-center scale-105"
-            referrerPolicy="no-referrer"
-          />
-          {/* Responsive Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/20 to-slate-900/90 lg:bg-gradient-to-r lg:from-slate-900 lg:via-slate-900/60 lg:to-transparent" />
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(255,99,33,0.08)_0%,transparent_50%)]" />
+          <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] -mr-96 -mb-96" />
+          <div className="absolute top-1/4 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[100px] -ml-32" />
         </div>
 
-        <div className="relative z-10 w-full max-w-4xl space-y-8 lg:space-y-12">
-          <div className="space-y-4 lg:space-y-8">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-primary text-sm font-bold"
-            >
-              <Badge className="bg-primary hover:bg-primary text-white border-none">New</Badge>
-              <span>Verified Listings in {selectedCity}</span>
-            </motion.div>
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter"
-            >
-              Find Your <br />
-              Perfect <span className="text-primary">Ride.</span>
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-slate-300 text-lg sm:text-2xl max-w-xl leading-relaxed font-medium"
-            >
-              Discover verified vehicles from trusted dealers. The smartest way to buy and sell in your city.
-            </motion.p>
-          </div>
-          
-            <motion.form 
-              onSubmit={handleSearch}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/10 backdrop-blur-xl p-3 rounded-[2rem] border border-white/20 shadow-2xl max-w-3xl"
-            >
-              <div className="flex-1 relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <Input 
-                  placeholder="Search brand, model..." 
-                  className="bg-transparent border-none text-white placeholder:text-slate-400 h-12 pl-12 focus-visible:ring-0 text-base w-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                />
-                <div className="text-slate-900">
-                  <SearchSuggestions 
-                    suggestions={suggestions}
-                    query={searchQuery}
-                    isVisible={showSuggestions}
-                    onSelect={handleSuggestionSelect}
-                  />
-                </div>
+        <div className="container mx-auto px-4 relative z-10 text-center space-y-8">
+          {/* Status Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl"
+          >
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            Live in {selectedCity || 'India'} • 2,400+ Verified Cars
+          </motion.div>
+
+          <div className="flex flex-col items-center gap-6 sm:gap-8">
+            <div className="space-y-4">
+              <motion.h1 
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-4xl sm:text-6xl md:text-8xl lg:text-[7.5rem] font-black leading-[0.9] sm:leading-[0.85] tracking-[-0.04em] text-slate-900"
+              >
+                The Modern <br />
+                Way to <span className="text-primary italic">Drive.</span>
+              </motion.h1>
+              
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-slate-500 text-base sm:text-lg md:text-2xl max-w-2xl mx-auto leading-relaxed font-medium px-4"
+              >
+                Transparent showrooms. AI-powered valuations. <br className="hidden md:block" />
+                Direct access to the best used cars in {selectedCity || 'India'}.
+              </motion.p>
+            </div>
+
+            {/* Core Actions & Search Hub */}
+            <div className="w-full max-w-4xl space-y-8 sm:space-y-12">
+              {/* Buy & Sell Action Buttons */}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.15 }}
+                className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4"
+              >
+                <Button 
+                  onClick={() => navigate('/search')}
+                  className="w-full sm:w-auto h-16 sm:h-20 px-8 sm:px-12 rounded-2xl sm:rounded-3xl bg-primary hover:bg-orange-600 text-white font-black uppercase text-base sm:text-lg tracking-widest shadow-2xl shadow-primary/40 transition-all hover:scale-105 active:scale-95 group"
+                >
+                  Buy a Car
+                  <ArrowRight className="ml-2 sm:ml-3 group-hover:translate-x-1 transition-transform" size={20} />
+                </Button>
+                <Button 
+                  onClick={() => navigate('/list-vehicle')}
+                  variant="outline"
+                  className="w-full sm:w-auto h-16 sm:h-20 px-8 sm:px-12 rounded-2xl sm:rounded-3xl border-slate-200 bg-white/50 backdrop-blur-sm text-slate-900 hover:bg-white hover:border-slate-300 font-black uppercase text-base sm:text-lg tracking-widest shadow-xl transition-all hover:scale-105 active:scale-95"
+                >
+                  Sell Your Car
+                </Button>
+              </motion.div>
+
+                {/* PDF Export Link */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex justify-center"
+                >
+                  <button 
+                    onClick={generateStartupSpecPDF}
+                    className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-primary transition-all group"
+                  >
+                    <FileText size={14} className="group-hover:scale-110 transition-transform" />
+                    Download Feature Guide (PDF)
+                  </button>
+                </motion.div>
+
+                {/* Search Command Center */}
+                <motion.div
+                  initial={{ opacity: 0, y: 40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <div className="bg-white p-2 rounded-[2rem] md:rounded-[3.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.12)] border border-slate-100 backdrop-blur-sm group transition-all hover:shadow-[0_48px_80px_-16px_rgba(0,0,0,0.16)] mx-4">
+                    <form 
+                      onSubmit={handleSearch}
+                      className="flex flex-col md:flex-row items-center gap-1"
+                    >
+                      <div className="flex-1 w-full relative flex items-center min-h-[56px] md:min-h-[64px]">
+                        <Search className="absolute left-6 md:left-7 text-slate-400 group-focus-within:text-primary transition-colors" size={24} />
+                        <Input 
+                          placeholder="Search Brand or Model..." 
+                          className="bg-transparent border-none text-slate-900 placeholder:text-slate-400 h-14 md:h-20 pl-14 md:pl-16 pr-6 focus-visible:ring-0 text-base md:text-lg font-medium"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onFocus={() => setShowSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        />
+                        <SearchSuggestions 
+                          suggestions={suggestions}
+                          query={searchQuery}
+                          isVisible={showSuggestions}
+                          onSelect={handleSuggestionSelect}
+                        />
+                      </div>
+                      
+                      <div className="h-12 w-px bg-slate-200 hidden md:block" />
+                      
+                      <div className="flex w-full md:w-auto flex-col sm:flex-row items-center gap-2 p-2 md:p-0">
+                        <CitySelector 
+                          className="bg-slate-50 md:bg-transparent hover:bg-slate-50 text-slate-800 border-none h-14 md:h-16 px-6 md:px-8 font-black text-sm md:text-base w-full md:w-auto rounded-2xl md:rounded-none"
+                        />
+                        <Button 
+                          type="submit"
+                          className="w-full md:w-auto h-14 md:h-16 px-10 md:px-12 rounded-2xl md:rounded-[2rem] bg-slate-900 hover:bg-slate-800 text-white font-black text-base md:text-lg shadow-xl transition-all hover:scale-105 active:scale-95"
+                        >
+                          Find Cars
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Advanced Shortcuts */}
+                  <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mt-6 sm:mt-8 px-4">
+                    {[
+                      { label: "Luxury SUVs", icon: Car },
+                      { label: "Under 5 Lakhs", icon: TrendingUp },
+                      { label: "Automatic", icon: ArrowRight },
+                      { label: "Direct Dealer", icon: Store }
+                    ].map((tag) => (
+                      <button 
+                        key={tag.label}
+                        onClick={() => {
+                          setSearchQuery(tag.label);
+                          handleSearch();
+                        }}
+                        className="flex items-center gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-primary transition-all group"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-primary" />
+                        {tag.label}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
               </div>
-            <div className="w-px bg-white/20 hidden sm:block h-8" />
-            <CitySelector 
-              className="bg-transparent hover:bg-white/10 text-white border-none h-12 px-6"
-            />
-            <Button 
-              type="submit"
-              className="bg-primary hover:bg-primary/90 h-12 px-8 rounded-xl font-bold shadow-lg shadow-primary/20 w-full sm:w-auto"
-            >
-              Search
-            </Button>
-          </motion.form>
+            </div>
+
+        </div>
+
+        {/* Floating Background Assets */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] pointer-events-none opacity-40 mix-blend-multiply overflow-hidden">
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px]" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-indigo-500/20 rounded-full blur-[100px]" />
+        </div>
+      </section>
+
+      {/* Trust & Transparency Dashboard (Bento Grid) */}
+      <section className="container mx-auto px-4 -mt-16 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
+          {/* Main Value Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="md:col-span-2 lg:col-span-3 bg-slate-900 rounded-[3rem] p-10 text-white flex flex-col justify-between min-h-[320px] shadow-2xl overflow-hidden relative group"
+          >
+            <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform duration-700">
+               <ShieldCheck size={180} strokeWidth={1} />
+            </div>
+            <div className="relative z-10 space-y-4">
+              <Badge className="bg-primary hover:bg-primary text-white border-none text-[10px] uppercase font-black tracking-widest px-4 py-1.5 rounded-full">
+                Transparency Audit
+              </Badge>
+              <h3 className="text-4xl font-black leading-tight tracking-tighter">
+                Showroom Verified. <br />
+                Expert Approved.
+              </h3>
+              <p className="text-slate-400 font-medium max-w-sm">
+                Every vehicle on our platform undergoes a rigorous 120-point physical inspection at the dealer's site.
+              </p>
+            </div>
+            <div className="relative z-10 pt-6 border-t border-white/10 flex items-center gap-6">
+               <div className="flex -space-x-3">
+                 {[1,2,3].map(i => (
+                   <div key={i} className="w-10 h-10 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center overflow-hidden">
+                     <img src={`https://i.pravatar.cc/100?u=${i+20}`} alt="Expert" referrerPolicy="no-referrer" />
+                   </div>
+                 ))}
+               </div>
+               <span className="text-xs font-black text-slate-300 uppercase tracking-widest">
+                 Audit Team Live
+               </span>
+            </div>
+          </motion.div>
+
+          {/* Sell Car Quick Action */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="md:col-span-2 lg:col-span-3 bg-white rounded-[3rem] p-10 border border-slate-100 shadow-xl flex flex-col justify-between min-h-[320px] relative overflow-hidden group"
+          >
+             <div className="absolute top-0 right-0 p-10 text-primary/5 group-hover:text-primary/10 transition-colors">
+               <TrendingUp size={160} strokeWidth={3} />
+             </div>
+             <div className="space-y-4 relative z-10">
+               <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center text-primary mb-6">
+                 <ArrowRight size={32} />
+               </div>
+               <h3 className="text-4xl font-black leading-tight tracking-tighter text-slate-900">
+                 Sell Your Car <br />
+                 In 24 Hours.
+               </h3>
+               <p className="text-slate-500 font-medium max-w-xs">
+                 Get an instant AI valuation and receive offers from verified buyers across {selectedCity || 'India'}.
+               </p>
+             </div>
+             <div className="pt-6 relative z-10">
+               <Button 
+                onClick={() => navigate('/list-vehicle')}
+                variant="outline" 
+                className="rounded-2xl h-14 px-8 border-primary text-primary hover:bg-primary hover:text-white font-black uppercase text-xs tracking-widest transition-all"
+               >
+                 Get Valuation Now
+               </Button>
+             </div>
+          </motion.div>
+
+          {/* Paperwork Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="md:col-span-2 lg:col-span-2 bg-indigo-50 rounded-[3rem] p-8 space-y-6 flex flex-col justify-center border border-indigo-100 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-indigo-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+              <CheckCircle2 size={24} />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xl font-black text-indigo-900">Zero Paperwork</h4>
+              <p className="text-sm font-medium text-indigo-700/70">RC Transfer and Insurance handled by our team at no extra cost.</p>
+            </div>
+          </motion.div>
+
+          {/* Financing Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="md:col-span-2 lg:col-span-2 bg-emerald-50 rounded-[3rem] p-8 space-y-6 flex flex-col justify-center border border-emerald-100 group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+              <Star size={24} fill="currentColor" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xl font-black text-emerald-900">Easy EMI</h4>
+              <p className="text-sm font-medium text-emerald-700/70">Connect with 12+ banking partners for instant loan approvals.</p>
+            </div>
+          </motion.div>
+
+          {/* Live Activity Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+            className="md:col-span-4 lg:col-span-2 bg-slate-50 rounded-[3rem] p-8 flex flex-col justify-center border border-slate-200 overflow-hidden relative"
+          >
+            <div className="space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Pulse</p>
+              <div className="space-y-3">
+                {[
+                  { text: "Swift sold in Delhi", time: "2m ago" },
+                  { text: "Thar verified in Pune", time: "15m ago" },
+                  { text: "New Audi listed", time: "1h ago" }
+                ].map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-3 text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-primary" />
+                      {item.text}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{item.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -284,37 +511,72 @@ const Home = () => {
         </section>
       )}
 
-      {/* Categories */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Categories</h2>
-          <Button variant="link" className="text-primary p-0">View All</Button>
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-          {categories.map((cat) => {
-            const Icon = cat.icon;
-            const isActive = activeCategory === cat.id;
-            return (
+      {/* Super Discovery Rail */}
+      <section className="space-y-8 pt-12 overflow-hidden">
+        <div className="container mx-auto px-4 flex items-end justify-between">
+          <div className="space-y-2">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 leading-none">
+              Explore by <span className="text-primary italic">Lifestyle.</span>
+            </h2>
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">What drives you today?</p>
+          </div>
+          <div className="hidden md:flex gap-2">
+            {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
-                  "flex flex-col items-center gap-3 p-4 rounded-2xl min-w-[100px] transition-all",
-                  isActive 
-                    ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                    : "bg-white border border-slate-100 text-slate-600 hover:border-primary/30"
+                  "px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all border",
+                  activeCategory === cat.id 
+                    ? "bg-slate-900 text-white border-slate-900" 
+                    : "bg-white text-slate-400 border-slate-200 hover:border-slate-400"
                 )}
               >
-                <div className={cn(
-                  "w-12 h-12 rounded-xl flex items-center justify-center",
-                  isActive ? "bg-white/20" : "bg-slate-50"
-                )}>
-                  <Icon size={24} />
-                </div>
-                <span className="text-sm font-semibold">{cat.label}</span>
+                {cat.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-5 md:px-[calc((100vw-1280px)/2+20px)] lg:px-[calc((100vw-1280px)/2+20px)] xl:px-[calc((100vw-1280px)/2+20px)]">
+          {[
+            { id: 'luxury', label: 'Luxury Icons', sub: 'Rolls, Benz, BMW', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?q=80&w=600&auto=format&fit=crop', color: 'bg-indigo-900' },
+            { id: 'suv', label: 'Adventure SUVs', sub: 'Thar, Fortuner, Creta', img: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=600&auto=format&fit=crop', color: 'bg-emerald-900' },
+            { id: 'hatchback', label: 'City Daily', sub: 'Swift, i20, Baleno', img: 'https://images.unsplash.com/photo-1567808291548-fc3ee04dbac0?q=80&w=600&auto=format&fit=crop', color: 'bg-orange-900' },
+            { id: 'electric', label: 'EV Revolution', sub: 'Nexon EV, MG ZS', img: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=600&auto=format&fit=crop', color: 'bg-blue-900' },
+          ].map((item, i) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="flex-none w-[300px] md:w-[400px] h-[500px] rounded-[3.5rem] overflow-hidden relative group cursor-pointer"
+              onClick={() => {
+                setActiveCategory(item.id === 'luxury' ? 'car' : item.id === 'suv' ? 'car' : 'all');
+                navigate(`/search?q=${item.label}`);
+              }}
+            >
+              <img 
+                src={item.img} 
+                alt={item.label} 
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-10 left-10 right-10 space-y-2">
+                <Badge className="bg-white/20 backdrop-blur-md text-white border-none text-[8px] uppercase tracking-[0.3em] font-black py-1 px-3">
+                  Featured Category
+                </Badge>
+                <h3 className="text-3xl font-black text-white leading-tight">{item.label}</h3>
+                <p className="text-white/60 text-xs font-bold uppercase tracking-wider">{item.sub}</p>
+                <div className="pt-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+                   <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white">
+                      <ArrowRight size={20} />
+                   </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </section>
 
@@ -368,6 +630,56 @@ const Home = () => {
           </div>
         </section>
       )}
+
+      {/* Brand Discovery */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="flex flex-col items-center text-center space-y-4 mb-12">
+          <Badge variant="outline" className="text-primary border-primary/20 px-4 py-1 rounded-full uppercase text-[10px] tracking-widest font-black">
+            The Elite Network
+          </Badge>
+          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter">
+            Shop by <span className="text-primary">Trusted Brands.</span>
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {[
+            { name: 'Maruti Suzuki', img: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=200&auto=format&fit=crop' },
+            { name: 'Hyundai', img: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?q=80&w=200&auto=format&fit=crop' },
+            { name: 'Toyota', img: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?q=80&w=200&auto=format&fit=crop' },
+            { name: 'Tata Motors', img: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?q=80&w=200&auto=format&fit=crop' },
+            { name: 'Mahindra', img: 'https://images.unsplash.com/photo-1631195123280-9975f81f185d?q=80&w=200&auto=format&fit=crop' },
+            { name: 'BMW', img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?q=80&w=200&auto=format&fit=crop' },
+          ].map((brand, i) => (
+            <motion.div
+              key={brand.name}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              onClick={() => navigate(`/search?q=${brand.name}`)}
+              className="group bg-white border border-slate-100 rounded-3xl p-6 flex flex-col items-center gap-4 cursor-pointer hover:border-primary/30 hover:shadow-xl transition-all"
+            >
+              <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                 <img 
+                  src={brand.img} 
+                  alt={brand.name} 
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+                  referrerPolicy="no-referrer"
+                 />
+              </div>
+              <span className="text-xs font-black text-slate-600 group-hover:text-slate-900">{brand.name}</span>
+            </motion.div>
+          ))}
+        </div>
+        <div className="flex justify-center mt-12">
+          <Button 
+            variant="outline" 
+            className="rounded-full px-12 h-14 border-slate-200 text-slate-600 font-black uppercase text-xs tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-lg shadow-slate-200/50"
+            onClick={() => navigate('/brands')}
+          >
+            Explore All Manufacturers
+          </Button>
+        </div>
+      </section>
 
       {/* Featured Listings */}
       <section className="space-y-4 pt-12">

@@ -12,12 +12,67 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "When the code was created" }
       },
       "required": ["code", "expiresAt", "identifier", "channel", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "User reviews for vehicles or shops",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "user_name": { "type": "string" },
+        "user_role": { "type": "string" },
+        "target_id": { "type": "string" },
+        "target_type": { "type": "string", "enum": ["vehicle", "shop"] },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "target_id", "target_type", "rating", "created_at"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Chat conversation between buyer and seller",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "UIDs of participants" },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "targetId": { "type": "string", "description": "Vehicle ID" },
+        "targetType": { "type": "string", "enum": ["vehicle"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants", "targetId"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual chat message",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "senderId", "text", "createdAt"]
     }
   },
   "firestore": {
     "/otps/{identifier}": {
       "schema": "OTP",
       "description": "Collection of active OTPs"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "User reviews"
+    },
+    "/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "Chat conversations"
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a conversation"
     }
   }
 }

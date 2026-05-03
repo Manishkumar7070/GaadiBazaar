@@ -1,22 +1,74 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // 0. Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // OTPs collection: Strictly server-side or extremely restricted
-    match /otps/{identifier} {
-      // Users should NOT be able to read or write OTPs directly.
-      // This is managed by the server using Firebase Admin SDK.
-      allow read, write: if false;
-    }
-    
-    // Profiles collection (if used in future)
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // 1. Profiles
     match /profiles/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 2. Reviews
+    match /reviews/{reviewId} {
+      function isValidReview(data) {
+        return data.user_id == request.auth.uid 
+          && data.rating is number && data.rating >= 1 && data.rating <= 5
+          && data.target_id is string
+          && data.target_type in ['vehicle', 'shop']
+          && data.created_at is string;
+      }
+      
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming());
+      allow update: if false; // Reviews are usually immutable or admin-only
+    }
+
+    // 3. Conversations
+    match /conversations/{conversationId} {
+      function isParticipant() {
+        return isSignedIn() && request.auth.uid in existing().participants;
+      }
+      function isValidConversation(data) {
+        return data.participants is list 
+          && data.participants.size() == 2
+          && request.auth.uid in data.participants
+          && data.targetId is string;
+      }
+
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn() && isValidConversation(incoming());
+      allow update: if isParticipant() && (
+        // Only allow updating lastMessage, lastMessageAt, and updatedAt
+        incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'updatedAt'])
+      );
+
+      // Subcollection: Messages
+      match /messages/{messageId} {
+        function isValidMessage(data) {
+          return data.conversationId == conversationId
+            && data.senderId == request.auth.uid
+            && data.text is string && data.text.size() <= 2000
+            && data.createdAt != null;
+        }
+
+        allow read: if isParticipant();
+        allow create: if isParticipant() && isValidMessage(incoming());
+      }
+    }
+
+    // 4. OTPs (Server-only)
+    match /otps/{identifier} {
+      allow read, write: if false;
     }
   }
 }

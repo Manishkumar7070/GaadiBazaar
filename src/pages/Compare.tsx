@@ -45,7 +45,7 @@ const Compare = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
+    <div className="container mx-auto px-4 py-8 space-y-8 pb-20">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button 

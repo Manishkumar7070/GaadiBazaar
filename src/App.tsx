@@ -12,8 +12,10 @@ import EditShop from './pages/EditShop';
 import AdminDashboard from './pages/AdminDashboard';
 import Login from './pages/Login';
 import FindDealers from './pages/FindDealers';
+import Brands from './pages/Brands';
 import BlogUsedCarMarket from './pages/BlogUsedCarMarket';
 import Header from './layouts/Header';
+import Footer from './layouts/Footer';
 import MobileNav from './layouts/MobileNav';
 import ComparisonBar from './layouts/ComparisonBar';
 
@@ -33,13 +35,14 @@ export default function App() {
             <ComparisonProvider>
               <SecurityGate>
               <Router>
-              <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
+              <div className="min-h-screen flex flex-col">
                 <Header />
-                <main className="flex-1 container mx-auto px-4 py-6">
+                <main className="flex-1">
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/vehicle/:id" element={<VehicleDetail />} />
                     <Route path="/search" element={<Search />} />
+                    <Route path="/brands" element={<Brands />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/compare" element={<Compare />} />
                     <Route path="/dealer/:id" element={<DealerDetail />} />
@@ -52,6 +55,7 @@ export default function App() {
                     <Route path="/blog/used-car-market-india" element={<BlogUsedCarMarket />} />
                   </Routes>
                 </main>
+                <Footer />
                 <ComparisonBar />
                 <MobileNav />
               </div>

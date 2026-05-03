@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { vehicleService } from '@/services/vehicle.service';
-import { supabase } from '@/lib/supabase';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop, ListingType } from '@/types';
 import { shopService } from '@/services/shop.service';
 import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
@@ -27,15 +28,7 @@ const ListVehicle = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState(() => {
-    const saved = localStorage.getItem('vehicle_form_draft');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved form draft');
-      }
-    }
-    return {
+    const defaultData = {
       title: '',
       description: '',
       price: '',
@@ -67,6 +60,17 @@ const ListVehicle = () => {
         exterior: '',
       } as Record<string, string>,
     };
+
+    const saved = localStorage.getItem('vehicle_form_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...defaultData, ...parsed };
+      } catch (e) {
+        console.error('Failed to parse saved form draft');
+      }
+    }
+    return defaultData;
   });
 
   // Save draft to localStorage whenever formData changes
@@ -150,19 +154,11 @@ const ListVehicle = () => {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const filePath = `vehicles/${user.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('vehicles')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('vehicles')
-          .getPublicUrl(filePath);
-
-        return publicUrl;
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, file);
+        return await getDownloadURL(storageRef);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
@@ -184,17 +180,11 @@ const ListVehicle = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${category}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      const filePath = `vehicles/${user.id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('vehicles')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('vehicles')
-        .getPublicUrl(filePath);
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, file);
+      const publicUrl = await getDownloadURL(storageRef);
       
       setFormData(prev => ({
         ...prev,
@@ -235,17 +225,11 @@ const ListVehicle = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${field}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${user.id}/videos/${fileName}`;
+      const filePath = `vehicles/${user.id}/videos/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('vehicles')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('vehicles')
-        .getPublicUrl(filePath);
+      const storageRef = ref(storage, filePath);
+      await uploadBytes(storageRef, file);
+      const publicUrl = await getDownloadURL(storageRef);
       
       setUploadProgress(prev => ({ ...prev, [field]: 100 }));
       setFormData(prev => ({ ...prev, [field]: publicUrl }));

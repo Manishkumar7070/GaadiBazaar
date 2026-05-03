@@ -37,11 +37,21 @@ import { searchService } from '@/services/search.service';
 import CitySelector from '@/components/shared/CitySelector';
 import { aiSearchService } from '@/services/aiSearchService';
 
+import { Helmet } from 'react-helmet-async';
+
 const POPULAR_BRANDS = [
   'Maruti Suzuki', 'Hyundai', 'Tata', 'Toyota', 'Mahindra', 
   'Honda', 'Kia', 'Volkswagen', 'MG', 'Skoda', 
   'BMW', 'Mercedes-Benz', 'Audi', 'Jeep', 'Ford',
   'Royal Enfield', 'KTM', 'Hero', 'Yamaha', 'Bajaj'
+];
+
+const SMART_SUGGESTIONS = [
+  "Red Maruti Swift under 5 lakhs in Delhi",
+  "Automatic diesel cars with low mileage",
+  "1st owner Royal Enfield in Bangalore",
+  "Used electric scooters under 1 lakh",
+  "Black luxury SUVs in Mumbai",
 ];
 
 const YEAR_OPTIONS = Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - i);
@@ -77,6 +87,7 @@ const SearchPage = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isAiActive, setIsAiActive] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
   const ITEMS_PER_PAGE = 6;
@@ -184,11 +195,17 @@ const SearchPage = () => {
         id: 'ai-smart-search',
         text: debouncedSearchQuery,
         type: 'ai' as const,
-        subtext: 'AI Smart Search: Apply filters automatically'
+        subtext: 'AI Magic: Parse into structured filters'
       }] : [];
+
+      const filteredSmartRecs = SMART_SUGGESTIONS
+        .filter(s => s.toLowerCase().includes(query) && s.toLowerCase() !== query)
+        .slice(0, 2)
+        .map(s => ({ id: `ai-rec-${s}`, text: s, type: 'ai' as const, subtext: 'AI Smart Suggestion' }));
 
       setSuggestions([
         ...aiSmartSearch,
+        ...filteredSmartRecs,
         genericSearch,
         ...combinedMatches, 
         ...brandMatches, 
@@ -198,10 +215,19 @@ const SearchPage = () => {
         ...cityMatches, 
         ...stateMatches, 
         ...historyMatches
-      ].slice(0, 8));
+      ].slice(0, 10));
     } else {
-      // Show recent searches when query is empty but focused
-      setSuggestions(recentSearches.map(s => ({ id: `h-${s}`, text: s, type: 'history' as const })));
+      // Focused but empty: Show Smart Recommendations + History
+      const smartQueries = SMART_SUGGESTIONS.map(s => ({ 
+        id: `ai-rec-${s}`, 
+        text: s, 
+        type: 'ai' as const, 
+        subtext: 'AI Smart Query' 
+      }));
+      setSuggestions([
+        ...smartQueries,
+        ...recentSearches.map(s => ({ id: `h-${s}`, text: s, type: 'history' as const }))
+      ]);
     }
   }, [debouncedSearchQuery, recentSearches, popularMetadata, vehicles]);
 
@@ -244,6 +270,7 @@ const SearchPage = () => {
           ...result.filters
         }));
         setSearchQuery(result.normalizedQuery || query);
+        setIsAiActive(true);
         addToRecentSearches(query);
       }
     } catch (error) {
@@ -347,7 +374,7 @@ const SearchPage = () => {
       if (q) {
         setSearchQuery(q);
         const wordsCount = q.trim().split(/\s+/).length;
-        if (wordsCount >= 3) {
+        if (wordsCount >= 2) {
           handleAISearch(q);
         } else {
           parseSmartQuery(q);
@@ -457,14 +484,18 @@ const SearchPage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="sticky top-16 z-30 bg-background/80 backdrop-blur-md py-4 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      <Helmet>
+        <title>Search Used Cars & Vehicles | AsoneDealer</title>
+        <meta name="description" content="Search through our verified listings of used cars, bikes, and commercial vehicles. Filter by price, brand, model, and city to find your perfect ride." />
+      </Helmet>
+      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-md py-4 space-y-4 border-b border-slate-100 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1 relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <Input 
               placeholder="Search brand, model..." 
-              className="pl-10 pr-24 h-12 rounded-xl" 
+              className="pl-10 pr-24 h-12 rounded-xl focus-visible:ring-primary" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
@@ -472,7 +503,7 @@ const SearchPage = () => {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   const wordsCount = searchQuery.trim().split(/\s+/).length;
-                  if (wordsCount >= 3) {
+                  if (wordsCount >= 2) {
                     handleAISearch(searchQuery);
                   } else {
                     parseSmartQuery(searchQuery);
@@ -505,17 +536,29 @@ const SearchPage = () => {
                 {isListening ? <MicOff size={18} className="animate-pulse" /> : <Mic size={18} />}
               </Button>
               <Button 
-                variant="ghost" 
-                size="icon" 
+                variant={searchQuery.trim().split(/\s+/).length >= 2 ? "default" : "ghost"}
+                size={searchQuery.trim().split(/\s+/).length >= 2 ? "sm" : "icon"}
                 className={cn(
-                  "h-8 w-8 rounded-lg transition-colors",
-                  isAiLoading ? "text-primary animate-spin" : "text-slate-400 hover:text-primary"
+                  "rounded-lg transition-all duration-300",
+                  isAiLoading ? "text-primary animate-spin" : 
+                  searchQuery.trim().split(/\s+/).length >= 2 
+                    ? "bg-primary text-white hover:bg-primary/90 px-3 shadow-lg shadow-primary/20" 
+                    : "h-8 w-8 text-slate-400 hover:text-primary"
                 )}
                 onClick={() => handleAISearch(searchQuery)}
                 disabled={isAiLoading || !searchQuery.trim()}
                 title="AI Smart Search"
               >
-                {isAiLoading ? <Loader2 size={18} /> : <Sparkles size={18} />}
+                {isAiLoading ? (
+                  <Loader2 size={18} />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={18} className={cn(searchQuery.trim().split(/\s+/).length >= 2 && "animate-pulse")} />
+                    {searchQuery.trim().split(/\s+/).length >= 2 && (
+                      <span className="text-[10px] font-black uppercase tracking-wider hidden md:inline">AI Parse</span>
+                    )}
+                  </div>
+                )}
               </Button>
             </div>
 
@@ -887,7 +930,19 @@ const SearchPage = () => {
             </DialogContent>
           </Dialog>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar items-center">
+          {isAiActive && (
+            <Badge className="bg-primary hover:bg-primary/90 text-white gap-1 py-1 pr-1 pl-2 rounded-full flex-shrink-0 animate-in fade-in zoom-in">
+              <Sparkles size={12} className="animate-pulse" />
+              AI Powered
+              <button 
+                onClick={() => setIsAiActive(false)}
+                className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+              >
+                <X size={10} />
+              </button>
+            </Badge>
+          )}
           <Button 
             variant={sortBy?.startsWith('price') ? 'default' : 'secondary'} 
             size="sm" 
@@ -1022,6 +1077,7 @@ const SearchPage = () => {
             <Button variant="outline" onClick={() => {
               setSearchQuery('');
               setFilters({ brand: '' });
+              setIsAiActive(false);
             }}>
               Clear all filters
             </Button>

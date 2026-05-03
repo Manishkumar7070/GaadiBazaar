@@ -15,7 +15,8 @@ import { useWishlist } from '@/hooks/useWishlist';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
 import { searchService } from '@/services/search.service';
-import { supabase } from '@/lib/supabase';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import SellerAnalytics from '@/features/seller/SellerAnalytics';
 
@@ -108,19 +109,11 @@ const Profile = () => {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const filePath = `shops/${user.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('shops')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('shops')
-          .getPublicUrl(filePath);
-
-        return publicUrl;
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, file);
+        return await getDownloadURL(storageRef);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
@@ -176,7 +169,7 @@ const Profile = () => {
   if (!user) return null;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 pb-10">
+    <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8 pb-20">
       <div className="flex flex-col items-center text-center space-y-4">
         <Avatar className="w-24 h-24 border-4 border-white shadow-xl">
           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />

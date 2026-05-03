@@ -40,6 +40,8 @@ import { MOCK_VEHICLES } from '@/constants/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import PriceHistoryChart from '@/features/vehicles/PriceHistoryChart';
+import VehicleAIInsights from '@/features/vehicles/VehicleAIInsights';
+import PriceComparisonSection from '@/features/vehicles/PriceComparisonSection';
 import { useComparison } from '@/hooks/useComparison';
 import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
@@ -47,6 +49,7 @@ import { shopService } from '@/services/shop.service';
 import { Vehicle, Shop } from '@/types';
 import { ReviewList } from '@/components/reviews/ReviewList';
 import { ReviewForm } from '@/components/reviews/ReviewForm';
+import { ChatWindow } from '@/features/chat/ChatWindow';
 
 const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: () => void }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -121,16 +124,20 @@ const VehicleDetail = () => {
   const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
   
   const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([]);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
       setLoading(true);
       try {
+        // Fetch all vehicles for comparisons
+        const vehicles = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
+        setAllVehicles(vehicles);
+
         // Try to find in mock data first for demo, then fallback to service
         let v = MOCK_VEHICLES.find(v => v.id === id) as any;
         if (!v) {
-          const vehicles = await vehicleService.fetchVehicles();
           v = vehicles.find(item => item.id === id);
         }
         
@@ -142,8 +149,7 @@ const VehicleDetail = () => {
           }
 
           // Load similar vehicles
-          const similar = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
-          setSimilarVehicles(similar.filter(item => item.id !== v.id && (item.brand === v.brand || item.vehicleType === v.vehicleType)).slice(0, 4));
+          setSimilarVehicles(vehicles.filter(item => item.id !== v.id && (item.brand === v.brand || item.vehicleType === v.vehicleType)).slice(0, 4));
         }
       } catch (error) {
         console.error('Error loading vehicle details:', error);
@@ -221,14 +227,14 @@ const VehicleDetail = () => {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-10">
+    <div className="container mx-auto px-4 py-8 space-y-8 pb-20">
       {/* Header Actions */}
       <div className="flex items-center justify-between">
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={() => navigate(-1)}
-          className="rounded-full bg-white shadow-sm"
+          className="rounded-full bg-white shadow-sm hover:bg-slate-50 transition-colors"
         >
           <ChevronLeft size={24} />
         </Button>
@@ -422,6 +428,12 @@ const VehicleDetail = () => {
           {vehicle.priceHistory && vehicle.priceHistory.length > 0 && (
             <PriceHistoryChart data={vehicle.priceHistory} className="pt-4" />
           )}
+
+          {/* AI Insights Section */}
+          <VehicleAIInsights vehicle={vehicle} />
+
+          {/* Smart Comparison Section */}
+          <PriceComparisonSection vehicle={vehicle} allVehicles={allVehicles} />
 
           {/* Description */}
           <section className="space-y-4">
@@ -722,31 +734,15 @@ const VehicleDetail = () => {
         )}
       </div>
 
-      {/* Simulated Chat Dialog */}
+      {/* Real-time Chat Dialog */}
       <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-3xl p-0 overflow-hidden outline-none">
-          <div className="bg-primary p-6 text-white">
-            <h3 className="text-xl font-bold">Chat with {shop ? shop.name : "Private Seller"}</h3>
-            <p className="text-white/70 text-sm">Usually responds in 2 hours</p>
-          </div>
-          <div className="h-[400px] bg-slate-50 p-4 flex flex-col">
-            <div className="flex-1 overflow-y-auto space-y-4">
-              <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[80%] text-sm">
-                Hello! Is this {vehicle.title} still available?
-              </div>
-              <div className="bg-primary/10 p-3 rounded-2xl rounded-tr-none shadow-sm max-w-[80%] ml-auto text-sm text-primary font-medium">
-                Yes, it is available. Would you like to schedule a test drive?
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2 p-2 bg-white rounded-2xl border border-slate-200">
-              <input 
-                type="text" 
-                placeholder="Type your message..." 
-                className="flex-1 bg-transparent border-none outline-none px-2 text-sm"
-              />
-              <Button size="sm" className="rounded-xl px-4">Send</Button>
-            </div>
-          </div>
+        <DialogContent className="sm:max-w-[450px] rounded-3xl p-0 overflow-hidden outline-none border-none shadow-2xl">
+          <ChatWindow 
+            sellerId={shop?.ownerId || vehicle.sellerId} 
+            sellerName={shop?.name || "Private Seller"} 
+            vehicleId={vehicle.id} 
+            vehicleTitle={vehicle.title}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -1,10 +1,9 @@
 {
-  "projectId": "device-streaming-ad566156",
-  "appId": "1:89029991783:web:e12492b97bd2b7a9cfe3c2",
-  "apiKey": "AIzaSyAL_nkIWP2fwWpJNR7iNHfzS_wUT1ye_WY",
-  "authDomain": "device-streaming-ad566156.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-72f5822c-77a9-4f54-8460-637ec3582d0c",
-  "storageBucket": "device-streaming-ad566156.firebasestorage.app",
-  "messagingSenderId": "89029991783",
-  "measurementId": ""
+  "projectId": "emerald-bastion-457805-r7",
+  "appId": "1:91318968886:web:ddf0e004e403d9368c6e97",
+  "apiKey": "AIzaSyDSKs_xFAENY2Qx46C0gbel-uPL40CYQBQ",
+  "authDomain": "emerald-bastion-457805-r7.firebaseapp.com",
+  "storageBucket": "emerald-bastion-457805-r7.firebasestorage.app",
+  "messagingSenderId": "91318968886",
+  "measurementId": "G-5T5EJNX3V4"
 }

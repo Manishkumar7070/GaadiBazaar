@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X } from 'lucide-react';
+import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -116,6 +116,9 @@ const Header = () => {
           </Link>
           <Link to="/search?type=bike" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             Bikes
+          </Link>
+          <Link to="/brands" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
+            Brands
           </Link>
           <Link to="/find-dealers" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             Dealers
@@ -275,6 +278,10 @@ const Header = () => {
                     <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
                       <Search size={20} className="text-slate-400" />
                       <span className="font-semibold text-slate-700">Browse Vehicles</span>
+                    </Link>
+                    <Link to="/brands" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
+                      <Star size={20} className="text-slate-400" />
+                      <span className="font-semibold text-slate-700">View Brands</span>
                     </Link>
                     <Link to="/find-dealers" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
                       <MapPin size={20} className="text-slate-400" />

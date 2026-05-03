@@ -142,13 +142,15 @@ async function startServer() {
   let firebaseAdminInstance: admin.app.App | null = null;
   const getFirebaseAdmin = () => {
     if (!firebaseAdminInstance) {
-      // Prioritize environment variables, then fallback to user's provided credentials
-      const projectId = process.env.FIREBASE_PROJECT_ID || "device-streaming-ad566156";
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || "firebase-adminsdk-fbsvc@device-streaming-ad566156.iam.gserviceaccount.com";
-      
-      // The provided private key from the user
-      const defaultPrivateKey = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDK+BJzN/+y3hww\nsalkxyffkWlcFNmxehnpCtsF/Nhu3eussMFM3C6RcXp+MURlobHMo1eRowTyC+ot\n4Pm2grh5VkFFmzOcKxIjMeALCNBzoxnsAQ803m1xJGt7CO6XxxfJTrdpCtmzLt6C\nGMOGn4I9tZyIFGzk6kz9Tud7mqeTxa+0M1AkyXUyNeP4xJ2pJ9rzgWYgO0y+SaL2\nvmhPKwJQOk+RJvu2p4vTokyv9mnTisRnhq/IPODag/GvbOExc1Zau/GGdufTgduG\nnvvin7mLCn7NN6EvLmqk7gfas3bFB6pHocyBWMqaBshu66spo1YI5UX5Ya5hp1UU\nBDM9o+Y/AgMBAAECggEAJ50pRLGeR1PQXrSeIhw4rQrdbGppXpk9K13CB7Ykq+bG\nU6sf3xduQ1bJmI2XEtrvL8iFk9gkY/VtXEz3j+aNiKkMDkDPXuCNJq9aUe0Dej5Q\nFd7TD/eFlrqL+7RvlNH304N4ipjiinVQWkXpC4JgUhj7FxgddMRCCIJ47YfuwwlO\nWY01Ck/nfZXYpBkeIONb8aI7W1UYwERWeYfVnjzk0CQXYGzHCCucPejCU4HBYGWf\nQDXPfcWu4BgkoX6RhnC40BdoSEui9sRATfibkP2i8YFbQ1l0kjWJ/XSxac9GKsYI\nAeIpjxMRUvZVi7zM8moIZkLIN2YWhrEDqE67BjvgAQKBgQDlXM9dLxkYvmOR5FS6\nOkmjdAQIZxLnHZwxB0l93BZf7P0oAFxCbBmQFyYaDPg6yOQt1eYYfMW2PVaFsOgb\n78VM/E3XboXBtXkL0Tl0zKH9tTRfhI/469DZmEapqkgddKHb/kcLTx0YXzSIvuT0\nSGZHBufzplZ+aHTlAD1YdnzWPwKBgQDiio4lmt28q5gTPJwx7Zt+RJW0EpyTtniX\n0xxPf8d/wzpxOiC8Mb6Mm5T9kvXCmjESlFP2jNP1cOfrIX/OgL0+AnYFH+3hpB/Y\nnEK7gsN5XaA6m+EKCeIEB8bVKaksPcz2dNyY3PXwbtMehdmCR0+JDDaNYd43n4sN\nmgDeZrTwAQKBgQDga8BmgBgBUwDgFlck5LV63qC3jAs94oYanvO016147M0D395m\nC5mzmELqyHf2JOzHQHzkxuk5mKjZJTDnbONToaeUvIrZ7/PhsTWT6Eo0kaIOOAob\nWLnAvzOc/YWUdLOPKy1ejml8mGMxzf7+WvzgUIySpdYJ17FRBLwBm+YoRwKBgGRO\naSYpbijN6aYK3jYVORYtlAOJgh69WqQO66gfsdvWO5hK3pe1huOHN+8XFQ43a6cI\nWiz+qhMxDN9Fk+uBgUllmZAnVRLlstwcREf2XErus7V/s6LYQWT7dISJz8gxDQHL\nOKnOnG77AyuupGJU5NiPuc/cF6KVV+KL3/qZi2ABAoGAbhaUIaKdQIM1aCo9JVuk\nxHFYULnekK+VKB0Xmq0YNqLJ8c18/4xTmXD4qk8e8/NGfxL3LOD62dQh8euafOjo\njF7sdtInX9us+2UdtGYGikoLv/RKAFnnxJfqopJLX6DqjA0EwLouv2LCUwgR7RUz\nB6slrISojNywxQ5ub2OJ8G8=\n-----END PRIVATE KEY-----";
-      const privateKey = (process.env.FIREBASE_PRIVATE_KEY || defaultPrivateKey).replace(/\\n/g, '\n');
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+      const privateKeyEnv = process.env.FIREBASE_PRIVATE_KEY;
+
+      if (!projectId || !clientEmail || !privateKeyEnv) {
+        throw new Error("Missing Firebase Admin credentials (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)");
+      }
+
+      const privateKey = privateKeyEnv.replace(/\\n/g, '\n');
 
       firebaseAdminInstance = admin.initializeApp({
         credential: admin.credential.cert({
@@ -208,7 +210,8 @@ async function startServer() {
 
     const idToken = authHeader.split("Bearer ")[1];
     try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const adminApp = getFirebaseAdmin();
+      const decodedToken = await adminApp.auth().verifyIdToken(idToken);
       req.user = decodedToken;
       next();
     } catch (error) {
@@ -468,33 +471,53 @@ async function startServer() {
   // Helper to re-calculate and sync average ratings
   const syncAverageRating = async (targetId: string, targetType: 'vehicle' | 'shop') => {
     try {
-      const table = targetType === 'vehicle' ? 'vehicles' : 'shops';
+      const db = getFirestore();
       
-      // Calculate new average
-      const { data: reviews, error: fetchError } = await getSupabaseClient()
-        .from('reviews')
-        .select('rating')
-        .eq('target_id', targetId)
-        .eq('target_type', targetType);
+      // Calculate new average using Firestore
+      const reviewsSnapshot = await db.collection("reviews")
+        .where("target_id", "==", targetId)
+        .where("target_type", "==", targetType)
+        .get();
 
-      if (fetchError) throw fetchError;
+      const count = reviewsSnapshot.size;
+      let totalRating = 0;
+      reviewsSnapshot.forEach(doc => {
+        totalRating += doc.data().rating;
+      });
 
-      const count = reviews?.length || 0;
       const avg = count > 0 
-        ? parseFloat((reviews.reduce((acc: number, r: any) => acc + r.rating, 0) / count).toFixed(1))
+        ? parseFloat((totalRating / count).toFixed(1))
         : 0;
 
-      // Update the target record
-      const { error: updateError } = await getSupabaseClient()
-        .from(table)
-        .update({ rating: avg, reviews_count: count })
-        .eq('id', targetId);
+      // Update aggregate in Firestore (optional but good for consistency)
+      const targetCollection = targetType === 'vehicle' ? 'vehicles' : 'shops';
+      try {
+        await db.collection(targetCollection).doc(targetId).set({ 
+          rating: avg, 
+          reviews_count: count,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (fErr) {
+        // Silently fail if firestore collection doesn't exist yet
+      }
 
-      if (updateError) throw updateError;
+      // Sync back to Supabase if possible
+      try {
+        const table = targetType === 'vehicle' ? 'vehicles' : 'shops';
+        const { error: updateError } = await getSupabaseClient()
+          .from(table)
+          .update({ rating: avg, reviews_count: count })
+          .eq('id', targetId);
+
+        if (!updateError) {
+          console.log(`[REVIEWS] Synced rating for ${targetType} ${targetId} to Supabase: ${avg} (${count} reviews)`);
+        }
+      } catch (sErr) {
+        // Log quietly
+        console.warn(`[REVIEWS] Supabase sync skipped for ${targetId}: ${targetType}`);
+      }
       
-      console.log(`[REVIEWS] Synced rating for ${targetType} ${targetId}: ${avg} (${count} reviews)`);
-      
-      // Invalidate vehicle cache if necessary
+      // Invalidate vehicle cache
       if (targetType === 'vehicle') {
         await cache.del("vehicles:all");
       }
@@ -512,34 +535,30 @@ async function startServer() {
     }
 
     try {
-      const { data, error } = await getSupabaseClient()
-        .from("reviews")
-        .select(`
-          *,
-          profiles:user_id (id, full_name, role)
-        `)
-        .eq("target_id", targetId)
-        .eq("target_type", targetType)
-        .order('created_at', { ascending: false });
+      const reviewsSnapshot = await getFirestore().collection("reviews")
+        .where("target_id", "==", targetId)
+        .where("target_type", "==", targetType)
+        .orderBy('created_at', 'desc')
+        .get();
 
-      if (error) throw error;
-      res.json(data || []);
+      const reviews = reviewsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Fetch user profile info for each review if needed (or assume it's stored)
+      // For performance, we usually store the name/role in the review itself
+      
+      res.json(reviews);
     } catch (error: any) {
-      console.error("[REVIEWS] Error fetching reviews:", error.message);
-      
-      // Fallback to empty reviews if Supabase is down
-      if (error.message?.includes('fetch failed') || error.message?.includes('ENOTFOUND')) {
-        console.warn("[REVIEWS] Falling back to empty reviews due to connection error.");
-        return res.json([]);
-      }
-      
-      res.status(500).json({ error: error.message });
+      console.error("[REVIEWS] Error fetching reviews from Firestore:", error.message);
+      res.json([]); // Return empty list on error for safety
     }
   });
 
   // POST Review
   app.post("/api/reviews", authenticate, async (req: any, res: any) => {
-    const { userId, targetId, targetType, rating, comment, images } = req.body;
+    const { userId, targetId, targetType, rating, comment, images, userName, userRole } = req.body;
 
     if (!req.user || req.user.uid !== userId) {
       return res.status(401).json({ error: "Unauthorized", message: "Invalid user session" });
@@ -550,52 +569,45 @@ async function startServer() {
     }
 
     try {
-      // 1. Check if user already reviewed this target (Prevent spam)
-      const { data: existing, error: checkError } = await getSupabaseClient()
-        .from("reviews")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("target_id", targetId)
-        .eq("target_type", targetType)
-        .limit(1);
+      const db = getFirestore();
+      
+      // 1. Check if user already reviewed this target
+      const existingQuery = await db.collection("reviews")
+        .where("user_id", "==", userId)
+        .where("target_id", "==", targetId)
+        .where("target_type", "==", targetType)
+        .limit(1)
+        .get();
 
-      if (checkError) throw checkError;
-      if (existing && existing.length > 0) {
+      if (!existingQuery.empty) {
         return res.status(409).json({ error: "You have already reviewed this item" });
       }
 
-      // 2. Insert Review
-      const { data, error } = await getSupabaseClient()
-        .from("reviews")
-        .insert([{
-          user_id: userId,
-          target_id: targetId,
-          target_type: targetType,
-          rating,
-          comment,
-          images: images || [],
-          created_at: new Date().toISOString()
-        }])
-        .select();
+      // 2. Insert Review into Firestore
+      const newReview = {
+        user_id: userId,
+        user_name: userName || req.user.name || "Anonymous",
+        user_role: userRole || "buyer",
+        target_id: targetId,
+        target_type: targetType,
+        rating: Number(rating),
+        comment: comment || "",
+        images: images || [],
+        created_at: new Date().toISOString()
+      };
 
-      if (error) throw error;
+      const docRef = await db.collection("reviews").add(newReview);
 
-      // 3. Sync Average (Asynchronous, don't wait for it to respond to user)
+      // 3. Sync Average
       syncAverageRating(targetId, targetType);
 
-      res.status(201).json({ message: "Review submitted successfully", review: data[0] });
+      res.status(201).json({ 
+        message: "Review submitted successfully", 
+        review: { id: docRef.id, ...newReview } 
+      });
     } catch (error: any) {
-      console.error("[REVIEWS] Error submitting review:", error.message);
-      
-      if (error.message?.includes('fetch failed') || error.message?.includes('ENOTFOUND')) {
-        // Return a mock success to keep UI happy, or show 503
-        return res.status(503).json({ 
-          error: "Database connection failed", 
-          message: "Our review system is temporarily unavailable. Your review was not saved." 
-        });
-      }
-      
-      res.status(500).json({ error: error.message });
+      console.error("[REVIEWS] Error submitting review to Firestore:", error.message);
+      res.status(500).json({ error: "Failed to submit review" });
     }
   });
 

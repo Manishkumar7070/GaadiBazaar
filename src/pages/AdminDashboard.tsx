@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, CheckCircle, XCircle, Loader2, Store, Car, ExternalLink, Eye, Square, CheckSquare, ListChecks, MapPin } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Loader2, Store, Car, ExternalLink, Eye, Square, CheckSquare, ListChecks, MapPin, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
+import { generateStartupSpecPDF } from '@/services/pdfService';
 import { Shop, Vehicle } from '@/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -365,7 +366,17 @@ const AdminDashboard = () => {
             <p className="text-slate-500 text-sm">Review and verify showroom and vehicle listings</p>
           </div>
         </div>
-        <Button variant="outline" onClick={loadData} className="rounded-xl">Refresh Data</Button>
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            onClick={generateStartupSpecPDF}
+            className="rounded-xl gap-2 border-primary/20 text-primary hover:bg-primary/5 shadow-sm"
+          >
+            <FileText size={18} />
+            Export Features PDF
+          </Button>
+          <Button variant="outline" onClick={loadData} className="rounded-xl">Refresh Data</Button>
+        </div>
       </div>
 
       <Tabs defaultValue="shops" className="w-full">

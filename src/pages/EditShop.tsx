@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { shopService } from '@/services/shop.service';
-import { supabase } from '@/lib/supabase';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Shop } from '@/types';
 import { validateShop, ShopErrors } from '@/lib/validations';
 import { cn } from '@/lib/utils';
@@ -91,19 +92,11 @@ const EditShop = () => {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
+        const filePath = `shops/${user.id}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from('shops')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('shops')
-          .getPublicUrl(filePath);
-
-        return publicUrl;
+        const storageRef = ref(storage, filePath);
+        await uploadBytes(storageRef, file);
+        return await getDownloadURL(storageRef);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);

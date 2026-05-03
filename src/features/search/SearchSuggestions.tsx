@@ -71,19 +71,36 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
                 onClick={() => onSelect(suggestion)}
                 className="w-full flex items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors text-left group"
               >
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                  suggestion.type === 'ai' 
+                    ? "bg-primary text-white shadow-lg shadow-primary/20 scale-110" 
+                    : "bg-slate-50 text-slate-400 group-hover:bg-primary/10 group-hover:text-primary"
+                )}>
                   {suggestion.type === 'vehicle' && <Car size={18} />}
                   {suggestion.type === 'location' && <MapPin size={18} />}
                   {suggestion.type === 'history' && <History size={18} />}
                   {suggestion.type === 'combined' && <Search size={18} />}
-                  {suggestion.type === 'ai' && <Sparkles size={18} className="text-primary animate-pulse" />}
+                  {suggestion.type === 'ai' && <Sparkles size={18} className="animate-pulse" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 truncate">
-                    {highlightText(suggestion.text, query)}
+                  <div className={cn(
+                    "text-sm font-semibold truncate",
+                    suggestion.type === 'ai' ? "text-primary" : "text-slate-900"
+                  )}>
+                    {suggestion.type === 'ai' ? (
+                      <span className="flex items-center gap-2">
+                        Magic Search: "{suggestion.text}"
+                      </span>
+                    ) : (
+                      highlightText(suggestion.text, query)
+                    )}
                   </div>
                   {suggestion.subtext && (
-                    <div className="text-xs text-slate-500 truncate">
+                    <div className={cn(
+                      "text-xs truncate",
+                      suggestion.type === 'ai' ? "text-primary/70 font-bold" : "text-slate-500"
+                    )}>
                       {suggestion.subtext}
                     </div>
                   )}

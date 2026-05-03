@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ShieldCheck, 
@@ -10,7 +10,10 @@ import {
   CheckCircle2, 
   Globe,
   Navigation,
-  ChevronRight
+  ChevronRight,
+  Phone,
+  Lock,
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +22,8 @@ import Logo from '@/components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { locationService } from '@/services/location.service';
 import { useLocation } from '@/context/LocationContext';
+import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
+import { ConfirmationResult } from 'firebase/auth';
 
 const LoginPage = () => {
   const { user, completeProfile, loginWithGoogle, logout } = useAuth();
@@ -26,9 +31,16 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const [step, setStep] = useState<'login' | 'location' | 'role' | 'profile'>('login');
+  const [step, setStep] = useState<'login' | 'location' | 'role' | 'profile' | 'phone' | 'otp'>('login');
   const [loading, setLoading] = useState(false);
   
+  // Phone Auth state
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
+
   // Location state
   const [locationData, setLocationData] = useState<{
     latitude?: number;
@@ -45,18 +57,86 @@ const LoginPage = () => {
     if (user && user.isProfileComplete) {
       navigate(redirect);
     } else if (user && !user.isProfileComplete) {
-      if (step === 'login') {
+      if (step === 'login' || step === 'phone' || step === 'otp') {
         setStep('location');
       }
     }
   }, [user, navigate, redirect, step]);
 
   const handleGoogleLogin = async () => {
+    setError(null);
     setLoading(true);
     try {
       await loginWithGoogle();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google Login Error:', error);
+      if (error.code === 'auth/unauthorized-domain') {
+        setError(`Domain not authorized: "${window.location.hostname}". Please add this domain to your Firebase Console under Auth > Settings > Authorized Domains.`);
+      } else if (error.message?.includes('offline')) {
+        setError('Connection failed: You appear to be offline or Firestore is being blocked by your network. Please check your connection.');
+      } else {
+        setError(error.message || 'Failed to sign in with Google');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setupRecaptcha = () => {
+    if (!recaptchaVerifier.current) {
+      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+        'callback': () => {
+          // reCAPTCHA solved, allow signInWithPhoneNumber.
+        }
+      });
+    }
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!phoneNumber) return;
+
+    setLoading(true);
+    try {
+      setupRecaptcha();
+      const verifier = recaptchaVerifier.current;
+      if (!verifier) throw new Error('Recaptcha not initialized');
+
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      const result = await signInWithPhoneNumber(auth, formattedPhone, verifier);
+      setConfirmationResult(result);
+      setStep('otp');
+    } catch (error: any) {
+      console.error('Phone Auth Error:', error);
+      if (error.code === 'auth/billing-not-enabled') {
+        setError('Phone authentication requires the Firebase project to be on the Blaze (Pay-as-you-go) plan. Please enable billing in your Firebase console.');
+      } else {
+        setError(error.message || 'Failed to send OTP. Please check the number and try again.');
+      }
+      // Reset recaptcha on error
+      if (recaptchaVerifier.current) {
+        recaptchaVerifier.current.clear();
+        recaptchaVerifier.current = null;
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!otp || !confirmationResult) return;
+
+    setLoading(true);
+    try {
+      await confirmationResult.confirm(otp);
+      // Auth state listener in context will handle the rest
+    } catch (error: any) {
+      console.error('OTP Verification Error:', error);
+      setError('Invalid OTP code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -94,7 +174,7 @@ const LoginPage = () => {
       await completeProfile({ 
         role, 
         fullName: user?.fullName,
-        phone: user?.phone,
+        phone: user?.phone || phoneNumber,
         ...locationData
       });
       navigate(redirect);
@@ -117,6 +197,8 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#0A0C10]">
+      <div id="recaptcha-container"></div>
+      
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse" />
         <div className="absolute bottom-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-primary/10 blur-[120px]" />
@@ -172,38 +254,55 @@ const LoginPage = () => {
                     <p className="text-slate-300 font-medium">Continue with your secure identity</p>
                   </div>
 
-                  <Button 
-                    onClick={handleGoogleLogin}
-                    disabled={loading}
-                    className="w-full h-18 rounded-[2rem] bg-white hover:bg-slate-100 text-slate-900 font-black text-lg shadow-xl shadow-white/5 transition-all hover:scale-[1.03] active:scale-[0.98] group flex items-center justify-center gap-4"
-                  >
-                    {loading ? (
-                      <Loader2 className="animate-spin" size={24} />
-                    ) : (
-                      <>
-                        <svg className="w-6 h-6" viewBox="0 0 24 24">
-                          <path
-                            fill="currentColor"
-                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                          />
-                          <path
-                            fill="currentColor"
-                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                          />
-                          <path
-                            fill="currentColor"
-                            d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
-                          />
-                          <path
-                            fill="currentColor"
-                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                          />
-                        </svg>
-                        <span>Continue with Google</span>
-                        <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </Button>
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={handleGoogleLogin}
+                      disabled={loading}
+                      className="w-full h-18 rounded-[2rem] bg-white hover:bg-slate-100 text-slate-900 font-black text-lg shadow-xl shadow-white/5 transition-all hover:scale-[1.03] active:scale-[0.98] group flex items-center justify-center gap-4"
+                    >
+                      {loading ? (
+                        <Loader2 className="animate-spin" size={24} />
+                      ) : (
+                        <>
+                          <svg className="w-6 h-6" viewBox="0 0 24 24">
+                            <path
+                              fill="currentColor"
+                              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                            />
+                            <path
+                              fill="currentColor"
+                              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                            />
+                            <path
+                              fill="currentColor"
+                              d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+                            />
+                            <path
+                              fill="currentColor"
+                              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                            />
+                          </svg>
+                          <span>Continue with Google</span>
+                          <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                        </>
+                      )}
+                    </Button>
+
+                    <Button 
+                      onClick={() => setStep('phone')}
+                      variant="outline"
+                      className="w-full h-18 rounded-[2rem] bg-transparent border-white/20 text-white font-black text-lg transition-all hover:bg-white/5 active:scale-[0.98] flex items-center justify-center gap-4"
+                    >
+                      <Phone size={24} />
+                      <span>Phone Number OTP</span>
+                    </Button>
+                  </div>
+
+                  {error && (
+                    <p className="text-red-400 text-xs font-bold text-center bg-red-400/10 p-3 rounded-2xl border border-red-400/20">
+                      {error}
+                    </p>
+                  )}
 
                   <div className="flex items-center gap-4 py-2">
                     <div className="h-px flex-1 bg-white/10" />
@@ -221,6 +320,132 @@ const LoginPage = () => {
                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Biometric Ready</span>
                     </div>
                   </div>
+                </motion.div>
+              )}
+
+              {step === 'phone' && (
+                <motion.div
+                  key="phone"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-black text-white">Phone Sign-In</h2>
+                    <p className="text-sm text-slate-400">Enter your number for a secure OTP</p>
+                  </div>
+
+                  <form onSubmit={handleSendOtp} className="space-y-4">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-primary transition-colors">
+                        <Smartphone size={20} />
+                      </div>
+                      <input 
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="Phone Number (e.g. 9876543210)"
+                        className="w-full h-16 pl-14 pr-6 rounded-3xl bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all font-bold"
+                        required
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit"
+                      disabled={loading || !phoneNumber}
+                      className="w-full h-16 rounded-3xl bg-primary hover:bg-primary/90 text-white font-black text-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                    >
+                      {loading ? (
+                        <Loader2 className="animate-spin" size={24} />
+                      ) : (
+                        <>
+                          <span>Send OTP Code</span>
+                          <ArrowRight size={20} />
+                        </>
+                      )}
+                    </Button>
+                    
+                    <button 
+                      type="button"
+                      onClick={() => setStep('login')}
+                      className="w-full text-xs font-bold text-slate-500 hover:text-white transition-colors"
+                    >
+                      Back to Login Options
+                    </button>
+                  </form>
+
+                  {error && (
+                    <p className="text-red-400 text-xs font-bold text-center bg-red-400/10 p-3 rounded-2xl border border-red-400/20">
+                      {error}
+                    </p>
+                  )}
+                </motion.div>
+              )}
+
+              {step === 'otp' && (
+                <motion.div
+                  key="otp"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h2 className="text-2xl font-black text-white">Verify Code</h2>
+                    <p className="text-sm text-slate-400">Verifying {phoneNumber}</p>
+                  </div>
+
+                  <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-500 group-focus-within:text-primary transition-colors">
+                        <Lock size={20} />
+                      </div>
+                      <input 
+                        type="text"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        placeholder="6-digit OTP"
+                        maxLength={6}
+                        className="w-full h-16 pl-14 pr-6 rounded-3xl bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all font-bold tracking-[0.5em] text-center"
+                        required
+                      />
+                    </div>
+                    
+                    <Button 
+                      type="submit"
+                      disabled={loading || otp.length !== 6}
+                      className="w-full h-16 rounded-3xl bg-primary hover:bg-primary/90 text-white font-black text-lg transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                    >
+                      {loading ? (
+                        <Loader2 className="animate-spin" size={24} />
+                      ) : (
+                        <>
+                          <span>Verify & Log In</span>
+                          <CheckCircle2 size={20} />
+                        </>
+                      )}
+                    </Button>
+                    
+                    <div className="flex flex-col gap-2">
+                       <button 
+                        type="button"
+                        onClick={() => {
+                          setStep('phone');
+                          setOtp('');
+                        }}
+                        className="text-xs font-bold text-slate-500 hover:text-white transition-colors"
+                      >
+                        Change Phone Number
+                      </button>
+                    </div>
+                  </form>
+
+                  {error && (
+                    <p className="text-red-400 text-xs font-bold text-center bg-red-400/10 p-3 rounded-2xl border border-red-400/20">
+                      {error}
+                    </p>
+                  )}
                 </motion.div>
               )}
 
