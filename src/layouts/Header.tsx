@@ -102,12 +102,12 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-2 sm:gap-4">
         <Link to="/" className="flex items-center gap-2">
           <Logo fontSize="text-2xl" iconSize={28} />
         </Link>
 
-        <div className="hidden md:flex items-center gap-6 ml-4">
+        <div className="hidden lg:flex items-center gap-6 ml-4">
           <Link to="/search" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
             Explore
           </Link>
@@ -125,7 +125,7 @@ const Header = () => {
           </Link>
         </div>
 
-        <div className="hidden md:flex flex-1 max-w-xl items-center gap-2">
+        <div className="hidden lg:flex flex-1 max-w-xl items-center gap-2">
           <div className="flex-1 relative z-50">
             <form onSubmit={handleSearch} className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -164,17 +164,9 @@ const Header = () => {
 
         <div className="flex items-center gap-1 sm:gap-2">
           <Button 
-            className="md:hidden bg-gradient-to-r from-primary to-orange-500 text-white font-black h-10 px-4 rounded-xl gap-1.5 shadow-[0_4px_12px_rgba(249,115,22,0.3)] border border-white/20 active:scale-95 transition-all animate-in fade-in zoom-in duration-500"
-            onClick={handleSellClick}
-          >
-            <PlusCircle size={18} strokeWidth={2.5} />
-            <span className="text-xs uppercase tracking-tight">Sell</span>
-          </Button>
-
-          <Button 
             variant="ghost" 
             size="icon" 
-            className="text-slate-600 md:hidden h-9 w-9"
+            className="text-slate-600 lg:hidden h-9 w-9"
             onClick={() => navigate('/search')}
           >
             <Search size={18} />
@@ -184,7 +176,7 @@ const Header = () => {
             onSelect={(city) => {
               navigate(`/search?city=${encodeURIComponent(city)}`);
             }}
-            className="md:hidden px-1"
+            className="lg:hidden px-1"
           />
           
           <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
@@ -193,7 +185,7 @@ const Header = () => {
           
           {user?.role === 'admin' && (
             <Link to="/admin">
-              <Button variant="ghost" className="hidden md:flex gap-2 items-center text-primary font-bold">
+              <Button variant="ghost" className="hidden lg:flex gap-2 items-center text-primary font-bold">
                 <Settings size={18} /> Admin Panel
               </Button>
             </Link>
@@ -201,7 +193,7 @@ const Header = () => {
 
           {user?.role === 'admin' && (
             <Link to="/admin">
-              <Button variant="ghost" className="hidden md:flex gap-2 items-center text-primary font-bold">
+              <Button variant="ghost" className="hidden lg:flex gap-2 items-center text-primary font-bold">
                 <Settings size={18} /> Admin Panel
               </Button>
             </Link>
@@ -209,7 +201,7 @@ const Header = () => {
 
           {user ? (
             <Link to="/profile">
-              <Button variant="ghost" className="hidden md:flex gap-2 items-center text-slate-700 font-semibold">
+              <Button variant="ghost" className="hidden lg:flex gap-2 items-center text-slate-700 font-semibold">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <User size={18} />
                 </div>
@@ -219,7 +211,7 @@ const Header = () => {
           ) : (
             <Button 
               variant="outline" 
-              className="hidden md:flex border-primary text-primary hover:bg-primary/5"
+              className="hidden lg:flex border-primary text-primary hover:bg-primary/5"
               onClick={() => navigate('/login')}
             >
               Login
@@ -227,14 +219,14 @@ const Header = () => {
           )}
 
           <Button 
-            className="hidden md:flex bg-primary hover:bg-primary/90"
+            className="hidden lg:flex bg-primary hover:bg-primary/90"
             onClick={handleSellClick}
           >
             Sell Vehicle
           </Button>
           
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger render={<Button variant="ghost" size="icon" className="md:hidden" />}>
+            <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
               <Menu size={24} />
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] rounded-l-3xl p-0">

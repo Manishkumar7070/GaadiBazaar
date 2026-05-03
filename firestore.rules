@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // OTPs collection: Strictly server-side or extremely restricted
+    match /otps/{identifier} {
+      // Users should NOT be able to read or write OTPs directly.
+      // This is managed by the server using Firebase Admin SDK.
+      allow read, write: if false;
+    }
+    
+    // Profiles collection (if used in future)
+    match /profiles/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

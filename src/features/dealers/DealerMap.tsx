@@ -98,7 +98,7 @@ const DealerMap: React.FC<DealerMapProps> = ({
                       <Star size={10} fill="currentColor" />
                       <span className="text-[10px] font-bold">{shop.rating || 'N/A'}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400">({shop.reviewCount || 0} reviews)</span>
+                    <span className="text-[10px] text-slate-400">({shop.reviewsCount || 0} reviews)</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">

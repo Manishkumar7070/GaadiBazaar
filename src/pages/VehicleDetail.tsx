@@ -45,6 +45,8 @@ import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
 import { shopService } from '@/services/shop.service';
 import { Vehicle, Shop } from '@/types';
+import { ReviewList } from '@/components/reviews/ReviewList';
+import { ReviewForm } from '@/components/reviews/ReviewForm';
 
 const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: () => void }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -116,6 +118,7 @@ const VehicleDetail = () => {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
   
   const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([]);
   
@@ -428,6 +431,19 @@ const VehicleDetail = () => {
             </p>
           </section>
 
+          {/* Review System */}
+          <section className="space-y-8 pt-8">
+            <Separator />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+              <div className="space-y-6">
+                <ReviewList targetId={vehicle.id} targetType="vehicle" refreshKey={reviewRefreshKey} />
+              </div>
+              <div className="md:sticky md:top-24 h-fit">
+                <ReviewForm targetId={vehicle.id} targetType="vehicle" onSuccess={() => setReviewRefreshKey(prev => prev + 1)} />
+              </div>
+            </div>
+          </section>
+
           {/* Video Evidence Section */}
           {(vehicle.engineStartVideo || vehicle.engineSoundVideo || vehicle.walkaroundVideo) && (
             <section className="space-y-6 pt-4">
@@ -519,7 +535,7 @@ const VehicleDetail = () => {
                     </div>
                     <div className="flex items-center gap-1 text-yellow-500 text-sm font-bold">
                       <span>★ {shop.rating || '4.5'}</span>
-                      <span className="text-slate-400 font-normal">({shop.reviewCount || '0'} reviews)</span>
+                      <span className="text-slate-400 font-normal">({shop.reviewsCount || '0'} reviews)</span>
                     </div>
                   </div>
                 </Link>

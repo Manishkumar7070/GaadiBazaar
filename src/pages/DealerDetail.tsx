@@ -25,6 +25,8 @@ import { vehicleService } from '@/services/vehicle.service';
 import { Shop, Vehicle } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
+import { ReviewList } from '@/components/reviews/ReviewList';
+import { ReviewForm } from '@/components/reviews/ReviewForm';
 
 const DealerDetail = () => {
   const { id } = useParams();
@@ -34,6 +36,7 @@ const DealerDetail = () => {
   const [dealerVehicles, setDealerVehicles] = React.useState<Vehicle[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [mapType, setMapType] = React.useState<'standard' | '3d'>('standard');
+  const [reviewRefreshKey, setReviewRefreshKey] = React.useState(0);
   
   React.useEffect(() => {
     const loadData = async () => {
@@ -167,7 +170,7 @@ const DealerDetail = () => {
                       <span className="text-lg font-bold text-slate-900">{dealer.rating || '4.5'}</span>
                       <Separator orientation="vertical" className="h-4 bg-slate-200" />
                       <span className="text-sm font-bold text-primary hover:underline cursor-pointer">
-                        {dealer.reviewCount || '0'} Verified Reviews
+                        {dealer.reviewsCount || '0'} Verified Reviews
                       </span>
                     </div>
                   </div>
@@ -317,7 +320,7 @@ const DealerDetail = () => {
       </section>
 
       {/* Inventory Section */}
-      <section className="space-y-6">
+      <section className="space-y-6 pb-12 border-b border-slate-100">
         <div className="flex items-center justify-between">
           <h3 className="text-2xl font-bold flex items-center gap-2">
             <Car className="text-primary" /> Dealer Inventory
@@ -339,49 +342,16 @@ const DealerDetail = () => {
         )}
       </section>
 
-      {/* Reviews Section */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-2xl font-bold flex items-center gap-2">
-            <MessageSquare className="text-primary" /> Customer Reviews
-            <span className="text-sm font-normal text-slate-400 ml-2">({dealer.reviewCount || 0})</span>
-          </h3>
-          <Button variant="outline" className="rounded-xl border-primary text-primary font-bold">
-            Write a Review
-          </Button>
+      {/* Review System */}
+      <section className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="space-y-6">
+            <ReviewList targetId={dealer.id} targetType="shop" refreshKey={reviewRefreshKey} />
+          </div>
+          <div className="md:sticky md:top-24 h-fit">
+            <ReviewForm targetId={dealer.id} targetType="shop" onSuccess={() => setReviewRefreshKey(prev => prev + 1)} />
+          </div>
         </div>
-
-        {dealer.reviews && dealer.reviews.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {dealer.reviews.map((review) => (
-              <Card key={review.id} className="border-none shadow-sm rounded-3xl bg-white p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {review.userName[0]}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900">{review.userName}</p>
-                      <p className="text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-orange-500 bg-orange-50 px-2 py-1 rounded-lg text-sm font-bold">
-                    <Star size={14} fill="currentColor" />
-                    {review.rating}
-                  </div>
-                </div>
-                <p className="text-slate-600 text-sm leading-relaxed italic">
-                  "{review.comment}"
-                </p>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 bg-white rounded-[2rem] border border-dashed border-slate-200">
-            <MessageSquare className="mx-auto text-slate-300 mb-4" size={48} />
-            <p className="text-slate-500 font-medium">No reviews yet for this dealer.</p>
-          </div>
-        )}
       </section>
     </div>
   );

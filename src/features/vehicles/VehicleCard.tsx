@@ -280,7 +280,14 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
                   )}
                 </div>
                 <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                   <Star size={10} className="fill-amber-400 text-amber-400" /> {shop.rating} • 100+ listings
+                   {vehicle.rating ? (
+                     <>
+                       <Star size={10} className="fill-blue-400 text-blue-400" /> {vehicle.rating} ({vehicle.reviewsCount})
+                     </>
+                   ) : (
+                     <Star size={10} className="fill-amber-400 text-amber-400" />
+                   )}
+                   <span> {shop.rating || '4.5'} • 100+ listings</span>
                 </div>
               </div>
             </div>

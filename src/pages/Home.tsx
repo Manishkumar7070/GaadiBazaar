@@ -369,6 +369,41 @@ const Home = () => {
         </section>
       )}
 
+      {/* Featured Listings */}
+      <section className="space-y-4 pt-12">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Featured Listings</h2>
+          <div className="flex gap-2">
+            <Link to="/search">
+              <Button variant="ghost" className="text-primary font-bold">
+                View All Listings
+              </Button>
+            </Link>
+            <Button variant="outline" size="icon" className="rounded-full">
+              <Filter size={18} />
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <VehicleCardSkeleton key={i} />
+            ))
+          ) : (
+            filteredVehicles.map((vehicle, index) => (
+              <motion.div
+                key={vehicle.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <VehicleCard vehicle={vehicle} />
+              </motion.div>
+            ))
+          )}
+        </div>
+      </section>
+
       {/* Dealer Map Promotion Section */}
       <section className="relative overflow-hidden rounded-[3rem] bg-indigo-900 p-8 sm:p-12 lg:p-16">
         <div className="absolute inset-0 z-0">
@@ -391,6 +426,7 @@ const Home = () => {
                 Explore Dealers <br />
                 <span className="text-indigo-400 italic">Right on the Map</span>
               </h2>
+              <h3 className="sr-only">Find Certified Showrooms</h3>
               <p className="text-indigo-100 text-xl max-w-xl font-medium leading-relaxed">
                 Looking for the nearest certified showroom? Use our built-in map to explore dealerships across India, see their current inventory, and get instant directions.
               </p>
@@ -508,41 +544,6 @@ const Home = () => {
             {/* Decorative element */}
             <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/10 rounded-full blur-3xl z-[-1]" />
           </div>
-        </div>
-      </section>
-
-      {/* Featured Listings */}
-      <section className="space-y-4 pt-12">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Featured Listings</h2>
-          <div className="flex gap-2">
-            <Link to="/search">
-              <Button variant="ghost" className="text-primary font-bold">
-                View All Listings
-              </Button>
-            </Link>
-            <Button variant="outline" size="icon" className="rounded-full">
-              <Filter size={18} />
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <VehicleCardSkeleton key={i} />
-            ))
-          ) : (
-            filteredVehicles.map((vehicle, index) => (
-              <motion.div
-                key={vehicle.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <VehicleCard vehicle={vehicle} />
-              </motion.div>
-            ))
-          )}
         </div>
       </section>
     </div>

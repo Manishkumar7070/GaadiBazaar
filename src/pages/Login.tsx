@@ -1,41 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { LogIn, ShieldCheck, ArrowRight, Loader2, User, ShoppingCart, Tag, Phone, MapPin, Camera, Mic, CheckCircle2, Mail } from 'lucide-react';
+import { 
+  ShieldCheck, 
+  ArrowRight, 
+  Loader2, 
+  ShoppingCart, 
+  Tag, 
+  MapPin, 
+  CheckCircle2, 
+  Globe,
+  Navigation,
+  ChevronRight
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
 import Logo from '@/components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
+import { locationService } from '@/services/location.service';
+import { useLocation } from '@/context/LocationContext';
 
 const LoginPage = () => {
-  const { user, completeProfile, sendOtp, verifyOtp } = useAuth();
+  const { user, completeProfile, loginWithGoogle, logout } = useAuth();
+  const { setSelectedCity } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [step, setStep] = useState<'login' | 'otp' | 'permissions' | 'role' | 'profile'>('login');
+  const [step, setStep] = useState<'login' | 'location' | 'role' | 'profile'>('login');
   const [loading, setLoading] = useState(false);
   
-  const [authType, setAuthType] = useState<'email' | 'phone'>('email');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  
-  // Auth fields
-  const [fullName, setFullName] = useState('');
-  const [otp, setOtp] = useState('');
-  const [countdown, setCountdown] = useState(0);
+  // Location state
+  const [locationData, setLocationData] = useState<{
+    latitude?: number;
+    longitude?: number;
+    cityName?: string;
+    address?: string;
+  }>({});
+  const [locationLoading, setLocationLoading] = useState(false);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
-  
   const redirect = searchParams.get('redirect') || '/';
   const reason = searchParams.get('reason');
 
@@ -43,297 +45,236 @@ const LoginPage = () => {
     if (user && user.isProfileComplete) {
       navigate(redirect);
     } else if (user && !user.isProfileComplete) {
+      if (step === 'login') {
+        setStep('location');
+      }
+    }
+  }, [user, navigate, redirect, step]);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      console.error('Google Login Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAutoDetectLocation = async () => {
+    setLocationLoading(true);
+    try {
+      const coords = await locationService.getCurrentPosition();
+      const geo = await locationService.reverseGeocode(coords.latitude, coords.longitude);
+      
+      setLocationData({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        cityName: geo.cityName,
+        address: geo.address
+      });
+
+      if (geo.cityName) {
+        setSelectedCity(geo.cityName);
+      }
+      
+      setTimeout(() => setStep('role'), 1000);
+    } catch (error) {
+      console.error('Location detection failed:', error);
       setStep('role');
-    }
-  }, [user, navigate, redirect]);
-
-  const handleContinue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (mode === 'signup' && !fullName) {
-      alert('Please enter your full name');
-      return;
-    }
-    if (authType === 'email' && !email) return;
-    if (authType === 'phone' && !phone) return;
-
-    setLoading(true);
-    try {
-      await sendOtp(authType === 'email' ? { email } : { phone });
-      setStep('otp');
-      setCountdown(60);
-    } catch (error: any) {
-      console.error('Auth Error:', error);
-      alert(`Failed to send code: ${error.message || 'Unknown error'}`);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) return;
-
-    setLoading(true);
-    try {
-      await verifyOtp(authType === 'email' ? { email } : { phone }, otp);
-    } catch (error: any) {
-      console.error('OTP Verify Error:', error);
-      alert(`Invalid code: ${error.message || 'Please try again'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (countdown > 0 || loading) return;
-    
-    setLoading(true);
-    try {
-      await sendOtp(authType === 'email' ? { email } : { phone });
-      setCountdown(60);
-      alert('Code resent successfully!');
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setLoading(false);
+      setLocationLoading(false);
     }
   };
 
   const handleRoleSelect = async (role: 'buyer' | 'seller') => {
     setLoading(true);
     try {
-      await completeProfile({ role, fullName });
-      if (role === 'seller') {
-        setStep('permissions');
-      } else {
-        navigate(redirect);
-      }
+      await completeProfile({ 
+        role, 
+        fullName: user?.fullName,
+        phone: user?.phone,
+        ...locationData
+      });
+      navigate(redirect);
     } catch (error) {
       console.error('Role Selection Error:', error);
-      alert('Failed to set role. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePermissionsDone = () => {
-    navigate(redirect);
-  };
-
   const getReasonMessage = () => {
     switch (reason) {
-      case 'save_search': return 'Log in to save your searches.';
-      case 'list_vehicle': return 'Log in to sell your vehicle.';
-      case 'favorite_vehicle': return 'Log in to save favorites.';
-      case 'contact_seller': return 'Log in to contact sellers.';
-      default: return 'Join India\'s most trusted vehicle marketplace.';
+      case 'save_search': return 'Log in to save your searches and get price drop alerts.';
+      case 'list_vehicle': return 'Log in to list your vehicle and reach thousands of buyers.';
+      case 'favorite_vehicle': return 'Log in to sync your favorite vehicles across devices.';
+      case 'contact_seller': return 'Log in to securely contact sellers and book test drives.';
+      default: return 'Join the most trusted digital dealership community.';
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50/50">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo Section */}
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-[#0A0C10]">
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.03]" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10 space-y-8">
         <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center text-center space-y-2"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col items-center text-center space-y-4"
         >
-          <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 mb-2">
-            <Logo iconSize={32} fontSize="text-xl" />
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative p-5 bg-white rounded-[2rem] shadow-2xl border border-white/50 transform group-hover:scale-105 transition-transform duration-500">
+              <Logo iconSize={48} fontSize="text-2xl" />
+            </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">
-            Welcome to <span className="text-primary">AsOneDealer</span>
-          </h1>
-          <p className="text-slate-500 font-medium max-w-[280px]">
-            {getReasonMessage()}
-          </p>
+          
+          <div className="space-y-2">
+            <motion.h1 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-4xl font-black tracking-tight text-white"
+            >
+              Secure <span className="text-primary italic">Access</span>
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-slate-400 font-bold text-sm tracking-wide uppercase"
+            >
+              {getReasonMessage()}
+            </motion.p>
+          </div>
         </motion.div>
 
-        <Card className="rounded-[2.5rem] border-none shadow-2xl shadow-primary/5 overflow-hidden bg-white">
-          <CardContent className="p-8 sm:p-10">
+        <Card className="rounded-[3.5rem] border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] overflow-hidden bg-slate-900/40 backdrop-blur-3xl border border-white/5">
+          <CardContent className="p-10">
             <AnimatePresence mode="wait">
               {step === 'login' && (
                 <motion.div
                   key="login"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-8"
                 >
-                  <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">
-                    <button 
-                      type="button"
-                      onClick={() => setMode('signin')}
-                      className={cn(
-                        "flex-1 py-3 text-sm font-bold rounded-xl transition-all",
-                        mode === 'signin' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                      )}
-                    >
-                      Login
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setMode('signup')}
-                      className={cn(
-                        "flex-1 py-3 text-sm font-bold rounded-xl transition-all",
-                        mode === 'signup' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                      )}
-                    >
-                      Sign Up
-                    </button>
+                  <div className="text-center space-y-4">
+                    <p className="text-slate-300 font-medium">Continue with your secure identity</p>
                   </div>
 
-                  <form onSubmit={handleContinue} className="space-y-5">
-                    <div className="flex bg-slate-50 p-1 rounded-xl mb-4 border border-slate-100">
-                      <button 
-                        type="button"
-                        onClick={() => setAuthType('email')}
-                        className={cn(
-                          "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
-                          authType === 'email' ? "bg-white text-primary shadow-sm" : "text-slate-400"
-                        )}
-                      >
-                        Email
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setAuthType('phone')}
-                        className={cn(
-                          "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
-                          authType === 'phone' ? "bg-white text-primary shadow-sm" : "text-slate-400"
-                        )}
-                      >
-                        Phone
-                      </button>
+                  <Button 
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    className="w-full h-18 rounded-[2rem] bg-white hover:bg-slate-100 text-slate-900 font-black text-lg shadow-xl shadow-white/5 transition-all hover:scale-[1.03] active:scale-[0.98] group flex items-center justify-center gap-4"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" size={24} />
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6" viewBox="0 0 24 24">
+                          <path
+                            fill="currentColor"
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          />
+                          <path
+                            fill="currentColor"
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          />
+                          <path
+                            fill="currentColor"
+                            d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"
+                          />
+                          <path
+                            fill="currentColor"
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          />
+                        </svg>
+                        <span>Continue with Google</span>
+                        <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="flex items-center gap-4 py-2">
+                    <div className="h-px flex-1 bg-white/10" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Identity Assured</span>
+                    <div className="h-px flex-1 bg-white/10" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-white/5 rounded-3xl border border-white/5 flex flex-col items-center gap-2 text-center">
+                       <CheckCircle2 className="text-primary" size={20} />
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">No Passwords</span>
                     </div>
-
-                    <AnimatePresence mode="wait">
-                      {mode === 'signup' && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="space-y-2 overflow-hidden"
-                        >
-                          <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                          <div className="relative">
-                            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <Input 
-                              type="text" 
-                              placeholder="Enter your name" 
-                              value={fullName}
-                              onChange={(e) => setFullName(e.target.value)}
-                              required={mode === 'signup'}
-                              className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
-                            />
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-                        {authType === 'email' ? 'Email Address' : 'Phone Number'}
-                      </label>
-                      <div className="relative">
-                         {authType === 'email' ? (
-                           <>
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <Input 
-                              type="email" 
-                              placeholder="Enter your email" 
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              required
-                              className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
-                            />
-                           </>
-                         ) : (
-                           <>
-                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <Input 
-                              type="tel" 
-                              placeholder="+91 12345 67890" 
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              required
-                              className="pl-12 h-14 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-lg font-medium"
-                            />
-                           </>
-                         )}
-                      </div>
+                    <div className="p-4 bg-white/5 rounded-3xl border border-white/5 flex flex-col items-center gap-2 text-center">
+                       <ShieldCheck className="text-indigo-400" size={20} />
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Biometric Ready</span>
                     </div>
-
-                    <Button 
-                      type="submit" 
-                      disabled={loading}
-                      className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      {loading ? <Loader2 className="animate-spin" size={24} /> : (mode === 'signup' ? 'Create Account' : 'Login')}
-                    </Button>
-                  </form>
+                  </div>
                 </motion.div>
               )}
 
-              {step === 'otp' && (
+              {step === 'location' && (
                 <motion.div
-                  key="otp"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-6"
+                  key="location"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-10 text-center"
                 >
-                  <div className="text-center space-y-2">
-                    <h2 className="text-xl font-bold">Verify your {authType === 'email' ? 'email' : 'phone'}</h2>
-                    <p className="text-sm text-slate-500">Enter the 6-digit code sent to {authType === 'email' ? email : phone}</p>
-                  </div>
-
-                  <form onSubmit={handleVerifyOtp} className="space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-center block">One-Time Password</label>
-                      <Input 
-                        type="text" 
-                        placeholder="000000" 
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        maxLength={6}
-                        required
-                        className="h-16 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:border-primary transition-all text-3xl font-black text-center tracking-[0.5em]"
+                   <div className="relative mx-auto w-32 h-32">
+                      <motion.div 
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+                        transition={{ duration: 3, repeat: Infinity }}
+                        className="absolute inset-0 bg-primary rounded-full"
                       />
-                    </div>
+                      <div className="absolute inset-4 rounded-full bg-slate-900 flex items-center justify-center border-4 border-primary/20 shadow-2xl">
+                         <MapPin size={56} className="text-primary" />
+                      </div>
+                   </div>
 
-                    <Button 
-                      type="submit" 
-                      disabled={loading}
-                      className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all"
-                    >
-                      {loading ? <Loader2 className="animate-spin" size={24} /> : 'Verify & Continue'}
-                    </Button>
+                   <div className="space-y-4">
+                      <h2 className="text-3xl font-black text-white px-2">Local Experience</h2>
+                      <p className="text-slate-400 font-bold text-sm px-6 leading-relaxed">
+                        Find deals from certified dealerships in your immediate vicinity.
+                      </p>
+                   </div>
 
-                    <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={handleResendOtp}
-                        disabled={countdown > 0 || loading}
-                        className={cn(
-                          "text-sm font-bold transition-colors",
-                          countdown > 0 ? "text-slate-300 cursor-not-allowed" : "text-primary hover:underline"
-                        )}
+                   <div className="space-y-6">
+                      <Button
+                        onClick={handleAutoDetectLocation}
+                        disabled={locationLoading}
+                        className="w-full h-20 rounded-[2.5rem] bg-primary text-white hover:bg-primary/90 font-black text-xl shadow-[0_24px_48px_-12px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center gap-4 group"
                       >
-                        {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
+                        {locationLoading ? (
+                           <>
+                            <Loader2 className="animate-spin" size={28} />
+                            <span>Locating...</span>
+                           </>
+                        ) : (
+                          <>
+                            <Navigation size={28} className="group-hover:fill-current group-hover:rotate-12 transition-all" />
+                            <span>Auto-Detect City</span>
+                          </>
+                        )}
+                      </Button>
+                      
+                      <button
+                        onClick={() => setStep('role')}
+                        className="text-xs font-black text-slate-500 hover:text-white transition-colors py-2 uppercase tracking-[0.3em] group"
+                      >
+                        Skip Selection <span className="group-hover:pl-1 transition-all">→</span>
                       </button>
-                    </div>
-
-                    <Button 
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setStep('login')}
-                      className="w-full text-slate-400 hover:text-primary"
-                    >
-                      Change {authType === 'email' ? 'Email' : 'Phone'} Info
-                    </Button>
-                  </form>
+                   </div>
                 </motion.div>
               )}
 
@@ -342,87 +283,60 @@ const LoginPage = () => {
                   key="role"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-4"
+                  className="space-y-8"
                 >
-                  <h2 className="text-xl font-bold text-center mb-6">How would you like to use AsOneDealer?</h2>
-                  <button
-                    onClick={() => handleRoleSelect('buyer')}
-                    className="w-full group p-6 rounded-3xl border-2 border-slate-100 hover:border-primary hover:bg-primary/5 transition-all text-left flex items-center gap-5"
-                  >
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-                      <ShoppingCart size={28} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-slate-900">I want to Buy</h3>
-                      <p className="text-sm text-slate-500">Find your dream vehicle</p>
-                    </div>
-                    <ArrowRight className="text-slate-300 group-hover:text-primary transition-colors" size={20} />
-                  </button>
-                  <button
-                    onClick={() => handleRoleSelect('seller')}
-                    className="w-full group p-6 rounded-3xl border-2 border-slate-100 hover:border-primary hover:bg-primary/5 transition-all text-left flex items-center gap-5"
-                  >
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-                      <Tag size={28} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg text-slate-900">I want to Sell</h3>
-                      <p className="text-sm text-slate-500">List and sell quickly</p>
-                    </div>
-                    <ArrowRight className="text-slate-300 group-hover:text-primary transition-colors" size={20} />
-                  </button>
-                </motion.div>
-              )}
-
-              {step === 'permissions' && (
-                <motion.div
-                  key="permissions"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-8 text-center"
-                >
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-bold text-slate-900">Enable Permissions</h2>
-                    <p className="text-slate-500">We need these to provide the best experience for buying and selling.</p>
+                  <div className="text-center space-y-3 mb-6 relative">
+                    <h2 className="text-3xl font-black text-white">Your Intent</h2>
+                    <p className="text-sm font-bold text-slate-400">Choose your persona on the platform</p>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {[
-                      { icon: MapPin, label: 'Location', desc: 'To find vehicles near you' },
-                      { icon: Camera, label: 'Camera', desc: 'To take photos of your vehicle' },
-                      { icon: Mic, label: 'Microphone', desc: 'For voice search and support' },
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl text-left">
-                        <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-primary shadow-sm">
-                          <item.icon size={24} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{item.label}</p>
-                          <p className="text-xs text-slate-500">{item.desc}</p>
-                        </div>
-                        <CheckCircle2 className="ml-auto text-green-500" size={20} />
+                  <div className="grid grid-cols-1 gap-5">
+                    <button
+                      onClick={() => handleRoleSelect('buyer')}
+                      className="w-full group relative p-8 rounded-[3rem] bg-white/5 hover:bg-white/10 border-2 border-transparent hover:border-primary/30 transition-all text-left flex items-center gap-8 overflow-hidden shadow-inner"
+                    >
+                      <div className="w-20 h-20 rounded-[2rem] bg-slate-900 group-hover:scale-110 shadow-2xl flex items-center justify-center text-slate-500 group-hover:text-primary transition-all duration-500 border border-white/5">
+                        <ShoppingCart size={32} />
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex-1">
+                        <h3 className="font-black text-2xl text-white group-hover:text-primary transition-colors">Buyer</h3>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Acquire vehicles</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
+                        <ChevronRight size={24} className="text-primary" />
+                      </div>
+                    </button>
 
-                  <Button 
-                    onClick={handlePermissionsDone}
-                    className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-lg shadow-xl"
-                  >
-                    Get Started
-                  </Button>
+                    <button
+                      onClick={() => handleRoleSelect('seller')}
+                      className="w-full group relative p-8 rounded-[3rem] bg-white/5 hover:bg-white/10 border-2 border-transparent hover:border-indigo-500/30 transition-all text-left flex items-center gap-8 overflow-hidden shadow-inner"
+                    >
+                      <div className="w-20 h-20 rounded-[2rem] bg-slate-900 group-hover:scale-110 shadow-2xl flex items-center justify-center text-slate-500 group-hover:text-indigo-400 transition-all duration-500 border border-white/5">
+                        <Tag size={32} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-black text-2xl text-white group-hover:text-indigo-400 transition-colors">Dealer</h3>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Liquidate inventory</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
+                        <ChevronRight size={24} className="text-indigo-400" />
+                      </div>
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="mt-8 pt-6 border-t border-slate-50 text-center space-y-4">
-              <p className="text-[11px] text-slate-400 leading-relaxed px-4">
-                By continuing, you agree to our <span className="text-primary font-bold cursor-pointer hover:underline">Terms of Service</span> and <span className="text-primary font-bold cursor-pointer hover:underline">Privacy Policy</span>.
+            <div className="mt-12 pt-10 border-t border-white/5 text-center space-y-6">
+              <p className="text-[10px] text-slate-500 font-bold leading-relaxed px-10 tracking-widest uppercase opacity-60">
+                Firebase Identity Protection Active.
               </p>
-              <div className="flex items-center justify-center gap-2 opacity-30 grayscale">
-                <ShieldCheck size={14} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Secure & Verified</span>
+              
+              <div className="inline-flex items-center gap-6 px-10 py-5 rounded-[2rem] bg-white/5 border border-white/10 shadow-inner">
+                <div className="flex items-center gap-3">
+                   <ShieldCheck size={14} className="text-primary opacity-80" />
+                   <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Zero Trust Auth</span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -433,3 +347,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+

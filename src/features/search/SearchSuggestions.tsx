@@ -1,11 +1,11 @@
 import React from 'react';
-import { Search, MapPin, History, Car, ArrowUpRight } from 'lucide-react';
+import { Search, MapPin, History, Car, ArrowUpRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Suggestion {
   id: string;
   text: string;
-  type: 'vehicle' | 'location' | 'history' | 'combined';
+  type: 'vehicle' | 'location' | 'history' | 'combined' | 'ai';
   subtext?: string;
   state?: string;
 }
@@ -76,6 +76,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
                   {suggestion.type === 'location' && <MapPin size={18} />}
                   {suggestion.type === 'history' && <History size={18} />}
                   {suggestion.type === 'combined' && <Search size={18} />}
+                  {suggestion.type === 'ai' && <Sparkles size={18} className="text-primary animate-pulse" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-slate-900 truncate">

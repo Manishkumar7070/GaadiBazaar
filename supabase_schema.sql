@@ -4,6 +4,10 @@ create table public.profiles (
   full_name text,
   phone text,
   role text check (role in ('buyer', 'seller', 'dealer', 'admin')) default 'buyer',
+  latitude numeric,
+  longitude numeric,
+  city_name text,
+  address text,
   is_profile_complete boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -21,6 +25,8 @@ create table public.shops (
   phone text,
   images text[] default '{}',
   verification_status text check (verification_status in ('pending', 'verified', 'rejected')) default 'pending',
+  rating numeric default 0,
+  reviews_count integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -55,8 +61,32 @@ create table public.vehicles (
   verification_status text check (verification_status in ('pending', 'verified', 'rejected')) default 'pending',
   is_featured boolean default false,
   views_count integer default 0,
+  rating numeric default 0,
+  reviews_count integer default 0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Reviews table
+create table public.reviews (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  target_id uuid not null, -- Can be a vehicle_id or shop_id
+  target_type text check (target_type in ('vehicle', 'shop')) not null,
+  rating integer check (rating >= 1 and rating <= 5) not null,
+  comment text,
+  images text[] default '{}',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- OTPs table for auth fallback
+create table public.otps (
+  id uuid default gen_random_uuid() primary key,
+  email text unique not null, -- Stores either email or phone number identifier
+  code text not null,
+  expires_at timestamp with time zone not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Wishlist table
@@ -71,24 +101,26 @@ create table public.wishlists (
 -- Storage Buckets Configuration
 -- Note: These might need to be created via the Supabase Dashboard if the database owner doesn't have permissions for storage schema
 insert into storage.buckets (id, name, public) 
-values ('shops', 'shops', true), ('vehicles', 'vehicles', true)
+values ('shops', 'shops', true), ('vehicles', 'vehicles', true), ('reviews', 'reviews', true)
 on conflict (id) do nothing;
 
-create policy "Public Access" on storage.objects for select using ( bucket_id in ('shops', 'vehicles') );
-create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id in ('shops', 'vehicles') and auth.role() = 'authenticated' );
+create policy "Public Access" on storage.objects for select using ( bucket_id in ('shops', 'vehicles', 'reviews') );
+create policy "Authenticated Upload" on storage.objects for insert with check ( bucket_id in ('shops', 'vehicles', 'reviews') and auth.role() = 'authenticated' );
 
 -- RLS Policies
 alter table public.profiles enable row level security;
 alter table public.shops enable row level security;
 alter table public.vehicles enable row level security;
 alter table public.wishlists enable row level security;
+alter table public.reviews enable row level security;
 
 -- Public read access
 create policy "Public vehicles access" on public.vehicles for select using (true);
 create policy "Public shops access" on public.shops for select using (true);
+create policy "Public reviews access" on public.reviews for select using (true);
 
--- Auth user access for wishlists
-create policy "Users can manage own wishlist" on public.wishlists
+-- Auth user access for reviews
+create policy "Users can manage own reviews" on public.reviews
   for all using (auth.uid() = user_id);
 
 -- Profile policies

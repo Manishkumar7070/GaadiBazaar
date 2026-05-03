@@ -1,0 +1,23 @@
+{
+  "entities": {
+    "OTP": {
+      "title": "One-Time Password",
+      "description": "Stored OTP codes for user verification",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "description": "The 6-digit code" },
+        "expiresAt": { "type": "string", "format": "date-time", "description": "When the code expires" },
+        "identifier": { "type": "string", "description": "Email or phone number" },
+        "channel": { "type": "string", "description": "email or sms" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the code was created" }
+      },
+      "required": ["code", "expiresAt", "identifier", "channel", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/otps/{identifier}": {
+      "schema": "OTP",
+      "description": "Collection of active OTPs"
+    }
+  }
+}

@@ -29,10 +29,12 @@ const PriceComparisonSection: React.FC<PriceComparisonSectionProps> = ({ vehicle
     fetchComparison();
   }, [vehicle, allVehicles]);
 
+  if (isLoading || !result) return null;
+
   const itemsToShow = result.betterDeals.length > 0 ? result.betterDeals : result.alternatives;
   const sectionTitle = result.betterDeals.length > 0 ? "Similar Cars at Better Prices Nearby" : "Great Alternatives in Your Budget";
 
-  if (isLoading || !result || itemsToShow.length === 0) return null;
+  if (itemsToShow.length === 0) return null;
 
   return (
     <div className="my-8 space-y-6">

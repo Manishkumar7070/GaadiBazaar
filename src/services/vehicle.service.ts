@@ -60,6 +60,8 @@ export const vehicleService = {
         engineStartVideo: v.engine_start_video,
         engineSoundVideo: v.engine_sound_video,
         walkaroundVideo: v.walkaround_video,
+        rating: v.rating,
+        reviewsCount: v.reviews_count,
         createdAt: v.created_at,
         updatedAt: v.updated_at
       })) as any;

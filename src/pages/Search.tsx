@@ -179,8 +179,16 @@ const SearchPage = () => {
         .map(s => ({ id: `h-${s}`, text: s, type: 'history' as const }));
 
       const genericSearch = { id: 'search-query', text: debouncedSearchQuery, type: 'combined' as const, subtext: `Search for "${debouncedSearchQuery}"` };
+      
+      const aiSmartSearch = debouncedSearchQuery.split(' ').length >= 2 ? [{
+        id: 'ai-smart-search',
+        text: debouncedSearchQuery,
+        type: 'ai' as const,
+        subtext: 'AI Smart Search: Apply filters automatically'
+      }] : [];
 
       setSuggestions([
+        ...aiSmartSearch,
         genericSearch,
         ...combinedMatches, 
         ...brandMatches, 
@@ -294,7 +302,11 @@ const SearchPage = () => {
 
   const handleSuggestionSelect = (suggestion: any) => {
     setSearchQuery(suggestion.text);
-    parseSmartQuery(suggestion.text);
+    if (suggestion.type === 'ai') {
+      handleAISearch(suggestion.text);
+    } else {
+      parseSmartQuery(suggestion.text);
+    }
     addToRecentSearches(suggestion.text);
     setShowSuggestions(false);
   };

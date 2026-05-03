@@ -40,10 +40,8 @@ export const aiSearchService = {
         1. If a field is not mentioned, do not include it.
         2. 'red Maruti Swift' -> brand: 'Maruti Suzuki', model: 'Swift', normalizedQuery: 'red Maruti Swift'
         3. 'low mileage' -> maxKm: 30000
-        4. 'fuel efficient' -> model/description implies it? No, just keep as normalizedQuery.
-        5. 'automatic' -> transmission: 'automatic'
-        6. 'under 5 lakhs' -> maxPrice: 500000
-        7. 'first owner' -> ownership: '1st'
+        4. 'automatic cars under 5 lakhs in Delhi' -> transmission: 'automatic', maxPrice: 500000, city: 'Delhi', vehicleType: 'car'
+        5. 'first owner' -> ownership: '1st'
         
         The normalizedQuery should be a cleaned version of the input query that can be used for secondary text matching.
 

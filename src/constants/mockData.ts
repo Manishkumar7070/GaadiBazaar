@@ -18,7 +18,7 @@ export const MOCK_DEALERS: Shop[] = [
     verificationStatus: 'verified',
     isPremium: true,
     rating: 4.8,
-    reviewCount: 124,
+    reviewsCount: 124,
     reviews: [
       {
         id: 'r1',
@@ -62,7 +62,7 @@ export const MOCK_DEALERS: Shop[] = [
     phone: '+91 87654 32109',
     verificationStatus: 'verified',
     rating: 4.5,
-    reviewCount: 89,
+    reviewsCount: 89,
     reviews: [
       {
         id: 'r4',

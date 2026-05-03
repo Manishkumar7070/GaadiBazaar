@@ -25,6 +25,8 @@ export const shopService = {
         ownerId: s.owner_id,
         verificationStatus: s.verification_status,
         mapEmbedUrl: s.map_embed_url,
+        rating: s.rating,
+        reviewsCount: s.reviews_count,
         createdAt: s.created_at,
         updatedAt: s.updated_at
       })) as any;
@@ -57,6 +59,8 @@ export const shopService = {
         ownerId: data.owner_id,
         verificationStatus: data.verification_status,
         mapEmbedUrl: data.map_embed_url,
+        rating: data.rating,
+        reviewsCount: data.reviews_count,
         createdAt: data.created_at,
         updatedAt: data.updated_at
       } as any;
@@ -86,6 +90,8 @@ export const shopService = {
         ownerId: data.owner_id,
         verificationStatus: data.verification_status,
         mapEmbedUrl: data.map_embed_url,
+        rating: data.rating,
+        reviewsCount: data.reviews_count,
         createdAt: data.created_at,
         updatedAt: data.updated_at
       } as any;

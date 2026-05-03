@@ -33,7 +33,7 @@ export default function App() {
             <ComparisonProvider>
               <SecurityGate>
               <Router>
-              <div className="min-h-screen flex flex-col pb-20 md:pb-0">
+              <div className="min-h-screen flex flex-col pb-20 lg:pb-0">
                 <Header />
                 <main className="flex-1 container mx-auto px-4 py-6">
                   <Routes>

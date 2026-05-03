@@ -1,16 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { authService } from '@/services/auth.service';
+import { auth, signInWithGoogle, signOut as firebaseSignOut, onAuthStateChanged, db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { AlertCircle } from 'lucide-react';
 import { User, MembershipTier } from '@/types';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  sendOtp: (identifier: { email?: string; phone?: string }) => Promise<void>;
-  verifyOtp: (identifier: { email?: string; phone?: string }, code: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  completeProfile: (data: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => Promise<void>;
+  completeProfile: (data: { 
+    role: 'buyer' | 'seller'; 
+    fullName?: string; 
+    phone?: string;
+    latitude?: number;
+    longitude?: number;
+    cityName?: string;
+    address?: string;
+  }) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,111 +26,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  if (!isSupabaseConfigured) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
-          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertCircle size={32} />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-4">Configuration Needed</h1>
-          <p className="text-slate-600 mb-8 leading-relaxed">
-            Supabase environment variables are missing. If you've deployed this to Vercel, 
-            make sure to add <code className="bg-slate-100 px-1 rounded text-sm font-mono tracking-tight text-pink-600">VITE_SUPABASE_URL</code> and 
-            <code className="bg-slate-100 px-1 rounded text-sm font-mono tracking-tight text-pink-600">VITE_SUPABASE_ANON_KEY</code> in your project settings.
-          </p>
-          <a 
-            href="https://supabase.com/dashboard" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="block w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-colors"
-          >
-            Go to Supabase Dashboard
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
-    // Check active sessions and sets the user
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await refreshProfile(session.user);
-      }
-      setLoading(false);
-    };
-
-    checkUser();
-
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        await refreshProfile(session.user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        await refreshProfile(firebaseUser);
       } else {
         setUser(null);
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => unsubscribe();
   }, []);
 
-  const refreshProfile = async (supabaseUser: any) => {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', supabaseUser.id)
-      .single();
+  const refreshProfile = async (firebaseUser: any) => {
+    try {
+      const profileRef = doc(db, 'profiles', firebaseUser.uid);
+      const profileSnap = await getDoc(profileRef);
+      
+      const profile = profileSnap.data();
 
-    if (error) {
-      console.warn('Profile fetch error (might be new user):', error.message);
+      let role = profile?.role;
+      // Admin override (matching previous logic)
+      if (firebaseUser.email === '9162808640abcd@gmail.com') {
+        role = 'admin';
+      }
+
+      setUser({
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        fullName: profile?.fullName || firebaseUser.displayName || '',
+        phone: profile?.phone || firebaseUser.phoneNumber || '',
+        role: role || 'buyer',
+        isProfileComplete: profile?.isProfileComplete || false,
+        walletBalance: profile?.walletBalance || 0,
+        membershipTier: (profile?.membershipTier as MembershipTier) || 'none',
+        membershipExpiresAt: profile?.membershipExpiresAt,
+        latitude: profile?.latitude,
+        longitude: profile?.longitude,
+        cityName: profile?.cityName,
+        address: profile?.address,
+        createdAt: profile?.createdAt?.toDate ? profile.createdAt.toDate().toISOString() : (profile?.createdAt || new Date().toISOString()),
+      });
+    } catch (err) {
+      console.error('Error refreshing profile:', err);
     }
-
-    let role = profile?.role;
-    // Admin override
-    if (supabaseUser.email === '9162808640abcd@gmail.com') {
-      role = 'admin';
-    }
-
-    setUser({
-      id: supabaseUser.id,
-      email: supabaseUser.email || '',
-      fullName: profile?.full_name || '',
-      phone: profile?.phone || '',
-      role: role || 'buyer',
-      isProfileComplete: profile?.is_profile_complete || false,
-      walletBalance: profile?.wallet_balance || 0,
-      membershipTier: (profile?.membership_tier as MembershipTier) || 'none',
-      membershipExpiresAt: profile?.membership_expires_at,
-      createdAt: profile?.created_at || new Date().toISOString(),
-    });
   };
 
-  const completeProfile = async (profileData: { role: 'buyer' | 'seller'; fullName?: string; phone?: string }) => {
-    const session = (await supabase.auth.getSession()).data.session;
-    if (!session?.user) return;
+  const loginWithGoogle = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error('Google Sign-In Error:', error);
+      throw error;
+    }
+  };
+
+  const completeProfile = async (profileData: { 
+    role: 'buyer' | 'seller'; 
+    fullName?: string; 
+    phone?: string;
+    latitude?: number;
+    longitude?: number;
+    cityName?: string;
+    address?: string;
+  }) => {
+    if (!auth.currentUser) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: session.user.id,
-          role: profileData.role,
-          full_name: profileData.fullName,
-          phone: profileData.phone,
-          is_profile_complete: true,
-          updated_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
+      const profileRef = doc(db, 'profiles', auth.currentUser.uid);
+      await setDoc(profileRef, {
+        fullName: profileData.fullName,
+        role: profileData.role,
+        phone: profileData.phone,
+        latitude: profileData.latitude,
+        longitude: profileData.longitude,
+        cityName: profileData.cityName,
+        address: profileData.address,
+        isProfileComplete: true,
+        updatedAt: serverTimestamp(),
+        // Only set these if it's a new profile
+        createdAt: serverTimestamp(),
+        walletBalance: 0,
+        membershipTier: 'none'
+      }, { merge: true });
 
       setUser(prev => prev ? {
         ...prev,
         role: profileData.role,
         fullName: profileData.fullName || prev.fullName,
         phone: profileData.phone || prev.phone,
+        latitude: profileData.latitude || prev.latitude,
+        longitude: profileData.longitude || prev.longitude,
+        cityName: profileData.cityName || prev.cityName,
+        address: profileData.address || prev.address,
         isProfileComplete: true,
       } : null);
     } catch (error) {
@@ -132,22 +128,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const sendOtp = async (identifier: { email?: string; phone?: string }) => {
-    await authService.sendOtp(identifier);
-  };
-
-  const verifyOtp = async (identifier: { email?: string; phone?: string }, code: string) => {
-    await authService.verifyOtp(identifier, code);
-  };
-
   const logout = async () => {
-    await authService.signOut();
+    await firebaseSignOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, sendOtp, verifyOtp, logout, completeProfile }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, completeProfile }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
 

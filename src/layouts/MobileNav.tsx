@@ -60,7 +60,7 @@ const MobileNav = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-200 px-2 py-2 flex justify-around items-end md:hidden z-50 h-20 shadow-[0_-15px_40px_rgba(0,0,0,0.12)]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-slate-200 px-2 py-2 flex justify-around items-end lg:hidden z-50 h-20 shadow-[0_-15px_40px_rgba(0,0,0,0.12)]">
       {navItems.map((item, index) => {
         const Icon = item.icon;
         const isActive = location.pathname === item.path;

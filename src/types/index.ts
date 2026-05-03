@@ -19,6 +19,10 @@ export interface User {
   walletBalance?: number;
   membershipTier?: MembershipTier;
   membershipExpiresAt?: string;
+  latitude?: number;
+  longitude?: number;
+  cityName?: string;
+  address?: string;
   createdAt: string;
 }
 
@@ -48,7 +52,7 @@ export interface Shop {
   verificationStatus: VerificationStatus;
   isPremium?: boolean;
   rating?: number;
-  reviewCount?: number;
+  reviewsCount?: number;
   reviews?: Review[];
   createdAt: string;
   updatedAt?: string;
@@ -86,6 +90,8 @@ export interface Vehicle {
   clicksCount: number;
   leadsCount: number;
   priorityScore: number;
+  rating?: number;
+  reviewsCount?: number;
   createdAt: string;
   listingExpiresAt?: string;
   registrationNumber?: string;
