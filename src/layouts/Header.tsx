@@ -179,21 +179,13 @@ const Header = () => {
             onSelect={(city) => {
               navigate(`/search?city=${encodeURIComponent(city)}`);
             }}
-            className="lg:hidden px-1"
+            className="hidden sm:flex px-2 h-9"
           />
           
           <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
             <Bell size={20} />
           </Button>
           
-          {user?.role === 'admin' && (
-            <Link to="/admin">
-              <Button variant="ghost" className="hidden lg:flex gap-2 items-center text-primary font-bold">
-                <Settings size={18} /> Admin Panel
-              </Button>
-            </Link>
-          )}
-
           {user?.role === 'admin' && (
             <Link to="/admin">
               <Button variant="ghost" className="hidden lg:flex gap-2 items-center text-primary font-bold">

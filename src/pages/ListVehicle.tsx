@@ -309,7 +309,7 @@ const ListVehicle = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-20">
+    <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6 pb-20">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
           <ChevronLeft size={24} />

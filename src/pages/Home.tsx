@@ -18,9 +18,6 @@ import { shopService } from '@/services/shop.service';
 import { Shop } from '@/types';
 import CitySelector from '@/components/shared/CitySelector';
 import { useLocation } from '@/context/LocationContext';
-import { generateStartupSpecPDF } from '@/services/pdfService';
-import { FileText } from 'lucide-react';
-
 import { Helmet } from 'react-helmet-async';
 
 const Home = () => {
@@ -247,22 +244,6 @@ const Home = () => {
                   Sell Your Car
                 </Button>
               </motion.div>
-
-                {/* PDF Export Link */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="flex justify-center"
-                >
-                  <button 
-                    onClick={generateStartupSpecPDF}
-                    className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-primary transition-all group"
-                  >
-                    <FileText size={14} className="group-hover:scale-110 transition-transform" />
-                    Download Feature Guide (PDF)
-                  </button>
-                </motion.div>
 
                 {/* Search Command Center */}
                 <motion.div

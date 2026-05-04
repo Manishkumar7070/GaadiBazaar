@@ -56,7 +56,7 @@ const Footer = () => {
       <div className="absolute top-0 left-1/4 -z-10 w-96 h-96 bg-primary/5 rounded-full blur-[120px]" />
       
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-8">
             <Link to="/" className="flex items-center gap-2 group">
@@ -158,8 +158,8 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-10 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-8 text-xs font-bold text-slate-600">
+        <div className="pt-10 border-t border-slate-900 flex flex-col lg:flex-row justify-between items-center gap-8">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-xs font-bold text-slate-600 text-center sm:text-left">
             <p>© {currentYear} AsoneDealer. All Rights Reserved.</p>
             <div className="flex items-center gap-1">
               <Mail size={12} className="text-primary" />
@@ -167,7 +167,7 @@ const Footer = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center">
             <p className="text-xs font-bold text-slate-500">Secure Payments via:</p>
             <div className="flex items-center gap-4 grayscale opacity-50">
               <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-4" referrerPolicy="no-referrer" />
