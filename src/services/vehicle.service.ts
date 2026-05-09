@@ -1,6 +1,8 @@
 import { Vehicle, VerificationStatus } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { MOCK_VEHICLES } from '@/constants/mockData';
+import { sanitizeObject } from '@/lib/sanitizer';
+import { logger } from '@/lib/logger';
 
 export const vehicleService = {
   async fetchVehicles(filters?: { shopId?: string; sellerId?: string; verificationStatus?: VerificationStatus; userCity?: string }): Promise<Vehicle[]> {
@@ -45,7 +47,7 @@ export const vehicleService = {
         return this.sortVehiclesByPriority(fallback, filters?.userCity);
       }
 
-      const vehicles = (data || []).map(v => ({
+      const vehicles: Vehicle[] = (data || []).map(v => ({
         ...v,
         shopId: v.shop_id,
         sellerId: v.seller_id,
@@ -67,7 +69,7 @@ export const vehicleService = {
         reviewsCount: v.reviews_count,
         createdAt: v.created_at,
         updatedAt: v.updated_at
-      })) as any;
+      })) as Vehicle[];
 
       return this.sortVehiclesByPriority(vehicles, filters?.userCity);
     } catch (error) {
@@ -109,40 +111,41 @@ export const vehicleService = {
 
   async createVehicle(vehicleData: Partial<Vehicle>): Promise<Vehicle> {
     try {
+      const sanitizedData = sanitizeObject(vehicleData);
       const payload: any = {
-        seller_id: vehicleData.sellerId,
-        shop_id: vehicleData.shopId || null,
-        title: vehicleData.title,
-        description: vehicleData.description,
-        price: vehicleData.price,
-        brand: vehicleData.brand,
-        model: vehicleData.model,
-        year: vehicleData.year,
-        vehicle_type: vehicleData.vehicleType,
-        fuel_type: vehicleData.fuelType,
-        transmission: vehicleData.transmission,
-        kilometers_driven: vehicleData.kilometersDriven,
-        ownership: vehicleData.ownership,
-        city: vehicleData.city,
-        state: vehicleData.state,
-        images: vehicleData.images,
-        engine_start_video: vehicleData.engineStartVideo || null,
-        engine_sound_video: vehicleData.engineSoundVideo || null,
-        walkaround_video: vehicleData.walkaroundVideo || null,
-        status: vehicleData.status || 'active',
-        verification_status: vehicleData.verificationStatus || 'pending',
-        payment_status: vehicleData.paymentStatus || 'none',
-        listing_type: vehicleData.listingType || 'free',
-        priority_score: vehicleData.priorityScore || 0,
-        registration_number: vehicleData.registrationNumber || null,
-        mileage: vehicleData.mileage || null,
-        color: vehicleData.color || null,
-        assembly_type: vehicleData.assemblyType || 'Local',
-        vin: vehicleData.vin || null,
-        image_metadata: vehicleData.imageMetadata || {}
+        seller_id: sanitizedData.sellerId,
+        shop_id: sanitizedData.shopId || null,
+        title: sanitizedData.title,
+        description: sanitizedData.description,
+        price: sanitizedData.price,
+        brand: sanitizedData.brand,
+        model: sanitizedData.model,
+        year: sanitizedData.year,
+        vehicle_type: sanitizedData.vehicleType,
+        fuel_type: sanitizedData.fuelType,
+        transmission: sanitizedData.transmission,
+        kilometers_driven: sanitizedData.kilometersDriven,
+        ownership: sanitizedData.ownership,
+        city: sanitizedData.city,
+        state: sanitizedData.state,
+        images: sanitizedData.images,
+        engine_start_video: sanitizedData.engineStartVideo || null,
+        engine_sound_video: sanitizedData.engineSoundVideo || null,
+        walkaround_video: sanitizedData.walkaroundVideo || null,
+        status: sanitizedData.status || 'active',
+        verification_status: sanitizedData.verificationStatus || 'pending',
+        payment_status: sanitizedData.paymentStatus || 'none',
+        listing_type: sanitizedData.listingType || 'free',
+        priority_score: sanitizedData.priorityScore || 0,
+        registration_number: sanitizedData.registrationNumber || null,
+        mileage: sanitizedData.mileage || null,
+        color: sanitizedData.color || null,
+        assembly_type: sanitizedData.assemblyType || 'Local',
+        vin: sanitizedData.vin || null,
+        image_metadata: sanitizedData.imageMetadata || {}
       };
 
-      console.log('Inserting vehicle payload:', payload);
+      logger.info('Inserting vehicle payload', { data: payload });
 
       let { data, error } = await supabase
         .from('vehicles')
@@ -153,6 +156,7 @@ export const vehicleService = {
         // Handle missing columns gracefully (Schema out of sync or PostgREST cache issues)
         if (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('column')) {
           console.warn('Schema mismatch detected. Retrying with essential fields only.');
+          // Truly essential fields that definitely existed from day 1
           const essentialPayload = {
             seller_id: payload.seller_id,
             shop_id: payload.shop_id,
@@ -169,10 +173,7 @@ export const vehicleService = {
             city: payload.city,
             state: payload.state,
             images: payload.images,
-            status: payload.status,
-            verification_status: payload.verification_status,
-            payment_status: payload.payment_status,
-            listing_type: payload.listing_type
+            status: payload.status
           };
           
           const retry = await supabase
@@ -190,7 +191,7 @@ export const vehicleService = {
         }
       }
       if (!data || data.length === 0) throw new Error('Failed to create vehicle record');
-      return data[0] as any;
+      return data[0] as unknown as Vehicle;
     } catch (error) {
       console.error('Error creating vehicle:', error);
       throw error;

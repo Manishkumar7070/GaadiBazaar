@@ -202,6 +202,62 @@ BEGIN
         ALTER TABLE public.vehicles ADD COLUMN image_metadata jsonb DEFAULT '{}'::jsonb;
     END IF;
 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='payment_status') THEN
+        ALTER TABLE public.vehicles ADD COLUMN payment_status text DEFAULT 'none';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='listing_type') THEN
+        ALTER TABLE public.vehicles ADD COLUMN listing_type text DEFAULT 'free';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='priority_score') THEN
+        ALTER TABLE public.vehicles ADD COLUMN priority_score integer DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='registration_number') THEN
+        ALTER TABLE public.vehicles ADD COLUMN registration_number text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='mileage') THEN
+        ALTER TABLE public.vehicles ADD COLUMN mileage text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='color') THEN
+        ALTER TABLE public.vehicles ADD COLUMN color text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='engine_start_video') THEN
+        ALTER TABLE public.vehicles ADD COLUMN engine_start_video text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='engine_sound_video') THEN
+        ALTER TABLE public.vehicles ADD COLUMN engine_sound_video text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='walkaround_video') THEN
+        ALTER TABLE public.vehicles ADD COLUMN walkaround_video text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='verification_status') THEN
+        ALTER TABLE public.vehicles ADD COLUMN verification_status text DEFAULT 'pending';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='is_featured') THEN
+        ALTER TABLE public.vehicles ADD COLUMN is_featured boolean DEFAULT false;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='clicks_count') THEN
+        ALTER TABLE public.vehicles ADD COLUMN clicks_count integer DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='leads_count') THEN
+        ALTER TABLE public.vehicles ADD COLUMN leads_count integer DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='views_count') THEN
+        ALTER TABLE public.vehicles ADD COLUMN views_count integer DEFAULT 0;
+    END IF;
+
     -- Shops migrations
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shops' AND column_name='logo') THEN
         ALTER TABLE public.shops ADD COLUMN logo text;
@@ -223,3 +279,9 @@ BEGIN
         ALTER TABLE public.shops ADD COLUMN pincode text;
     END IF;
 END $$;
+
+-- Critical Indexes for Optimization
+CREATE INDEX IF NOT EXISTS idx_vehicles_status_city ON public.vehicles(status, city);
+CREATE INDEX IF NOT EXISTS idx_vehicles_seller_priority ON public.vehicles(seller_id, priority_score DESC);
+CREATE INDEX IF NOT EXISTS idx_shops_verification ON public.shops(verification_status, rating DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);

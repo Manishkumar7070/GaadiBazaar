@@ -50,6 +50,7 @@ import VehicleCard from '@/features/vehicles/VehicleCard';
 import PriceHistoryChart from '@/features/vehicles/PriceHistoryChart';
 import VehicleAIInsights from '@/features/vehicles/VehicleAIInsights';
 import PriceComparisonSection from '@/features/vehicles/PriceComparisonSection';
+import PricePrediction from '@/features/vehicles/PricePrediction';
 import { useComparison } from '@/hooks/useComparison';
 import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
@@ -458,6 +459,51 @@ const VehicleDetail = () => {
              </div>
           </section>
 
+          {/* Vehicle History Integration */}
+          <section className="bg-slate-50 rounded-[3rem] p-10 border border-slate-200/50 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 h-6 uppercase font-black text-[10px] tracking-widest">History</Badge>
+                  <h2 className="text-xl font-black uppercase tracking-widest">Ownership & Service</h2>
+                </div>
+                <p className="text-slate-500 text-sm font-medium">Verify insurance, accidental history, and service records.</p>
+              </div>
+              <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-200 font-bold uppercase text-[10px] tracking-widest hover:bg-slate-100 flex gap-2">
+                <FileText size={16} /> Request RC/RTO Details
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+                  <ShieldCheck size={20} />
+                </div>
+                <h4 className="font-bold text-sm uppercase">Insurance</h4>
+                <p className="text-[10px] font-black text-green-600 uppercase">Valid Status</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Exp: Dec 2024</p>
+              </div>
+              
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center text-orange-600">
+                  <Activity size={20} />
+                </div>
+                <h4 className="font-bold text-sm uppercase">Accidents</h4>
+                <p className="text-[10px] font-black text-green-600 uppercase">Clean Record</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">No major claims</p>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
+                  <Wrench size={20} />
+                </div>
+                <h4 className="font-bold text-sm uppercase">Service</h4>
+                <p className="text-[10px] font-black text-slate-900 uppercase">Authorized</p>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tight">Maintained at Honda</p>
+              </div>
+            </div>
+          </section>
+
           <VehicleAIInsights vehicle={vehicle} />
           <PriceComparisonSection vehicle={vehicle} allVehicles={allVehicles} />
 
@@ -539,6 +585,8 @@ const VehicleDetail = () => {
         {/* Right Column: Sticky Pricing & Seller Card (4 cols) */}
         <div className="lg:col-span-4 space-y-6">
           <div className="lg:sticky lg:top-8 space-y-6">
+            <PricePrediction vehicle={vehicle} />
+            
             <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden">
               <CardContent className="p-8 space-y-6">
                 <div className="space-y-1">

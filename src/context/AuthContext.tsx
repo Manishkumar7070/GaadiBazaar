@@ -75,14 +75,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeProfile = onSnapshot(profileRef, (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data();
-            let role = data.role;
-            if (firebaseUser.email === '9162808640abcd@gmail.com') {
-              role = 'admin';
-            }
+            // Removed hardcoded admin check in favor of database-driven role
             setUser({
               ...fallbackUser,
               ...data,
-              role: role || 'buyer',
+              role: data.role || 'buyer',
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (data.createdAt || fallbackUser.createdAt),
             });
             setError(null);

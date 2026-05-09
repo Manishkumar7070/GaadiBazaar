@@ -16,6 +16,11 @@ import { PRICING, BANK_DETAILS, QR_CODE_URL, PRICING_TIERS } from '@/constants/p
 import { paymentService } from '@/services/payment.service';
 import { motion } from 'motion/react';
 
+import { VehicleSchema, VehicleInput } from '@/lib/schemas';
+import { z } from 'zod';
+import { logger } from '@/lib/logger';
+import { sanitizeObject } from '@/lib/sanitizer';
+
 const ListVehicle = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -24,10 +29,6 @@ const ListVehicle = () => {
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [success, setSuccess] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'form' | 'payment'>('form');
-  const [createdVehicleId, setCreatedVehicleId] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'qr_code' | 'stripe'>('stripe');
-  const [transactionRef, setTransactionRef] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [shop, setShop] = useState<Shop | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -51,6 +52,7 @@ const ListVehicle = () => {
       registrationNumber: '',
       mileage: '',
       color: '',
+      vin: '',
       assemblyType: 'Local',
       listingType: 'free' as ListingType,
       images: [] as string[],
@@ -159,22 +161,36 @@ const ListVehicle = () => {
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.title.trim()) newErrors.title = 'Title is required';
-    if (!formData.price || Number(formData.price) <= 0) newErrors.price = 'Valid price is required';
-    if (!formData.brand.trim()) newErrors.brand = 'Brand is required';
-    if (!formData.model.trim()) newErrors.model = 'Model is required';
-    if (!formData.state) newErrors.state = 'State is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    
-    const requiredPhotos = ['front', 'back', 'left', 'right', 'interior', 'exterior'];
-    const missingPhotos = requiredPhotos.filter(cat => !formData.categorizedImages[cat]);
-    if (missingPhotos.length > 0) {
-      newErrors.images = `Missing photos: ${missingPhotos.join(', ')}`;
-    }
+    try {
+      const dataToValidate = {
+        ...formData,
+        price: Number(formData.price),
+        year: Number(formData.year),
+        kilometers_driven: Number(formData.kilometersDriven),
+        vehicle_type: formData.vehicleType,
+        fuel_type: formData.fuelType,
+        registration_number: formData.registrationNumber,
+        images: [
+          ...Object.values(formData.categorizedImages),
+          ...formData.images
+        ].filter(Boolean)
+      };
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+      VehicleSchema.parse(dataToValidate);
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.issues.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0].toString()] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
   };
 
   const handleImageAdd = () => {
@@ -218,9 +234,10 @@ const ListVehicle = () => {
 
       const uploadedUrls = await Promise.all(uploadPromises);
       setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
-    } catch (error: any) {
-      console.error('Error uploading images:', error);
-      alert(error.message || 'Failed to upload images. Check your connection or Supabase configuration.');
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Error uploading images', { data: err });
+      alert(err.message || 'Failed to upload images. Check your connection or Supabase configuration.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -319,8 +336,10 @@ const ListVehicle = () => {
         ...formData.images
       ].filter(Boolean);
 
+      const sanitizedFormData = sanitizeObject(formData);
+
       const created = await vehicleService.createVehicle({
-        ...formData,
+        ...sanitizedFormData,
         price: Number(formData.price),
         kilometersDriven: Number(formData.kilometersDriven),
         year: Number(formData.year),
@@ -347,9 +366,10 @@ const ListVehicle = () => {
       } else {
         navigate(`/payment?vehicleId=${created.id}&plan=${formData.listingType}`);
       }
-    } catch (error: any) {
-      console.error('Error listing vehicle:', error);
-      const message = error.message || 'Unknown error';
+    } catch (error) {
+      const err = error as Error;
+      logger.error('Error listing vehicle', { data: err });
+      const message = err.message || 'Unknown error';
       alert(`Failed to list vehicle: ${message}. Please check your connection and try again.`);
     } finally {
       setLoading(false);
@@ -357,52 +377,7 @@ const ListVehicle = () => {
   };
 
   const handlePaymentSubmit = async () => {
-    if (!createdVehicleId || !user) return;
-    
-    if (paymentMethod === 'stripe') {
-      await handleStripePayment();
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      await paymentService.createPayment({
-        userId: user.id,
-        vehicleId: createdVehicleId,
-        amount: PRICING[formData.listingType],
-        paymentMethod: paymentMethod,
-        transactionRef: transactionRef
-      });
-      
-      setSuccess(true);
-      setTimeout(() => navigate('/profile'), 3000);
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      alert('Failed to record payment. Please try again or contact support.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStripePayment = async () => {
-    if (!createdVehicleId || !user) return;
-    setLoading(true);
-    try {
-      const idToken = await (user as any).getIdToken();
-      const { url } = await paymentService.createStripeSession({
-        vehicleId: createdVehicleId,
-        amount: PRICING[formData.listingType],
-        listingType: formData.listingType,
-        successUrl: window.location.origin + window.location.pathname,
-        cancelUrl: window.location.href,
-        idToken
-      });
-      window.location.href = url;
-    } catch (error) {
-      console.error('Stripe error:', error);
-      alert('Failed to initialize Stripe payment. Please try another method.');
-      setLoading(false);
-    }
+    // Legacy removed in favor of /payment page
   };
 
   if (success) {
@@ -413,146 +388,6 @@ const ListVehicle = () => {
         </div>
         <h1 className="text-2xl font-bold">Vehicle Listed Successfully!</h1>
         <p className="text-slate-500">Your vehicle is now live on AsOneDealer. Redirecting to your profile...</p>
-      </div>
-    );
-  }
-
-  if (currentStep === 'payment' && createdVehicleId) {
-    const selectedPlan = PRICING_TIERS.VEHICLES.find(p => p.type === formData.listingType);
-    const amountToPay = PRICING[formData.listingType];
-
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl space-y-8 pb-20">
-        <Helmet>
-          <title>Complete Payment | AsOneDealer</title>
-        </Helmet>
-
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-sm font-bold border border-amber-100">
-            <Zap size={16} fill="currentColor" />
-            Complete Payment for {selectedPlan?.name}
-          </div>
-          <h1 className="text-3xl font-black text-slate-900">Make Payment of ₹{amountToPay}</h1>
-          <p className="text-slate-500">Your listing is saved as "Inactive". It will go live after payment verification.</p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <button
-            onClick={() => setPaymentMethod('stripe')}
-            className={cn(
-              "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
-              paymentMethod === 'stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:bg-slate-50"
-            )}
-          >
-            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", paymentMethod === 'stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-              <Crown size={24} />
-            </div>
-            <span className="font-bold text-sm">Cards / UPI</span>
-          </button>
-
-          <button
-            onClick={() => setPaymentMethod('qr_code')}
-            className={cn(
-              "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
-              paymentMethod === 'qr_code' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:bg-slate-50"
-            )}
-          >
-            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", paymentMethod === 'qr_code' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-              <Zap size={24} />
-            </div>
-            <span className="font-bold text-sm">Scan QR</span>
-          </button>
-
-          <button
-            onClick={() => setPaymentMethod('bank_transfer')}
-            className={cn(
-              "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
-              paymentMethod === 'bank_transfer' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:bg-slate-50"
-            )}
-          >
-            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", paymentMethod === 'bank_transfer' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
-              <Activity size={24} />
-            </div>
-            <span className="font-bold text-sm">Bank</span>
-          </button>
-        </div>
-
-        <Card className="rounded-3xl border-none shadow-xl overflow-hidden bg-white">
-          <CardContent className="p-8 space-y-8">
-            {paymentMethod === 'stripe' ? (
-              <div className="flex flex-col items-center space-y-6">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-                  <Check size={32} />
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="font-black text-slate-900 text-lg">Secure Card Payment</p>
-                  <p className="text-sm text-slate-500">Pay securely using Credit/Debit cards or Net Banking via Stripe.</p>
-                </div>
-              </div>
-            ) : paymentMethod === 'qr_code' ? (
-              <div className="flex flex-col items-center space-y-6">
-                <div className="p-4 bg-white border-4 border-slate-50 rounded-3xl shadow-inner">
-                  <img src={QR_CODE_URL} alt="Payment QR" className="w-48 h-48 rounded-xl" />
-                </div>
-                <div className="text-center space-y-1">
-                  <p className="font-black text-slate-900">Scan using any UPI App</p>
-                  <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">GPay, PhonePe, Paytm, etc.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Name</p>
-                    <p className="font-bold text-slate-900">{BANK_DETAILS.accountName}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Number</p>
-                      <p className="font-bold text-slate-900">{BANK_DETAILS.accountNumber}</p>
-                    </div>
-                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">IFSC Code</p>
-                      <p className="font-bold text-slate-900">{BANK_DETAILS.ifscCode}</p>
-                    </div>
-                  </div>
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bank & Branch</p>
-                    <p className="font-bold text-slate-900">{BANK_DETAILS.bankName}, {BANK_DETAILS.branch}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4 pt-4 border-t border-slate-100">
-              {paymentMethod !== 'stripe' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Transaction ID / Reference Number</label>
-                  <Input 
-                    placeholder="Enter the 12-digit transaction ID"
-                    value={transactionRef}
-                    onChange={(e) => setTransactionRef(e.target.value)}
-                    className="h-12 rounded-xl bg-slate-50 border-slate-100"
-                  />
-                  <p className="text-[10px] text-slate-400 italic">Enter the reference number after completing the transfer.</p>
-                </div>
-              )}
-
-              <Button 
-                onClick={handlePaymentSubmit}
-                disabled={loading || (paymentMethod !== 'stripe' && !transactionRef)}
-                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/91 text-white font-black text-lg shadow-xl shadow-primary/20"
-              >
-                {loading ? <Loader2 className="animate-spin" /> : 
-                  paymentMethod === 'stripe' ? 'Pay Securely with Stripe' : 'Confirm Payment & Submit'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <p className="text-center text-[11px] text-slate-400 px-8">
-          By clicking confirm, you agree that you have made the payment. Manual verification may take up to 24 hours. Your listing will be activated once payment is confirmed.
-        </p>
       </div>
     );
   }
@@ -778,6 +613,16 @@ const ListVehicle = () => {
                   <option value="CKD">CKD (Completely Knocked Down)</option>
                   <option value="CBU">CBU (Completely Built Unit)</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">VIN (Optional)</label>
+                <Input 
+                  name="vin" 
+                  placeholder="Vehicle Identification Number" 
+                  value={formData.vin}
+                  onChange={handleChange}
+                  className="rounded-xl uppercase shadow-inner"
+                />
               </div>
             </div>
           </CardContent>

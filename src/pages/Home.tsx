@@ -180,32 +180,32 @@ const Home = () => {
         <link rel="canonical" href="https://asonedealer.com/" />
       </Helmet>
       {/* Hero / Search Section */}
-      <section className="relative min-h-screen sm:min-h-screen flex flex-col items-center justify-center pt-28 pb-32 sm:pt-32 sm:pb-40 overflow-hidden bg-slate-900">
+      <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 pb-24 sm:pt-28 sm:pb-32 overflow-hidden bg-slate-900">
         {/* Carousel Background */}
         <div className="absolute inset-0 z-0">
           <HeroCarousel />
         </div>
 
-        <div className="container mx-auto px-4 relative z-10 text-center space-y-6 sm:space-y-12">
+        <div className="container mx-auto px-4 relative z-10 text-center space-y-4 sm:space-y-10">
           {/* Status Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-black/40 border border-white/20 backdrop-blur-md text-white text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md text-white text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl"
           >
-            <span className="flex h-2 w-2 relative">
+            <span className="flex h-1.5 w-1.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
             </span>
             Live in {selectedCity || 'India'} • 2,400+ Verified Cars
           </motion.div>
 
-          <div className="flex flex-col items-center gap-2 sm:gap-6 md:gap-8">
-            <div className="space-y-3 sm:space-y-4">
+          <div className="flex flex-col items-center gap-4 sm:gap-6 md:gap-8">
+            <div className="space-y-2 sm:space-y-4">
               <motion.h1 
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[7.5rem] font-[1000] leading-[1.1] sm:leading-[1] md:leading-[0.85] tracking-[-0.05em] text-white"
+                className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[7rem] font-[1000] leading-[1.1] sm:leading-[1] md:leading-[0.85] tracking-[-0.05em] text-white"
               >
                 Find your <br className="sm:hidden" />
                 Next <span className="text-primary underline decoration-white underline-offset-[8px] sm:underline-offset-[12px] decoration-2 sm:decoration-4">Legend.</span>
@@ -222,55 +222,55 @@ const Home = () => {
               </motion.p>
             </div>
 
-            <div className="w-full max-w-4xl space-y-4 sm:space-y-6 md:space-y-8 mt-0">
+            <div className="w-full max-w-4xl space-y-6 sm:space-y-10 mt-2">
               {/* Primary High-Converting CTAs */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="flex flex-col sm:flex-row items-stretch justify-center gap-4 sm:gap-8 px-4"
+                className="flex flex-row items-center justify-center gap-2 sm:gap-8 px-2"
               >
-                <div className="relative group flex-1 w-full">
+                <div className="relative group flex-1">
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary to-orange-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                   <Button 
                     onClick={() => navigate('/search')}
-                    className="relative w-full h-14 sm:h-20 md:h-24 px-6 sm:px-8 rounded-xl sm:rounded-3xl bg-slate-900 text-white hover:bg-slate-800 font-[950] uppercase text-sm sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0.5 sm:gap-1"
+                    className="relative w-full h-14 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl bg-slate-900 text-white hover:bg-slate-800 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
                   >
                     <span>Find Best Car</span>
-                    <span className="text-[8px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Browse Inventory</span>
+                    <span className="text-[7px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Browse Inventory</span>
                   </Button>
                 </div>
 
-                <div className="relative group flex-1 w-full">
+                <div className="relative group flex-1">
                   <Button 
                     onClick={() => navigate('/list-vehicle')}
                     variant="outline"
-                    className="w-full h-14 sm:h-20 md:h-24 px-6 sm:px-8 rounded-xl sm:rounded-3xl border-2 border-white/20 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 font-[950] uppercase text-sm sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0.5 sm:gap-1"
+                    className="w-full h-14 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl border-2 border-white/20 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
                   >
                     <span>Sell Your Car</span>
-                    <span className="text-[8px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Instant Valuations</span>
+                    <span className="text-[7px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Instant Valuations</span>
                   </Button>
                 </div>
               </motion.div>
 
               {/* Integrated Search Command Center */}
-              <div className="space-y-2 sm:space-y-3 w-full px-4 sm:px-0">
+              <div className="space-y-2 sm:space-y-4 w-full px-2 sm:px-0">
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
                   className="relative"
                 >
-                  <div className="bg-white p-1 sm:p-1.5 rounded-2xl sm:rounded-3xl md:rounded-full shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-white/10 group transition-all hover:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)]">
+                  <div className="bg-white p-1 rounded-2xl sm:rounded-full shadow-2xl border border-white/10">
                     <form 
                       onSubmit={handleSearch}
-                      className="flex flex-col md:flex-row items-stretch md:items-center gap-1 md:gap-0"
+                      className="flex flex-row items-center h-10 sm:h-12 md:h-14"
                     >
-                      <div className="flex-1 relative flex items-center min-h-[44px] md:min-h-[50px]">
-                        <Search className="absolute left-4 sm:left-6 md:left-7 text-slate-400 group-focus-within:text-primary transition-colors" size={16} />
+                      <div className="flex-1 relative flex items-center h-full">
+                        <Search className="absolute left-3 sm:left-6 text-slate-400 group-focus-within:text-primary transition-colors" size={16} />
                         <Input 
-                          placeholder="Search cars, brands, or lifestyle..." 
-                          className="bg-transparent border-none text-slate-900 placeholder:text-slate-400 h-full pl-10 sm:pl-14 md:pl-16 pr-6 focus-visible:ring-0 text-sm sm:text-base font-bold"
+                          placeholder="Search cars, brands..." 
+                          className="bg-transparent border-none text-slate-900 placeholder:text-slate-400 h-full pl-9 sm:pl-14 pr-4 focus-visible:ring-0 text-xs sm:text-base font-bold"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           onFocus={() => setShowSuggestions(true)}
@@ -284,15 +284,15 @@ const Home = () => {
                         />
                       </div>
                       
-                      <div className="h-6 w-px bg-slate-100 hidden md:block" />
+                      <div className="h-6 w-px bg-slate-100 hidden sm:block mx-2" />
                       
-                      <div className="flex flex-col sm:flex-row items-center gap-1 md:pl-2">
+                      <div className="flex items-center gap-2 pr-1">
                         <CitySelector 
-                          className="bg-slate-50 md:bg-transparent hover:bg-slate-100 text-slate-900 border-none h-10 md:h-12 px-5 sm:px-6 md:px-8 font-black text-xs sm:text-sm w-full sm:w-auto rounded-xl md:rounded-full"
+                          className="bg-transparent hover:bg-slate-50 text-slate-900 border-none h-full px-2 sm:px-4 font-black text-[10px] sm:text-xs hidden md:flex"
                         />
                         <Button 
                           type="submit"
-                          className="w-full sm:w-auto h-10 md:h-12 px-8 sm:px-10 md:px-12 rounded-xl md:rounded-full bg-primary hover:bg-orange-600 text-white font-black text-sm sm:text-base shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+                          className="h-8 sm:h-10 md:h-12 px-4 sm:px-8 rounded-lg sm:rounded-full bg-primary hover:bg-orange-600 text-white font-black text-xs sm:text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
                         >
                           Search
                         </Button>
@@ -306,7 +306,7 @@ const Home = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  className="flex flex-wrap justify-center gap-4 sm:gap-6 md:gap-10 px-4"
+                  className="flex flex-wrap justify-center gap-4 sm:gap-10 px-4"
                 >
                   {[
                     { label: "Family Cars", icon: Users },
@@ -320,9 +320,9 @@ const Home = () => {
                         setSearchQuery(tag.label);
                         handleSearch();
                       }}
-                      className="flex items-center gap-2 sm:gap-2.5 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-primary transition-all group"
+                      className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-primary transition-all group"
                     >
-                      <tag.icon size={12} className="text-white/20 group-hover:text-primary transition-colors" />
+                      <tag.icon size={10} className="text-white/20 group-hover:text-primary transition-colors" />
                       {tag.label}
                     </button>
                   ))}

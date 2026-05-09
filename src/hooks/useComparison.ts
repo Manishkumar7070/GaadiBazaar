@@ -1,10 +1,17 @@
-import { useContext } from 'react';
-import { ComparisonContext } from '@/context/ComparisonContext';
+import { useComparisonStore } from '@/store/useComparisonStore';
 
 export const useComparison = () => {
-  const context = useContext(ComparisonContext);
-  if (context === undefined) {
-    throw new Error('useComparison must be used within a ComparisonProvider');
-  }
-  return context;
+  const selectedVehicles = useComparisonStore((state) => state.selectedVehicles);
+  const addToComparison = useComparisonStore((state) => state.addToComparison);
+  const removeFromComparison = useComparisonStore((state) => state.removeFromComparison);
+  const clearComparison = useComparisonStore((state) => state.clearComparison);
+  const isVehicleSelected = useComparisonStore((state) => state.isVehicleSelected);
+
+  return {
+    selectedVehicles,
+    addToComparison,
+    removeFromComparison,
+    clearComparison,
+    isVehicleSelected,
+  };
 };
