@@ -1,12 +1,13 @@
 import express from 'express';
+import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
-import { getStripe, getSupabaseClient } from '../clients';
+import { getRazorpay, getSupabaseClient } from '../clients';
 import { serverLogger } from '../logger';
 
 const router = express.Router();
 
-router.post("/create-checkout-session", authenticate, async (req: AuthRequest, res: any) => {
-  const { vehicleId, amount, listingType, successUrl, cancelUrl } = req.body;
+router.post("/create-order", authenticate, async (req: AuthRequest, res: any) => {
+  const { vehicleId, amount, listingType } = req.body;
   
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -17,53 +18,53 @@ router.post("/create-checkout-session", authenticate, async (req: AuthRequest, r
   }
 
   try {
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "inr",
-            product_data: {
-              name: `${listingType.toUpperCase()} Listing for Vehicle`,
-              description: `Activation fee for vehicle listing ID: ${vehicleId}`,
-            },
-            unit_amount: amount * 100,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&vehicle_id=${vehicleId}`,
-      cancel_url: cancelUrl,
-      metadata: {
+    const razorpay = getRazorpay();
+    const options = {
+      amount: Math.round(amount * 100), // amount in the smallest currency unit
+      currency: "INR",
+      receipt: `receipt_vehicle_${vehicleId}_${Date.now()}`,
+      notes: {
         userId: req.user.uid,
         vehicleId: vehicleId,
         listingType: listingType,
-      },
-    });
+      }
+    };
 
-    res.json({ id: session.id, url: session.url });
+    const order = await razorpay.orders.create(options);
+    res.json(order);
   } catch (error: any) {
-    serverLogger.error("[STRIPE] Error creating checkout session", { error: error.message });
-    res.status(500).json({ error: "Failed to create payment session" });
+    serverLogger.error("[RAZORPAY] Error creating order", { error: error.message });
+    res.status(500).json({ error: "Failed to create payment order" });
   }
 });
 
-router.get("/verify-session", authenticate, async (req: AuthRequest, res: any) => {
-  const { sessionId, vehicleId } = req.query;
+router.post("/verify-payment", authenticate, async (req: AuthRequest, res: any) => {
+  const { 
+    razorpay_order_id, 
+    razorpay_payment_id, 
+    razorpay_signature,
+    vehicleId,
+    amount
+  } = req.body;
   
-  if (!req.user || !sessionId || !vehicleId) {
-    return res.status(400).json({ error: "Missing session ID or vehicle ID" });
+  if (!req.user || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !vehicleId) {
+    return res.status(400).json({ error: "Missing required fields for verification" });
   }
 
   try {
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.retrieve(sessionId as string);
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) throw new Error("RAZORPAY_KEY_SECRET missing");
 
-    if (session.payment_status === "paid") {
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature === razorpay_signature) {
       const supabase = getSupabaseClient();
       
+      // Update vehicle status
       await supabase
         .from("vehicles")
         .update({ 
@@ -72,23 +73,28 @@ router.get("/verify-session", authenticate, async (req: AuthRequest, res: any) =
         })
         .eq("id", vehicleId);
 
+      // Record payment
       await supabase
         .from("payments")
         .insert([{
           user_id: req.user.uid,
           vehicle_id: vehicleId,
-          amount: session.amount_total ? session.amount_total / 100 : 0,
-          payment_method: "stripe",
-          transaction_ref: session.id,
+          amount: amount,
+          payment_method: "razorpay",
+          transaction_ref: razorpay_payment_id,
           status: "completed"
         }]);
 
       res.json({ success: true, message: "Payment verified successfully" });
     } else {
-      res.json({ success: false, message: "Payment not completed" });
+      serverLogger.warn("[RAZORPAY] Invalid signature detected", { 
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id
+      });
+      res.status(400).json({ success: false, message: "Invalid payment signature" });
     }
   } catch (error: any) {
-    serverLogger.error("[STRIPE] Error verifying session", { error: error.message });
+    serverLogger.error("[RAZORPAY] Error verifying payment", { error: error.message });
     res.status(500).json({ error: "Failed to verify payment" });
   }
 });

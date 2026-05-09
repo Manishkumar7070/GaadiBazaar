@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, signInWithGoogle, handleRedirectResult, signOut as firebaseSignOut, onAuthStateChanged, db, handleFirestoreError, OperationType } from '@/lib/firebase';
+import { auth, signInWithGoogle, handleRedirectResult, signOut as firebaseSignOut, onAuthStateChanged, db, handleFirestoreError, OperationType, isPopupClosedError } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { logger } from '@/lib/logger';
 import { AlertCircle, WifiOff } from 'lucide-react';
@@ -117,8 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithGoogle();
       logger.info('Google Sign-In initiated');
     } catch (error: any) {
-      if (error.code === 'auth/popup-closed-by-user') {
-        logger.info('User cancelled Google Sign-In (popup closed)');
+      if (isPopupClosedError(error)) {
+        logger.info('User cancelled Google Sign-In');
       } else {
         logger.error('Google Sign-In Error', { data: error });
       }

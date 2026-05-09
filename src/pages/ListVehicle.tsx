@@ -83,34 +83,6 @@ const ListVehicle = () => {
     return defaultData;
   });
 
-  // Handle Stripe Success Callback
-  React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session_id');
-    const vehicleId = urlParams.get('vehicle_id');
-    
-    if (sessionId && vehicleId && user) {
-      const verify = async () => {
-        setLoading(true);
-        try {
-          const idToken = await (user as any).getIdToken();
-          const success = await paymentService.verifyStripeSession(sessionId, vehicleId, idToken);
-          if (success) {
-            setSuccess(true);
-            setTimeout(() => navigate('/profile'), 3000);
-          } else {
-            alert('Payment verification failed.');
-          }
-        } catch (error) {
-          console.error('Verification error:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      verify();
-    }
-  }, [user, navigate]);
-
   // Save draft to localStorage whenever formData changes
   React.useEffect(() => {
     localStorage.setItem('vehicle_form_draft', JSON.stringify(formData));

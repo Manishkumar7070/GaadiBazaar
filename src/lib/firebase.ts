@@ -42,17 +42,21 @@ export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+export const isPopupClosedError = (error: any) => 
+  error.code === 'auth/popup-closed-by-user' || 
+  error.message?.includes('popup-closed-by-user') ||
+  error.code === 'auth/cancelled-popup-request';
+
 export const signInWithGoogle = async () => {
   try {
     return await signInWithPopup(auth, googleProvider);
   } catch (error: any) {
-    if (error.code === 'auth/popup-closed-by-user') {
-      console.log('[FIREBASE AUTH] Popup closed by user');
+    if (isPopupClosedError(error)) {
+      console.log('[FIREBASE AUTH] Popup selection cancelled');
     } else {
-      console.error('[FIREBASE AUTH] Popup Error:', {
+      console.error('[FIREBASE AUTH] Google auth failed:', {
         code: error.code,
-        message: error.message,
-        stack: error.stack
+        message: error.message
       });
     }
     throw error;

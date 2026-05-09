@@ -18,10 +18,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { vehicleService } from '@/services/vehicle.service';
+import { paymentService } from '@/services/payment.service';
 import { PRICING, PRICING_TIERS } from '@/constants/pricing';
 import { ListingType } from '@/types';
 import { cn } from '@/lib/utils';
 import { Helmet } from 'react-helmet-async';
+import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/lib/logger';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 const PLAN_ICONS = {
   free: <CheckCircle2 className="text-green-500" />,
@@ -31,6 +40,7 @@ const PLAN_ICONS = {
 };
 
 const Payment: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const vehicleId = searchParams.get('vehicleId');
@@ -47,24 +57,89 @@ const Payment: React.FC = () => {
     if (!vehicleId) {
       navigate('/list-vehicle');
     }
+
+    // Load Razorpay Script
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
   }, [vehicleId, navigate]);
 
   const handlePayment = async () => {
+    if (!user || !vehicleId || !planInfo) return;
+    
     setIsProcessing(true);
     
-    // Simulate payment API call
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
     try {
-      if (vehicleId) {
-        await vehicleService.updatePaymentStatus(vehicleId, 'completed');
-        setIsSuccess(true);
-        setStep(2);
-      }
-    } catch (error) {
-      console.error('Payment processing failed:', error);
-      alert('Payment failed. Please try again.');
-    } finally {
+      const idToken = await (user as any).getIdToken();
+      
+      // 1. Create Order on Backend
+      const order = await paymentService.createRazorpayOrder({
+        vehicleId,
+        amount: price,
+        listingType: plan,
+        idToken
+      });
+
+      // 2. Open Razorpay Checkout
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: "AsOneDealer",
+        description: `${plan.toUpperCase()} Listing for Vehicle`,
+        order_id: order.id,
+        handler: async (response: any) => {
+          try {
+            setIsProcessing(true);
+            logger.info('Razorpay payment successful, verifying...', { data: response });
+            
+            // 3. Verify Payment on Backend
+            const success = await paymentService.verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              vehicleId,
+              amount: price,
+              idToken
+            });
+
+            if (success) {
+              setIsSuccess(true);
+              setStep(2);
+            } else {
+              alert('Payment verification failed. Please contact support.');
+            }
+          } catch (err) {
+            logger.error('Error during payment verification', { data: err });
+            alert('An error occurred during verification.');
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user.fullName,
+          email: user.email,
+        },
+        theme: {
+          color: "#ea580c", // matches primary orange-600
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error: any) {
+      logger.error('Razorpay initialization failed', { data: error });
+      alert(error.message || 'Payment initialization failed. Please try again.');
       setIsProcessing(false);
     }
   };

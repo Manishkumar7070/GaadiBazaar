@@ -10,7 +10,7 @@ export type PaymentStatus = 'none' | 'pending' | 'paid' | 'failed';
 
 export type ListingType = 'free' | 'premium' | 'featured' | 'sponsored';
 export type MembershipTier = 'none' | 'dealer_basic' | 'dealer_premium';
-export type PaymentMethod = 'bank_transfer' | 'qr_code' | 'stripe';
+export type PaymentMethod = 'bank_transfer' | 'qr_code' | 'razorpay';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 
 export interface Payment {

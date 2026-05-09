@@ -9,6 +9,7 @@ import { logger } from './logger';
 const REQUIRED_ENV_VARS = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
+  'VITE_RAZORPAY_KEY_ID',
 ];
 
 export function validateEnv() {

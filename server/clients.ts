@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import admin from "firebase-admin";
 import { getFirestore as getFirestoreAdmin } from "firebase-admin/firestore";
-import Stripe from "stripe";
+import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -75,18 +75,20 @@ export const getFirestore = () => {
   return getFirestoreAdmin(adminApp);
 };
 
-// Stripe Client (Lazy initialization)
-let stripeClientInstance: Stripe | null = null;
-export const getStripe = () => {
-  if (!stripeClientInstance) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) {
-      serverLogger.error("STRIPE_SECRET_KEY is required for payments");
-      throw new Error("STRIPE_SECRET_KEY is required");
+// Razorpay Client (Lazy initialization)
+let razorpayClientInstance: Razorpay | null = null;
+export const getRazorpay = () => {
+  if (!razorpayClientInstance) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) {
+      serverLogger.error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required for payments");
+      throw new Error("Razorpay credentials missing");
     }
-    stripeClientInstance = new Stripe(key, {
-      apiVersion: "2023-10-16" as any, // Stable API version
+    razorpayClientInstance = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
     });
   }
-  return stripeClientInstance;
+  return razorpayClientInstance;
 };

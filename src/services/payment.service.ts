@@ -69,16 +69,14 @@ export const paymentService = {
     }
   },
 
-  async createStripeSession(data: {
+  async createRazorpayOrder(data: {
     vehicleId: string;
     amount: number;
     listingType: string;
-    successUrl: string;
-    cancelUrl: string;
     idToken: string;
-  }): Promise<{ id: string; url: string }> {
+  }): Promise<any> {
     try {
-      const response = await fetch('/api/payments/create-checkout-session', {
+      const response = await fetch('/api/payments/create-order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,37 +85,51 @@ export const paymentService = {
         body: JSON.stringify({
           vehicleId: data.vehicleId,
           amount: data.amount,
-          listingType: data.listingType,
-          successUrl: data.successUrl,
-          cancelUrl: data.cancelUrl
+          listingType: data.listingType
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create payment session');
+        throw new Error(errorData.error || 'Failed to create Razorpay order');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Error creating Stripe session:', error);
+      console.error('Error creating Razorpay order:', error);
       throw error;
     }
   },
 
-  async verifyStripeSession(sessionId: string, vehicleId: string, idToken: string): Promise<boolean> {
+  async verifyRazorpayPayment(data: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    vehicleId: string;
+    amount: number;
+    idToken: string;
+  }): Promise<boolean> {
     try {
-      const response = await fetch(`/api/payments/verify-session?sessionId=${sessionId}&vehicleId=${vehicleId}`, {
+      const response = await fetch('/api/payments/verify-payment', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${idToken}`
-        }
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.idToken}`
+        },
+        body: JSON.stringify({
+          razorpay_order_id: data.razorpay_order_id,
+          razorpay_payment_id: data.razorpay_payment_id,
+          razorpay_signature: data.razorpay_signature,
+          vehicleId: data.vehicleId,
+          amount: data.amount
+        })
       });
 
       if (!response.ok) return false;
-      const data = await response.json();
-      return data.success;
+      const result = await response.json();
+      return result.success;
     } catch (error) {
-      console.error('Error verifying Stripe session:', error);
+      console.error('Error verifying Razorpay payment:', error);
       return false;
     }
   },
