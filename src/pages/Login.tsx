@@ -22,19 +22,20 @@ import Logo from '@/components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
 import { locationService, LocationError, LocationErrorType } from '@/services/location.service';
 import { useLocation } from '@/context/LocationContext';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
+import { auth, RecaptchaVerifier, signInWithPhoneNumber, googleProvider, handleRedirectResult } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
-import { ConfirmationResult } from 'firebase/auth';
+import { ConfirmationResult, signInWithPopup } from 'firebase/auth';
 import { POPULAR_CITIES } from '@/constants/cities';
 
 const LoginPage = () => {
-  const { user, completeProfile, loginWithGoogle, logout } = useAuth();
+  const { user, completeProfile, logout } = useAuth();
   const { setSelectedCity } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
   const [step, setStep] = useState<'login' | 'location' | 'role' | 'profile' | 'phone' | 'otp'>('login');
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   
   // Phone Auth state
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -62,6 +63,32 @@ const LoginPage = () => {
   const redirect = searchParams.get('redirect') || '/';
   const reason = searchParams.get('reason');
 
+  // Handle Redirect Result
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        const result = await handleRedirectResult();
+        if (result?.user) {
+          logger.info('Google Redirect Login captured profle', { 
+            data: {
+              email: result.user.email,
+              name: result.user.displayName 
+            }
+          });
+          // Auth state listener in context will update user state
+        }
+      } catch (err: any) {
+        if (err.code !== 'auth/no-recent-redirect-handled') {
+          logger.error('Redirect Logic Error', { data: err });
+          setError(err.message || 'Failed to complete redirect sign-in');
+        }
+      } finally {
+        setInitializing(false);
+      }
+    };
+    checkRedirect();
+  }, []);
+
   useEffect(() => {
     if (user && user.isProfileComplete) {
       navigate(redirect);
@@ -76,8 +103,14 @@ const LoginPage = () => {
     setError(null);
     setLoading(true);
     try {
-      await loginWithGoogle();
-      logger.info('Google login initiated from component');
+      const result = await signInWithPopup(auth, googleProvider);
+      logger.info('Google Popup Login captured profile', { 
+        data: {
+          email: result.user.email,
+          name: result.user.displayName 
+        }
+      });
+      // Context will pick up the user state change
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user') {
         logger.info('Google login popup closed by user');
@@ -285,7 +318,18 @@ const LoginPage = () => {
         <Card className="rounded-[3.5rem] border-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] overflow-hidden bg-slate-900/40 backdrop-blur-3xl border border-white/5">
           <CardContent className="p-10">
             <AnimatePresence mode="wait">
-              {step === 'login' && (
+              {initializing ? (
+                <motion.div
+                  key="initializing"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center py-12 space-y-4"
+                >
+                  <Loader2 className="animate-spin text-primary" size={40} />
+                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Validating Identity...</p>
+                </motion.div>
+              ) : step === 'login' && (
                 <motion.div
                   key="login"
                   initial={{ opacity: 0, y: 20 }}
@@ -511,7 +555,9 @@ const LoginPage = () => {
                    </div>
 
                    <div className="space-y-2">
-                      <h2 className="text-2xl font-black text-white px-2">Local Experience</h2>
+                      <h2 className="text-2xl font-black text-white px-2">
+                        {user?.fullName && user.fullName !== 'User' ? `Welcome, ${user.fullName.split(' ')[0]}` : 'Local Experience'}
+                      </h2>
                       <p className="text-slate-400 font-bold text-sm px-6 leading-relaxed">
                         Find deals from certified dealerships in your area.
                       </p>
