@@ -132,33 +132,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!auth.currentUser) return;
 
     const path = `profiles/${auth.currentUser.uid}`;
+    const profileRef = doc(db, 'profiles', auth.currentUser.uid);
+    const validProfileData: any = {
+      fullName: profileData.fullName,
+      role: profileData.role,
+      phone: profileData.phone,
+      cityName: profileData.cityName,
+      address: profileData.address,
+      isProfileComplete: true,
+      updatedAt: serverTimestamp(),
+      walletBalance: 0,
+      membershipTier: 'none'
+    };
+
+    // Only include location data if it exists and is valid
+    if (profileData.latitude !== undefined && profileData.longitude !== undefined) {
+      validProfileData.latitude = profileData.latitude;
+      validProfileData.longitude = profileData.longitude;
+    }
+
     try {
-      const profileRef = doc(db, 'profiles', auth.currentUser.uid);
       await setDoc(profileRef, {
-        fullName: profileData.fullName,
-        role: profileData.role,
-        phone: profileData.phone,
-        latitude: profileData.latitude,
-        longitude: profileData.longitude,
-        cityName: profileData.cityName,
-        address: profileData.address,
-        isProfileComplete: true,
-        updatedAt: serverTimestamp(),
-        // Only set these if it's a new profile
+        ...validProfileData,
         createdAt: serverTimestamp(),
-        walletBalance: 0,
-        membershipTier: 'none'
       }, { merge: true });
 
       setUser(prev => prev ? {
         ...prev,
-        role: profileData.role,
-        fullName: profileData.fullName || prev.fullName,
-        phone: profileData.phone || prev.phone,
-        latitude: profileData.latitude || prev.latitude,
-        longitude: profileData.longitude || prev.longitude,
-        cityName: profileData.cityName || prev.cityName,
-        address: profileData.address || prev.address,
+        ...validProfileData,
         isProfileComplete: true,
       } : null);
       setError(null);

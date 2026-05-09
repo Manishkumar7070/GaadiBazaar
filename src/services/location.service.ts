@@ -22,7 +22,24 @@ export const locationService = {
           });
         },
         (error) => {
-          reject(error);
+          let message = 'An unknown error occurred while getting your location.';
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              message = 'User denied the request for Geolocation. Please allow location access in your browser settings.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              message = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              message = 'The request to get user location timed out.';
+              break;
+          }
+          reject(new Error(message));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000
         }
       );
     });

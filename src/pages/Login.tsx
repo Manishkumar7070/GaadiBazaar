@@ -164,7 +164,12 @@ const LoginPage = () => {
       setTimeout(() => setStep('role'), 1000);
     } catch (error) {
       console.error('Location detection failed:', error);
-      setStep('role');
+      setLocationData({
+        cityName: '', // Empty string instead of undefined
+        address: 'Location access denied or unavailable'
+      });
+      // Still proceed to role selection after a short delay to keep user flow
+      setTimeout(() => setStep('role'), 1500);
     } finally {
       setLocationLoading(false);
     }
