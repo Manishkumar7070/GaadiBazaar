@@ -1,6 +1,7 @@
 import { Shop } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { MOCK_DEALERS } from '@/constants/mockData';
+import { logger } from '@/lib/logger';
 
 export const shopService = {
   async fetchShops(): Promise<Shop[]> {
@@ -12,7 +13,7 @@ export const shopService = {
 
       if (error) {
         if (error.code === 'PGRST205') {
-          console.warn('Table "shops" not found in Supabase. Falling back to mock data.');
+          logger.warn('Table "shops" not found in Supabase. Falling back to mock data.');
           return MOCK_DEALERS;
         }
         throw error;
@@ -33,9 +34,9 @@ export const shopService = {
         reviewsCount: s.reviews_count,
         createdAt: s.created_at,
         updatedAt: s.updated_at
-      })) as any;
+      })) as Shop[];
     } catch (error) {
-      console.error('Error fetching shops:', error);
+      logger.error('Error fetching shops', { data: error });
       return MOCK_DEALERS;
     }
   },
@@ -71,9 +72,9 @@ export const shopService = {
         reviewsCount: data.reviews_count,
         createdAt: data.created_at,
         updatedAt: data.updated_at
-      } as any;
+      } as Shop;
     } catch (error) {
-      console.error('Error fetching user shop:', error);
+      logger.error('Error fetching user shop', { data: error });
       return MOCK_DEALERS.find(s => s.ownerId === userId) || null;
     }
   },
@@ -106,16 +107,16 @@ export const shopService = {
         reviewsCount: data.reviews_count,
         createdAt: data.created_at,
         updatedAt: data.updated_at
-      } as any;
+      } as Shop;
     } catch (error) {
-      console.error('Error fetching shop by ID:', error);
+      logger.error('Error fetching shop by ID', { data: error });
       return MOCK_DEALERS.find(s => s.id === shopId) || null;
     }
   },
 
   async createShop(shopData: Partial<Shop>): Promise<Shop> {
     try {
-      const payload: any = {
+      const payload: Record<string, any> = {
         owner_id: shopData.ownerId,
         name: shopData.name,
         description: shopData.description,
@@ -140,7 +141,7 @@ export const shopService = {
       if (error) {
         // Fallback if columns don't exist yet
         if (error.code === '42703' || error.code === 'PGRST204') {
-          console.warn('Shop schema mismatch, retrying with essential fields');
+          logger.warn('Shop schema mismatch, retrying with essential fields');
           const essentialPayload = {
             owner_id: payload.owner_id,
             name: payload.name,
@@ -160,9 +161,9 @@ export const shopService = {
         if (error) throw error;
       }
       
-      return data![0] as any;
+      return data![0] as unknown as Shop;
     } catch (error) {
-      console.error('Error creating shop:', error);
+      logger.error('Error creating shop', { data: error });
       throw error;
     }
   },
@@ -176,14 +177,14 @@ export const shopService = {
       
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating shop verification:', error);
+      logger.error('Error updating shop verification', { data: error });
       throw error;
     }
   },
 
   async updateShop(shopId: string, shopData: Partial<Shop>): Promise<void> {
     try {
-      const payload: any = {
+      const payload: Record<string, any> = {
         name: shopData.name,
         description: shopData.description,
         address: shopData.address,
@@ -222,7 +223,7 @@ export const shopService = {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating shop:', error);
+      logger.error('Error updating shop', { data: error });
       throw error;
     }
   }

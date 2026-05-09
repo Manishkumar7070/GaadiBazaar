@@ -26,7 +26,7 @@ export const vehicleService = {
       
       if (error) {
         if (error.code === 'PGRST205') {
-          console.warn('Table "vehicles" not found in Supabase. Falling back to mock data.');
+          logger.warn('Table "vehicles" not found in Supabase. Falling back to mock data.');
           let fallback = MOCK_VEHICLES;
           if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
           if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
@@ -73,7 +73,7 @@ export const vehicleService = {
 
       return this.sortVehiclesByPriority(vehicles, filters?.userCity);
     } catch (error) {
-      console.error('Error fetching vehicles:', error);
+      logger.error('Error fetching vehicles', { data: error });
       let fallback = MOCK_VEHICLES;
       if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
       if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
@@ -155,7 +155,7 @@ export const vehicleService = {
       if (error) {
         // Handle missing columns gracefully (Schema out of sync or PostgREST cache issues)
         if (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('column')) {
-          console.warn('Schema mismatch detected. Retrying with essential fields only.');
+          logger.warn('Schema mismatch detected. Retrying with essential fields only.');
           // Truly essential fields that definitely existed from day 1
           const essentialPayload = {
             seller_id: payload.seller_id,
@@ -186,14 +186,14 @@ export const vehicleService = {
         }
         
         if (error) {
-          console.error('Supabase error inserting vehicle:', error);
+          logger.error('Supabase error inserting vehicle', { data: error });
           throw error;
         }
       }
       if (!data || data.length === 0) throw new Error('Failed to create vehicle record');
       return data[0] as unknown as Vehicle;
     } catch (error) {
-      console.error('Error creating vehicle:', error);
+      logger.error('Error creating vehicle', { data: error });
       throw error;
     }
   },
@@ -233,7 +233,7 @@ export const vehicleService = {
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating vehicle:', error);
+      logger.error('Error updating vehicle', { data: error });
       throw error;
     }
   },
@@ -250,7 +250,7 @@ export const vehicleService = {
       
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating listing type:', error);
+      logger.error('Error updating listing type', { data: error });
       throw error;
     }
   },
@@ -268,7 +268,7 @@ export const vehicleService = {
       
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating payment status:', error);
+      logger.error('Error updating payment status', { data: error });
       throw error;
     }
   },
@@ -282,7 +282,7 @@ export const vehicleService = {
       
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating vehicle verification:', error);
+      logger.error('Error updating vehicle verification', { data: error });
       throw error;
     }
   },
@@ -320,7 +320,7 @@ export const vehicleService = {
 
       return { brands, models, cities };
     } catch (error) {
-      console.error('Error fetching popular metadata:', error);
+      logger.error('Error fetching popular metadata', { data: error });
       return { brands: [], models: [], cities: [] };
     }
   }

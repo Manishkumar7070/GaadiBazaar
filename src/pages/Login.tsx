@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { locationService } from '@/services/location.service';
 import { useLocation } from '@/context/LocationContext';
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import { ConfirmationResult } from 'firebase/auth';
 
 const LoginPage = () => {
@@ -68,8 +69,9 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await loginWithGoogle();
+      logger.info('Google login initiated from component');
     } catch (error: any) {
-      console.error('Google Login Error:', error);
+      logger.error('Google Login Error', { data: error });
       if (error.code === 'auth/unauthorized-domain') {
         setError(`Domain not authorized: "${window.location.hostname}". Please add this domain to your Firebase Console under Auth > Settings > Authorized Domains.`);
       } else if (error.code === 'auth/network-request-failed' || error.message?.includes('network-request-failed')) {
@@ -110,8 +112,9 @@ const LoginPage = () => {
       const result = await signInWithPhoneNumber(auth, formattedPhone, verifier);
       setConfirmationResult(result);
       setStep('otp');
+      logger.info('OTP sent successfully', { data: formattedPhone });
     } catch (error: any) {
-      console.error('Phone Auth Error:', error);
+      logger.error('Phone Auth Error', { data: error });
       if (error.code === 'auth/billing-not-enabled') {
         setError('Phone authentication requires the Firebase project to be on the Blaze (Pay-as-you-go) plan. Please enable billing in your Firebase console.');
       } else {
@@ -135,9 +138,10 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await confirmationResult.confirm(otp);
+      logger.info('OTP verification successful');
       // Auth state listener in context will handle the rest
     } catch (error: any) {
-      console.error('OTP Verification Error:', error);
+      logger.error('OTP Verification Error', { data: error });
       setError('Invalid OTP code. Please try again.');
     } finally {
       setLoading(false);
@@ -163,7 +167,7 @@ const LoginPage = () => {
       
       setTimeout(() => setStep('role'), 1000);
     } catch (error) {
-      console.error('Location detection failed:', error);
+      logger.error('Location detection failed', { data: error });
       setLocationData({
         cityName: '', // Empty string instead of undefined
         address: 'Location access denied or unavailable'
@@ -185,8 +189,9 @@ const LoginPage = () => {
         ...locationData
       });
       navigate(redirect);
+      logger.info('Role selection completed', { data: role });
     } catch (error) {
-      console.error('Role Selection Error:', error);
+      logger.error('Role Selection Error', { data: error });
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, signInWithGoogle, handleRedirectResult, signOut as firebaseSignOut, onAuthStateChanged, db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { logger } from '@/lib/logger';
 import { AlertCircle, WifiOff } from 'lucide-react';
 import { User, MembershipTier } from '@/types';
 
@@ -42,10 +43,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const result = await handleRedirectResult();
         if (result?.user) {
-          // Profile handled by onAuthStateChanged -> onSnapshot
+          logger.info('Redirect Sign-In handled', { data: result.user.uid });
         }
       } catch (error) {
-        console.error('Redirect Sign-In Error:', error);
+        logger.error('Redirect Sign-In Error', { data: error });
       }
     };
     checkRedirect();
@@ -89,10 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           setLoading(false);
         }, (err) => {
-          console.warn('Profile listener error:', err);
+          logger.warn('Profile listener error', { data: err });
           if (err.message?.includes('offline')) {
             // Don't show loud error for background listener issues if we have auth data
-            console.info('Client is offline, using persistence/auth data');
+            logger.info('Client is offline, using persistence/auth data');
           } else {
             setError('Account sync issue. Please refresh.');
           }
@@ -114,8 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setError(null);
       await signInWithGoogle();
+      logger.info('Google Sign-In initiated');
     } catch (error) {
-      console.error('Google Sign-In Error:', error);
+      logger.error('Google Sign-In Error', { data: error });
       throw error;
     }
   };
@@ -163,8 +165,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isProfileComplete: true,
       } : null);
       setError(null);
+      logger.info('Profile completed successfully', { data: auth.currentUser.uid });
     } catch (error) {
-      console.error('Error completing profile:', error);
+      logger.error('Error completing profile', { data: error });
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   };
