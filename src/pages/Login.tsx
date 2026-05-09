@@ -72,6 +72,8 @@ const LoginPage = () => {
       console.error('Google Login Error:', error);
       if (error.code === 'auth/unauthorized-domain') {
         setError(`Domain not authorized: "${window.location.hostname}". Please add this domain to your Firebase Console under Auth > Settings > Authorized Domains.`);
+      } else if (error.code === 'auth/network-request-failed' || error.message?.includes('network-request-failed')) {
+        setError('Network error: This usually happens when the Firebase authorized domains are not set or third-party cookies are blocked. Please ensure "' + window.location.hostname + '" is in your Firebase Authorized Domains list.');
       } else if (error.message?.includes('offline')) {
         setError('Connection failed: You appear to be offline or Firestore is being blocked by your network. Please check your connection.');
       } else {

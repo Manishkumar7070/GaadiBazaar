@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin, Eye, X, TrendingUp, Wallet, Zap } from 'lucide-react';
+import { User as UserIcon, Settings, Package, Heart, Bell, Shield, LogOut, Bookmark, ChevronRight, Trash2, Clock, Loader2, PlusCircle, Store, MapPin, Eye, X, TrendingUp, Wallet, Zap, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,8 +15,7 @@ import { useWishlist } from '@/hooks/useWishlist';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
 import { searchService } from '@/services/search.service';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storageService } from '@/services/storage.service';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import SellerAnalytics from '@/features/seller/SellerAnalytics';
 
@@ -109,11 +108,9 @@ const Profile = () => {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const filePath = `shops/${user.id}/${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
-        const storageRef = ref(storage, filePath);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
+        return await storageService.uploadFile(file, 'shops', filePath);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
@@ -121,9 +118,12 @@ const Profile = () => {
       
       await shopService.updateShop(shop.id, { images: updatedImages });
       setShop({ ...shop, images: updatedImages });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading shop photos:', error);
-      alert('Failed to upload photos.');
+      const msg = error.message?.includes('bucket not found') 
+        ? 'Storage bucket "shops" not found. Please create it in Supabase Storage.' 
+        : 'Failed to upload photos.';
+      alert(msg);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -145,7 +145,12 @@ const Profile = () => {
     { icon: Package, label: 'My Listings', count: myVehicles.length, value: 'listings' },
     { icon: Heart, label: 'Wishlist', count: wishlist.length, value: 'wishlist' },
     { icon: Bookmark, label: 'Saved Searches', count: savedSearches.length, value: 'saved' },
-    { icon: TrendingUp, label: 'Performance & ROI', value: 'analytics' },
+    { 
+      icon: TrendingUp, 
+      label: 'Seller Dashboard', 
+      onClick: () => navigate('/seller-dashboard'),
+      isLink: true 
+    },
     { icon: Clock, label: 'Recently Viewed', count: recentlyViewed.length, value: 'recent' },
     { icon: Bell, label: 'Notifications', count: 0 },
     { 
@@ -192,6 +197,11 @@ const Profile = () => {
           <Link to="/list-vehicle">
             <Button className="rounded-full bg-primary hover:bg-primary/90 text-white font-bold flex gap-2">
               <PlusCircle size={18} /> Sell Vehicle
+            </Button>
+          </Link>
+          <Link to="/seller-dashboard">
+            <Button variant="outline" className="rounded-full border-primary text-primary font-bold flex gap-2">
+              <BarChart3 size={18} /> Dashboard
             </Button>
           </Link>
           {user.role === 'admin' && (
@@ -344,7 +354,13 @@ const Profile = () => {
                   <React.Fragment key={item.label}>
                     <button 
                       className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors"
-                      onClick={() => item.value && setActiveTab(item.value)}
+                      onClick={() => {
+                        if (item.onClick) {
+                          item.onClick();
+                        } else if (item.value) {
+                          setActiveTab(item.value);
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">

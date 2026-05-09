@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star } from 'lucide-react';
+import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star, BarChart3, Instagram, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -102,9 +102,9 @@ const Header = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-2 sm:gap-4">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo fontSize="text-2xl" iconSize={28} />
+      <div className="container mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4">
+        <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <Logo fontSize="text-xl sm:text-2xl" iconSize={24} />
         </Link>
 
         <div className="hidden lg:flex items-center gap-6 ml-4">
@@ -165,24 +165,26 @@ const Header = () => {
           />
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-3">
+          <a 
+            href="https://www.instagram.com/asonedealer.in?igsh=ZHUzeTU0cHM4YTR6" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hidden md:flex h-10 w-10 items-center justify-center text-slate-400 hover:text-primary transition-colors"
+          >
+            <Instagram size={20} />
+          </a>
+
           <Button 
             variant="ghost" 
             size="icon" 
-            className="text-slate-600 lg:hidden h-9 w-9"
+            className="text-slate-600 lg:hidden h-8 w-8 sm:h-10 sm:w-10"
             onClick={() => navigate('/search')}
           >
             <Search size={18} />
           </Button>
 
-          <CitySelector 
-            onSelect={(city) => {
-              navigate(`/search?city=${encodeURIComponent(city)}`);
-            }}
-            className="hidden sm:flex px-2 h-9"
-          />
-          
-          <Button variant="ghost" size="icon" className="text-slate-600 hidden sm:flex">
+          <Button variant="ghost" size="icon" className="text-slate-600 hidden md:flex h-10 w-10">
             <Bell size={20} />
           </Button>
           
@@ -279,6 +281,29 @@ const Header = () => {
                       <MapPin size={20} className="text-slate-400" />
                       <span className="font-semibold text-slate-700">Find Dealers</span>
                     </Link>
+                    
+                    <div className="grid grid-cols-2 gap-2 p-2">
+                      <a 
+                        href="https://www.instagram.com/asonedealer.in?igsh=ZHUzeTU0cHM4YTR6" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors border border-slate-100"
+                      >
+                        <Instagram size={24} className="text-[#E4405F]" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Instagram</span>
+                      </a>
+                      <button 
+                        className="flex flex-col items-center justify-center gap-2 p-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors border border-slate-100"
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          document.getElementById('download-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                      >
+                        <Smartphone size={24} className="text-primary" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Get App</span>
+                      </button>
+                    </div>
+
                     {user?.role === 'admin' && (
                       <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors border border-primary/10">
                         <Settings size={20} className="text-primary" />
@@ -299,6 +324,10 @@ const Header = () => {
                     </button>
                     {user && (
                       <>
+                        <Link to="/seller-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors border border-primary/10">
+                          <BarChart3 size={20} className="text-primary" />
+                          <span className="font-bold text-primary">Seller Dashboard</span>
+                        </Link>
                         <Link to="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
                           <Package size={20} className="text-slate-400" />
                           <span className="font-semibold text-slate-700">My Listings</span>

@@ -43,15 +43,15 @@ const Footer = () => {
     ],
     support: [
       { name: 'Help Center', path: '/help' },
+      { name: 'Seller Dashboard', path: '/seller-dashboard' },
       { name: 'Privacy Policy', path: '/privacy' },
       { name: 'Terms of Service', path: '/terms' },
-      { name: 'RC Transfer Guide', path: '/guide/rc-transfer' },
       { name: 'Sell My Car', path: '/list-vehicle' },
     ]
   };
 
   return (
-    <footer className="bg-slate-950 text-slate-400 pt-20 pb-10 border-t border-slate-900 overflow-hidden relative">
+    <footer className="bg-slate-950 text-slate-400 pt-20 pb-32 sm:pb-16 border-t border-slate-900 overflow-hidden relative">
       {/* Background Glow */}
       <div className="absolute top-0 left-1/4 -z-10 w-96 h-96 bg-primary/5 rounded-full blur-[120px]" />
       
@@ -74,14 +74,16 @@ const Footer = () => {
 
             <div className="flex gap-4">
               {[
-                { icon: Facebook, label: 'Facebook' },
-                { icon: Twitter, label: 'Twitter' },
-                { icon: Instagram, label: 'Instagram' },
-                { icon: Youtube, label: 'Youtube' }
+                { icon: Facebook, label: 'Facebook', href: '#' },
+                { icon: Twitter, label: 'Twitter', href: '#' },
+                { icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/asonedealer.in?igsh=ZHUzeTU0cHM4YTR6' },
+                { icon: Youtube, label: 'Youtube', href: '#' }
               ].map((social, i) => (
                 <a 
                   key={i}
-                  href="#" 
+                  href={social.href}
+                  target={social.href !== '#' ? "_blank" : undefined}
+                  rel={social.href !== '#' ? "noopener noreferrer" : undefined}
                   className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 hover:text-white hover:border-primary hover:bg-primary/10 transition-all"
                   aria-label={social.label}
                 >

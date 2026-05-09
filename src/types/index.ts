@@ -2,12 +2,27 @@ export type VehicleType = 'car' | 'bike' | 'scooter' | 'commercial';
 export type FuelType = 'petrol' | 'diesel' | 'electric' | 'cng' | 'hybrid';
 export type TransmissionType = 'manual' | 'automatic' | 'semi-automatic';
 export type OwnershipType = '1st' | '2nd' | '3rd' | '4th' | '4th+';
+export type VehiclePurpose = 'family' | 'commute' | 'touring' | 'budget' | 'luxury' | 'offroad' | 'student';
 export type VehicleStatus = 'active' | 'sold' | 'pending' | 'inactive';
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
+export type PaymentStatus = 'none' | 'pending' | 'paid' | 'failed';
 
 export type ListingType = 'free' | 'premium' | 'featured' | 'sponsored';
 export type MembershipTier = 'none' | 'dealer_basic' | 'dealer_premium';
+export type PaymentMethod = 'bank_transfer' | 'qr_code' | 'stripe';
+export type TransactionStatus = 'pending' | 'completed' | 'failed';
+
+export interface Payment {
+  id: string;
+  userId: string;
+  vehicleId: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  transactionRef?: string;
+  status: TransactionStatus;
+  createdAt: string;
+}
 
 export interface User {
   id: string;
@@ -48,6 +63,10 @@ export interface Shop {
   longitude?: number;
   phone: string;
   images: string[];
+  logo?: string;
+  bannerImage?: string;
+  website?: string;
+  businessHours?: string;
   mapEmbedUrl?: string;
   verificationStatus: VerificationStatus;
   isPremium?: boolean;
@@ -83,6 +102,7 @@ export interface Vehicle {
   images: string[];
   status: VehicleStatus;
   verificationStatus: VerificationStatus;
+  paymentStatus?: PaymentStatus;
   listingType: ListingType;
   isFeatured: boolean;
   isVerified: boolean;
@@ -98,10 +118,15 @@ export interface Vehicle {
   mileage?: string;
   color?: string;
   assemblyType?: string;
+  vin?: string;
   engineStartVideo?: string;
   engineSoundVideo?: string;
   walkaroundVideo?: string;
   priceHistory?: PricePoint[];
+  purposes?: VehiclePurpose[];
+  seats?: number;
+  safetyRating?: number;
+  imageMetadata?: Record<string, string>;
 }
 
 export interface SearchFilters {
@@ -120,6 +145,7 @@ export interface SearchFilters {
   city?: string;
   state?: string;
   isCertified?: boolean;
+  purpose?: VehiclePurpose;
 }
 
 export interface SavedSearch {

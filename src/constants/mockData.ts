@@ -255,6 +255,9 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '7 kmpl',
     color: 'Graphite Grey',
     assemblyType: 'Imported',
+    purposes: ['luxury', 'commute'],
+    seats: 4,
+    safetyRating: 5
   },
   {
     id: 'v56',
@@ -274,7 +277,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Delhi NCR',
     state: 'Delhi',
     images: ['https://images.unsplash.com/photo-1614164185128-e4ec99c436d7?q=80&w=1200&auto=format&fit=crop'],
-    status: 'active',
+    status: 'sold',
     isFeatured: true,
     isVerified: true,
     verificationStatus: 'verified',
@@ -288,6 +291,9 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '480 km/charge',
     color: 'Tactical Green',
     assemblyType: 'Imported',
+    purposes: ['luxury', 'commute', 'budget'],
+    seats: 4,
+    safetyRating: 5
   },
   {
     id: 'v57',
@@ -321,6 +327,9 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '9 kmpl',
     color: 'Python Green',
     assemblyType: 'Imported',
+    purposes: ['luxury', 'offroad', 'touring'],
+    seats: 5,
+    safetyRating: 5
   },
   {
     id: 'v58',
@@ -505,7 +514,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Chennai',
     state: 'Tamil Nadu',
     images: ['https://images.unsplash.com/photo-1592198084033-aade902d1aae?q=80&w=1200&auto=format&fit=crop'],
-    status: 'active',
+    status: 'sold',
     isFeatured: true,
     isVerified: true,
     verificationStatus: 'verified',
@@ -538,7 +547,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     city: 'Pune',
     state: 'Maharashtra',
     images: ['https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?q=80&w=1200&auto=format&fit=crop'],
-    status: 'active',
+    status: 'sold',
     isFeatured: false,
     isVerified: true,
     verificationStatus: 'verified',
@@ -585,6 +594,9 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '18 kmpl',
     color: 'Wild Cherry Red',
     assemblyType: 'Local',
+    purposes: ['commute', 'student', 'budget'],
+    seats: 5,
+    safetyRating: 5
   },
   {
     id: 'v66',
@@ -618,6 +630,9 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '13 kmpl',
     color: 'Midnight Blue',
     assemblyType: 'Local',
+    purposes: ['family', 'touring', 'offroad'],
+    seats: 7,
+    safetyRating: 5
   },
   {
     id: 'v67',

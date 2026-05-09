@@ -79,6 +79,13 @@ export const generateStartupSpecPDF = async () => {
     'Growth Tracking: Registration monitoring and city-wise density maps.'
   ]);
 
+  addSection('6. Strategic Business Model (SWOT Vision)', [
+    'Dealer-Centric Ecosystem: Focused on showroom visibility and local dealer trust rather than just fragmented listings.',
+    'Hyper-local Discovery: Optimized for physical showroom visits, bridging the digital-to-physical trust gap.',
+    'Digital Identity for Dealers: Serving as the digital showroom for small-to-midscale dealers in Tier 2/3 cities.',
+    'Low-friction Marketplace: Zero inventory risk model focused on high-quality lead generation and dealer digitization.'
+  ]);
+
   // Footer on last page
   doc.setFontSize(8);
   doc.setTextColor('#94a3b8');

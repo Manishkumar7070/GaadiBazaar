@@ -17,6 +17,7 @@ import {
   Navigation,
   Loader2
 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -61,6 +62,12 @@ const FindDealers: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20 pb-12">
+      <Helmet>
+        <title>Find Verified Car & Bike Dealers | AsOneDealer Network</title>
+        <meta name="description" content="Locate our certified network of car and bike dealers across India. Interactive map, verified ratings, and direct contact info for trusted showrooms." />
+        <meta name="keywords" content="find car dealers, bike showrooms India, verified auto dealers, AsOneDealer network" />
+      </Helmet>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="mb-8">
@@ -139,9 +146,9 @@ const FindDealers: React.FC = () => {
                       >
                         <div className="flex gap-3">
                           <img 
-                            src={shop.images[0]} 
+                            src={shop.logo || shop.images[0] || '/placeholder-shop.jpg'} 
                             alt={shop.name}
-                            className="w-16 h-16 rounded-xl object-cover"
+                            className="w-16 h-16 rounded-xl object-cover bg-slate-100"
                             referrerPolicy="no-referrer"
                           />
                           <div className="flex-1 min-w-0">

@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { shopService } from '@/services/shop.service';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storageService } from '@/services/storage.service';
 import { Shop } from '@/types';
 import { validateShop, ShopErrors } from '@/lib/validations';
 import { cn } from '@/lib/utils';
@@ -32,6 +31,10 @@ const EditShop = () => {
     state: '',
     pincode: '',
     phone: '',
+    website: '',
+    businessHours: '',
+    logo: '',
+    bannerImage: '',
     images: [] as string[],
     mapEmbedUrl: '',
   });
@@ -51,6 +54,10 @@ const EditShop = () => {
             state: userShop.state,
             pincode: userShop.pincode || '',
             phone: userShop.phone,
+            website: userShop.website || '',
+            businessHours: userShop.businessHours || '',
+            logo: userShop.logo || '',
+            bannerImage: userShop.bannerImage || '',
             images: userShop.images || [],
             mapEmbedUrl: userShop.mapEmbedUrl || '',
           });
@@ -79,6 +86,40 @@ const EditShop = () => {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo_${Date.now()}.${fileExt}`;
+      const url = await storageService.uploadFile(file, 'shops', `${user.id}/${fileName}`);
+      setFormData(prev => ({ ...prev, logo: url }));
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      alert('Failed to upload logo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `banner_${Date.now()}.${fileExt}`;
+      const url = await storageService.uploadFile(file, 'shops', `${user.id}/${fileName}`);
+      setFormData(prev => ({ ...prev, bannerImage: url }));
+    } catch (error) {
+      console.error('Error uploading banner:', error);
+      alert('Failed to upload banner');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleImageAdd = () => {
     fileInputRef.current?.click();
   };
@@ -92,18 +133,19 @@ const EditShop = () => {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const filePath = `shops/${user.id}/${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
-        const storageRef = ref(storage, filePath);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
+        return await storageService.uploadFile(file, 'shops', filePath);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
       setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading images:', error);
-      alert('Failed to upload images.');
+      const msg = error.message?.includes('bucket not found') 
+        ? 'Storage bucket "shops" not found. Please create it in Supabase Storage.' 
+        : 'Failed to upload images.';
+      alert(msg);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -184,18 +226,94 @@ const EditShop = () => {
             <CardDescription>Update your showroom information</CardDescription>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Showroom Name</label>
-              <Input 
-                name="name" 
-                placeholder="e.g. AsOne Motors" 
-                required 
-                value={formData.name}
-                onChange={handleChange}
-                className={cn("rounded-xl", errors.name && "border-red-500")}
-              />
-              {errors.name && <p className="text-xs text-red-500 font-medium">{errors.name}</p>}
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="flex-shrink-0">
+                <label className="text-sm font-semibold text-slate-700 block mb-2">Shop Logo</label>
+                <div 
+                  onClick={() => document.getElementById('logo-upload')?.click()}
+                  className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-all overflow-hidden bg-slate-50"
+                >
+                  {formData.logo ? (
+                    <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <Upload size={20} className="text-slate-400" />
+                  )}
+                  <input id="logo-upload" type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                </div>
+              </div>
+              <div className="flex-1 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Showroom Name</label>
+                  <Input 
+                    name="name" 
+                    placeholder="e.g. AsOne Motors" 
+                    required 
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={cn("rounded-xl", errors.name && "border-red-500")}
+                  />
+                  {errors.name && <p className="text-xs text-red-500 font-medium">{errors.name}</p>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Contact Phone</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Input 
+                      name="phone" 
+                      placeholder="e.g. +91 9876543210" 
+                      required 
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className={cn("rounded-xl pl-10", errors.phone && "border-red-500")}
+                    />
+                  </div>
+                  {errors.phone && <p className="text-xs text-red-500 font-medium">{errors.phone}</p>}
+                </div>
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Banner Image</label>
+              <div 
+                onClick={() => document.getElementById('banner-upload')?.click()}
+                className="w-full h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-all overflow-hidden bg-slate-50"
+              >
+                {formData.bannerImage ? (
+                  <img src={formData.bannerImage} alt="Banner" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1">
+                    <Upload size={24} className="text-slate-400" />
+                    <span className="text-xs text-slate-500">Upload Shop Banner</span>
+                  </div>
+                )}
+                <input id="banner-upload" type="file" className="hidden" accept="image/*" onChange={handleBannerUpload} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Website (Optional)</label>
+                <Input 
+                  name="website" 
+                  type="url"
+                  placeholder="https://www.yourshop.com" 
+                  value={formData.website}
+                  onChange={handleChange}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Business Hours</label>
+                <Input 
+                  name="businessHours" 
+                  placeholder="e.g. Mon-Sat: 10AM - 8PM" 
+                  value={formData.businessHours}
+                  onChange={handleChange}
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Description</label>
               <textarea 
@@ -206,26 +324,11 @@ const EditShop = () => {
                 value={formData.description}
                 onChange={handleChange}
                 className={cn(
-                  "w-full flex min-h-[80px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                  "w-full flex min-h-[100px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
                   errors.description && "border-red-500"
                 )}
               />
               {errors.description && <p className="text-xs text-red-500 font-medium">{errors.description}</p>}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Contact Phone</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input 
-                  name="phone" 
-                  placeholder="e.g. +91 9876543210" 
-                  required 
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className={cn("rounded-xl pl-10", errors.phone && "border-red-500")}
-                />
-              </div>
-              {errors.phone && <p className="text-xs text-red-500 font-medium">{errors.phone}</p>}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">3D Map Embed Link (Google Maps)</label>

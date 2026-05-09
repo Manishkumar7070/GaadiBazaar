@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap, Mic, MicOff, X, History, Sparkles, Loader2, ShieldCheck } from 'lucide-react';
+import { Search as SearchIcon, Filter, MapPin, Bookmark, Save, Car, Bike, Truck, Zap, Mic, MicOff, X, History, Sparkles, Loader2, ShieldCheck, Users, Briefcase, Compass, IndianRupee, Mountain, Heart, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +73,7 @@ const SearchPage = () => {
     fuelType: undefined,
     transmission: undefined,
     ownership: undefined,
+    purpose: searchParams.get('purpose') as any || undefined,
   });
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -120,7 +121,10 @@ const SearchPage = () => {
     const loadVehicles = async () => {
       setIsLoading(true);
       try {
-        const data = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
+        const data = await vehicleService.fetchVehicles({ 
+          verificationStatus: 'verified',
+          userCity: selectedCity && selectedCity !== 'India' ? selectedCity : undefined
+        });
         setVehicles(data.length > 0 ? data : MOCK_VEHICLES);
       } catch (error) {
         console.error('Error loading vehicles:', error);
@@ -130,7 +134,7 @@ const SearchPage = () => {
       }
     };
     loadVehicles();
-  }, []);
+  }, [selectedCity]);
 
   useEffect(() => {
     if (debouncedSearchQuery.length > 0) {
@@ -369,8 +373,9 @@ const SearchPage = () => {
     const fuel = searchParams.get('fuel');
     const trans = searchParams.get('trans');
     const owner = searchParams.get('owner');
+    const purpose = searchParams.get('purpose');
 
-    if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner) {
+    if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner || purpose) {
       if (q) {
         setSearchQuery(q);
         const wordsCount = q.trim().split(/\s+/).length;
@@ -395,6 +400,7 @@ const SearchPage = () => {
         fuelType: (fuel as any) || undefined,
         transmission: (trans as any) || undefined,
         ownership: (owner as any) || undefined,
+        purpose: (purpose as any) || undefined,
       });
     }
     setCurrentPage(1);
@@ -452,11 +458,12 @@ const SearchPage = () => {
     const matchesFuel = !filters.fuelType || v.fuelType === filters.fuelType;
     const matchesTrans = !filters.transmission || v.transmission === filters.transmission;
     const matchesOwnership = !filters.ownership || v.ownership === filters.ownership;
+    const matchesPurpose = !filters.purpose || v.purposes?.includes(filters.purpose);
     const matchesCertified = !filters.isCertified || v.verificationStatus === 'verified';
 
     return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity && matchesState && 
            matchesBrand && matchesModel && matchesMinYear && matchesMaxYear && matchesMinKm && matchesMaxKm && 
-           matchesFuel && matchesTrans && matchesOwnership && matchesCertified;
+           matchesFuel && matchesTrans && matchesOwnership && matchesCertified && matchesPurpose;
   })
   const sortedVehicles = (() => {
     const list = [...filteredVehicles];
@@ -469,7 +476,7 @@ const SearchPage = () => {
     if (sortBy === 'city-asc') return list.sort((a, b) => a.city.localeCompare(b.city));
     
     // Default to priority sorting
-    return vehicleService.sortVehiclesByPriority(list);
+    return vehicleService.sortVehiclesByPriority(list, selectedCity && selectedCity !== 'India' ? selectedCity : undefined);
   })();
 
   const totalPages = Math.ceil(sortedVehicles.length / ITEMS_PER_PAGE);
@@ -678,6 +685,38 @@ const SearchPage = () => {
                         >
                           <Icon size={18} className={isActive ? "text-white" : "text-slate-400"} />
                           <span className="font-bold">{type.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold">Purpose / Lifestyle</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { id: 'family', label: 'Family', icon: Users },
+                      { id: 'commute', label: 'Office', icon: Briefcase },
+                      { id: 'touring', label: 'Touring', icon: Compass },
+                      { id: 'budget', label: 'Budget', icon: IndianRupee },
+                      { id: 'luxury', label: 'Luxury', icon: Star },
+                      { id: 'offroad', label: 'Off-road', icon: Mountain },
+                      { id: 'student', label: 'Student', icon: Heart },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      const isActive = filters.purpose === item.id;
+                      return (
+                        <Button
+                          key={item.id}
+                          variant={isActive ? 'default' : 'outline'}
+                          className={cn(
+                            "h-10 rounded-xl justify-start gap-2 px-3 text-xs",
+                            isActive ? "bg-primary border-primary" : "hover:bg-primary/5 hover:border-primary/20"
+                          )}
+                          onClick={() => setFilters(prev => ({ ...prev, purpose: prev.purpose === item.id ? undefined : item.id as any }))}
+                        >
+                          <Icon size={14} className={isActive ? "text-white" : "text-primary"} />
+                          <span className="font-bold">{item.label}</span>
                         </Button>
                       );
                     })}
@@ -1049,6 +1088,26 @@ const SearchPage = () => {
             <ShieldCheck size={14} className={filters.isCertified ? "text-white" : "text-slate-400"} />
             Certified Only
           </Button>
+
+          <div className="h-6 w-px bg-slate-200 mx-1 flex-shrink-0" />
+          
+          <select 
+            className={cn(
+              "h-8 rounded-full px-3 text-xs font-medium border-none outline-none flex-shrink-0 transition-colors",
+              filters.purpose ? "bg-primary text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+            value={filters.purpose || ''}
+            onChange={(e) => setFilters(prev => ({ ...prev, purpose: e.target.value as any || undefined }))}
+          >
+            <option value="">By Purpose: All</option>
+            <option value="family">Family First</option>
+            <option value="commute">Office/Daily</option>
+            <option value="touring">Long Drive</option>
+            <option value="budget">Mileage King</option>
+            <option value="luxury">Luxury Icons</option>
+            <option value="offroad">Off-Roading</option>
+            <option value="student">Student Friendly</option>
+          </select>
         </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

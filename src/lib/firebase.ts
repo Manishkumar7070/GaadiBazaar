@@ -40,8 +40,20 @@ export const db = initializeFirestore(app, {
 export const storage = getStorage(app);
 
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
+export const signInWithGoogle = async () => {
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error: any) {
+    console.error('[FIREBASE AUTH] Popup Error:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+};
 export const handleRedirectResult = () => getRedirectResult(auth);
 export const signOut = () => firebaseSignOut(auth);
 

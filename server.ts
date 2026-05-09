@@ -10,6 +10,7 @@ import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
 import CircuitBreaker from "opossum";
 import retry from "async-retry";
+import Stripe from "stripe";
 
 dotenv.config();
 
@@ -140,6 +141,22 @@ async function startServer() {
 
   // Firebase Admin (Lazy initialization)
   let firebaseAdminInstance: admin.app.App | null = null;
+
+  // Stripe Client (Lazy initialization)
+  let stripeClientInstance: Stripe | null = null;
+  const getStripe = () => {
+    if (!stripeClientInstance) {
+      const key = process.env.STRIPE_SECRET_KEY;
+      if (!key) {
+        throw new Error("STRIPE_SECRET_KEY is required for payments");
+      }
+      stripeClientInstance = new Stripe(key, {
+        apiVersion: "2025-02-24-preview" as any,
+      });
+    }
+    return stripeClientInstance;
+  };
+
   const getFirebaseAdmin = () => {
     if (!firebaseAdminInstance) {
       const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -225,6 +242,99 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // --- Stripe Payment API ---
+
+  // Create Checkout Session
+  app.post("/api/payments/create-checkout-session", authenticate, async (req: any, res: any) => {
+    const { vehicleId, amount, listingType, successUrl, cancelUrl } = req.body;
+    
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    if (!vehicleId || !amount || !listingType) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "inr",
+              product_data: {
+                name: `${listingType.toUpperCase()} Listing for Vehicle`,
+                description: `Activation fee for vehicle listing ID: ${vehicleId}`,
+              },
+              unit_amount: amount * 100, // Stripe expects amount in cents/paisa
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&vehicle_id=${vehicleId}`,
+        cancel_url: cancelUrl,
+        metadata: {
+          userId: req.user.uid,
+          vehicleId: vehicleId,
+          listingType: listingType,
+        },
+      });
+
+      res.json({ id: session.id, url: session.url });
+    } catch (error: any) {
+      console.error("[STRIPE] Error creating checkout session:", error.message);
+      res.status(500).json({ error: "Failed to create payment session" });
+    }
+  });
+
+  // Verify Stripe Session (Manual verification for demo)
+  app.get("/api/payments/verify-session", authenticate, async (req: any, res: any) => {
+    const { sessionId, vehicleId } = req.query;
+    
+    if (!req.user || !sessionId || !vehicleId) {
+      return res.status(400).json({ error: "Missing session ID or vehicle ID" });
+    }
+
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.retrieve(sessionId as string);
+
+      if (session.payment_status === "paid") {
+        // Update vehicle and create payment record in Supabase
+        const supabase = getSupabaseClient();
+        
+        await supabase
+          .from("vehicles")
+          .update({ 
+            payment_status: "paid",
+            status: "active" 
+          })
+          .eq("id", vehicleId);
+
+        await supabase
+          .from("payments")
+          .insert([{
+            user_id: req.user.uid,
+            vehicle_id: vehicleId,
+            amount: session.amount_total ? session.amount_total / 100 : 0,
+            payment_method: "stripe",
+            transaction_ref: session.id,
+            status: "completed"
+          }]);
+
+        res.json({ success: true, message: "Payment verified successfully" });
+      } else {
+        res.json({ success: false, message: "Payment not completed" });
+      }
+    } catch (error: any) {
+      console.error("[STRIPE] Error verifying session:", error.message);
+      res.status(500).json({ error: "Failed to verify payment" });
+    }
   });
 
   // Kubernetes Liveness & Readiness Probes

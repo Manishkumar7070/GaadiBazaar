@@ -12,6 +12,7 @@ import {
   Car,
   Loader2
 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -85,119 +86,217 @@ const DealerDetail = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8 pb-20">
+      <Helmet>
+        <title>{`${dealer.name} - Verified Car Dealer in ${dealer.city} | AsOneDealer`}</title>
+        <meta name="description" content={dealer.description ? `${dealer.description.substring(0, 155)}... - Visit ${dealer.name} in ${dealer.city} for quality verified used cars.` : `View verified used car inventory and reviews for ${dealer.name} in ${dealer.city}. Trusted AsOneDealer partner.`} />
+        <meta name="keywords" content={`${dealer.name}, ${dealer.city} car dealer, used cars in ${dealer.city}, verified car shop ${dealer.city}, reliable car sellers ${dealer.city}, AsOneDealer partner`} />
+        
+        <meta property="og:title" content={`${dealer.name} - Best Used Cars in ${dealer.city} | AsOneDealer`} />
+        <meta property="og:description" content={dealer.description ? `${dealer.description.substring(0, 200)}` : `Explore verified vehicle inventory at ${dealer.name} in ${dealer.city}.`} />
+        <meta property="og:image" content={dealer.images[0]} />
+        <meta property="og:type" content="business.business" />
+        <meta property="og:url" content={window.location.href} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${dealer.name} - ${dealer.city}`} />
+        <meta name="twitter:description" content={`Discover the best deals on verified used cars at ${dealer.name} in ${dealer.city}.`} />
+      </Helmet>
+
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => navigate(-1)}
-          className="rounded-full bg-white shadow-sm"
-        >
-          <ChevronLeft size={24} />
-        </Button>
-        <h1 className="text-2xl font-bold">Dealer Profile</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(-1)}
+            className="rounded-full bg-white shadow-sm"
+          >
+            <ChevronLeft size={24} />
+          </Button>
+          <h1 className="text-2xl font-bold">Dealer Profile</h1>
+        </div>
+        {user?.id === dealer.ownerId && (
+          <Link to="/edit-shop">
+            <Button variant="outline" className="rounded-xl border-primary text-primary font-bold hover:bg-primary/5">
+              Edit Shop Profile
+            </Button>
+          </Link>
+        )}
       </div>
 
-      {/* Dealer Info Card */}
+      {/* Dealer info card */}
       <section>
-        <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-3">
-            <div className="md:col-span-1 space-y-2 p-4">
-              <div className="aspect-square rounded-3xl overflow-hidden relative">
-                <img 
-                  src={dealer.images[0]} 
-                  alt={dealer.name} 
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                {dealer.verificationStatus === 'verified' ? (
-                  <div className="absolute top-4 left-4">
-                    <Badge className="bg-green-500 text-white border-none px-3 py-1 flex gap-1 items-center shadow-lg">
-                      <ShieldCheck size={14} /> Verified
-                    </Badge>
-                  </div>
-                ) : user?.id === dealer.ownerId && (
-                  <div className="absolute top-4 left-4">
-                    <Badge 
-                      variant={dealer.verificationStatus === 'rejected' ? 'destructive' : 'secondary'} 
-                      className={`border-none px-3 py-1 flex gap-1 items-center shadow-lg ${dealer.verificationStatus === 'pending' ? 'bg-orange-500 text-white' : ''}`}
-                    >
-                      {dealer.verificationStatus === 'pending' ? <Clock size={14} /> : <XCircle size={14} />} 
-                      {dealer.verificationStatus.charAt(0).toUpperCase() + dealer.verificationStatus.slice(1)}
-                    </Badge>
+        <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden bg-white relative">
+          {/* Banner */}
+          <div className="w-full h-48 md:h-64 bg-slate-100 relative">
+            {dealer.bannerImage ? (
+              <img 
+                src={dealer.bannerImage} 
+                alt="Banner" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent" />
+          </div>
+
+          <div className="px-8 pb-8 relative">
+            <div className="flex flex-col md:flex-row gap-8 -mt-12">
+              {/* Logo / Profile Image */}
+              <div className="flex-shrink-0 relative group">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-3xl overflow-hidden bg-white p-2 shadow-xl border-4 border-white transition-transform duration-500 group-hover:scale-105">
+                  <img 
+                    src={dealer.logo || (dealer.images && dealer.images[0]) || '/placeholder-shop.jpg'} 
+                    alt={dealer.name} 
+                    className="w-full h-full object-cover rounded-2xl"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                {dealer.verificationStatus === 'verified' && (
+                  <div className="absolute -top-3 -right-3">
+                    <div className="bg-green-500 text-white rounded-full p-1.5 shadow-lg border-2 border-white">
+                      <ShieldCheck size={20} />
+                    </div>
                   </div>
                 )}
               </div>
-              {dealer.images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
-                  {dealer.images.slice(1, 5).map((img, i) => (
-                    <div key={i} className="aspect-square rounded-xl overflow-hidden border border-slate-100">
-                      <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+
+              {/* Basic Info */}
+              <div className="flex-1 space-y-4 pt-12 md:pt-14">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight">{dealer.name}</h2>
+                    {dealer.verificationStatus === 'verified' && (
+                      <Badge className="bg-primary hover:bg-primary text-white border-none px-3 py-1 text-[10px] uppercase font-black tracking-widest h-6">
+                        Verified Dealer
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-6 mt-3">
+                    <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+                      <Star size={16} className="text-orange-500 fill-orange-500" />
+                      <span className="text-sm font-bold text-slate-900">{dealer.rating || '4.5'}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="md:col-span-2 p-8 md:p-12 space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-4">
-                      <h2 className="text-4xl font-black text-slate-900 tracking-tight">{dealer.name}</h2>
-                      {user?.id === dealer.ownerId && (
-                        <Link to="/edit-shop">
-                          <Button variant="outline" size="sm" className="rounded-xl border-primary text-primary font-bold hover:bg-primary/5">
-                            Edit Shop
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star 
-                            key={star} 
-                            size={20} 
-                            className={cn(
-                              "transition-all",
-                              star <= Math.round(dealer.rating || 4.5) 
-                                ? "text-orange-500 fill-orange-500" 
-                                : "text-slate-200"
-                            )} 
-                          />
-                        ))}
-                      </div>
-                      <span className="text-lg font-bold text-slate-900">{dealer.rating || '4.5'}</span>
-                      <Separator orientation="vertical" className="h-4 bg-slate-200" />
-                      <span className="text-sm font-bold text-primary hover:underline cursor-pointer">
-                        {dealer.reviewsCount || '0'} Verified Reviews
-                      </span>
-                    </div>
+                    <Separator orientation="vertical" className="h-4 bg-slate-200" />
+                    <span className="text-sm font-bold text-slate-500">
+                      {dealer.reviewsCount || '0'} Reviews
+                    </span>
+                    {dealer.city && (
+                      <>
+                        <Separator orientation="vertical" className="h-4 bg-slate-200" />
+                        <span className="text-sm font-bold text-primary flex items-center gap-1">
+                          <MapPin size={16} /> {dealer.city}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
-                <p className="text-slate-500 flex items-center gap-2 font-medium">
-                  <MapPin size={18} className="text-primary" />
-                  {dealer.address}, {dealer.city}, {dealer.state} - {dealer.pincode}
-                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mt-12">
+              <div className="md:col-span-2 space-y-8">
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold uppercase tracking-wider text-slate-400">About Showroom</h3>
+                  <p className="text-slate-600 text-lg leading-relaxed">
+                    {dealer.description}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-primary/20 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Phone className="text-primary" size={18} />
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-400">Contact Number</span>
+                    </div>
+                    <a href={`tel:${dealer.phone}`} className="text-lg font-bold text-slate-900 hover:text-primary transition-colors inline-block">
+                      {dealer.phone}
+                    </a>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-primary/20 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="text-primary" size={18} />
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-400">Business Hours</span>
+                    </div>
+                    <p className="text-lg font-bold text-slate-900">
+                      {dealer.businessHours || 'Open: 10AM - 8PM'}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 md:col-span-2 group hover:border-primary/20 transition-all">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="text-primary" size={18} />
+                      <span className="text-xs font-black uppercase tracking-widest text-slate-400">Location Address</span>
+                    </div>
+                    <p className="text-lg font-bold text-slate-900">
+                      {dealer.address}, {dealer.city}, {dealer.state} - {dealer.pincode}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 pt-4">
+                  <a href={`tel:${dealer.phone}`} className="flex-1 md:flex-none">
+                    <Button className="w-full rounded-2xl h-14 px-10 bg-slate-900 hover:bg-slate-800 text-white font-black flex gap-2 shadow-xl shadow-slate-200 transition-all hover:scale-105 active:scale-95">
+                      <Phone size={22} /> Call Now
+                    </Button>
+                  </a>
+                  {dealer.website && (
+                    <a href={dealer.website} target="_blank" rel="noopener noreferrer" className="flex-1 md:flex-none">
+                      <Button variant="outline" className="w-full rounded-2xl h-14 px-10 border-slate-200 text-slate-700 font-black flex gap-2 hover:bg-slate-50 transition-all hover:scale-105 active:scale-95 shadow-sm">
+                        Visit Website
+                      </Button>
+                    </a>
+                  )}
+                </div>
               </div>
 
-              <p className="text-slate-600 leading-relaxed">
-                {dealer.description}
-              </p>
-
-              <div className="flex flex-wrap gap-4 pt-4">
-                <a href={`tel:${dealer.phone}`} className="flex-1 md:flex-none">
-                  <Button className="w-full rounded-2xl h-14 px-8 bg-primary hover:bg-primary/90 text-white font-bold flex gap-2">
-                    <Phone size={20} /> Call Dealer
-                  </Button>
-                </a>
-                <Button variant="outline" className="rounded-2xl h-14 px-8 border-primary text-primary font-bold flex gap-2 flex-1 md:flex-none">
-                  <MessageSquare size={20} /> Chat
-                </Button>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-xl font-bold uppercase tracking-wider text-slate-400">Showroom Gallery</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {dealer.images.map((img, i) => (
+                      <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 group relative">
+                        <img 
+                          src={img} 
+                          alt="" 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                    ))}
+                    {dealer.images.length === 0 && (
+                      <div className="aspect-square rounded-2xl bg-slate-100 flex items-center justify-center col-span-2 text-slate-400">
+                        No photos uploaded
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </Card>
+      </section>
+
+      {/* Trust Banner Reflected from SWOT */}
+      <section className="px-4">
+        <div className="bg-gradient-to-r from-primary to-orange-400 rounded-[2rem] p-8 md:p-12 text-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-1000">
+            <ShieldCheck size={200} />
+          </div>
+          <div className="relative z-10 max-w-2xl space-y-4">
+            <Badge className="bg-white/20 text-white border-none px-4 py-1 rounded-full uppercase text-[10px] tracking-widest font-black">
+              Digital Showroom Guarantee
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-tight">
+              Buying from <span className="underline decoration-white/30 underline-offset-8">Verified Dealers</span> means buying with peace of mind.
+            </h2>
+            <p className="text-white/80 font-medium text-lg">
+              We physically visit every showroom to verify their inventory, pricing integrity, and registration certificates. No fake listings, ever.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* Location Section */}

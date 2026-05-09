@@ -25,6 +25,10 @@ export const shopService = {
         ownerId: s.owner_id,
         verificationStatus: s.verification_status,
         mapEmbedUrl: s.map_embed_url,
+        logo: s.logo,
+        bannerImage: s.banner_image,
+        website: s.website,
+        businessHours: s.business_hours,
         rating: s.rating,
         reviewsCount: s.reviews_count,
         createdAt: s.created_at,
@@ -59,6 +63,10 @@ export const shopService = {
         ownerId: data.owner_id,
         verificationStatus: data.verification_status,
         mapEmbedUrl: data.map_embed_url,
+        logo: data.logo,
+        bannerImage: data.banner_image,
+        website: data.website,
+        businessHours: data.business_hours,
         rating: data.rating,
         reviewsCount: data.reviews_count,
         createdAt: data.created_at,
@@ -90,6 +98,10 @@ export const shopService = {
         ownerId: data.owner_id,
         verificationStatus: data.verification_status,
         mapEmbedUrl: data.map_embed_url,
+        logo: data.logo,
+        bannerImage: data.banner_image,
+        website: data.website,
+        businessHours: data.business_hours,
         rating: data.rating,
         reviewsCount: data.reviews_count,
         createdAt: data.created_at,
@@ -103,24 +115,52 @@ export const shopService = {
 
   async createShop(shopData: Partial<Shop>): Promise<Shop> {
     try {
-      const { data, error } = await supabase
+      const payload: any = {
+        owner_id: shopData.ownerId,
+        name: shopData.name,
+        description: shopData.description,
+        address: shopData.address,
+        city: shopData.city,
+        state: shopData.state,
+        phone: shopData.phone,
+        images: shopData.images,
+        map_embed_url: shopData.mapEmbedUrl,
+        logo: shopData.logo,
+        banner_image: shopData.bannerImage,
+        website: shopData.website,
+        business_hours: shopData.businessHours,
+        verification_status: 'pending'
+      };
+
+      let { data, error } = await supabase
         .from('shops')
-        .insert([{
-          owner_id: shopData.ownerId,
-          name: shopData.name,
-          description: shopData.description,
-          address: shopData.address,
-          city: shopData.city,
-          state: shopData.state,
-          phone: shopData.phone,
-          images: shopData.images,
-          map_embed_url: shopData.mapEmbedUrl,
-          verification_status: 'pending'
-        }])
+        .insert([payload])
         .select();
 
-      if (error) throw error;
-      return data[0] as any;
+      if (error) {
+        // Fallback if columns don't exist yet
+        if (error.code === '42703' || error.code === 'PGRST204') {
+          console.warn('Shop schema mismatch, retrying with essential fields');
+          const essentialPayload = {
+            owner_id: payload.owner_id,
+            name: payload.name,
+            description: payload.description,
+            address: payload.address,
+            city: payload.city,
+            state: payload.state,
+            phone: payload.phone,
+            images: payload.images,
+            map_embed_url: payload.map_embed_url,
+            verification_status: 'pending'
+          };
+          const retry = await supabase.from('shops').insert([essentialPayload]).select();
+          data = retry.data;
+          error = retry.error;
+        }
+        if (error) throw error;
+      }
+      
+      return data![0] as any;
     } catch (error) {
       console.error('Error creating shop:', error);
       throw error;
@@ -143,20 +183,42 @@ export const shopService = {
 
   async updateShop(shopId: string, shopData: Partial<Shop>): Promise<void> {
     try {
-      const { error } = await supabase
+      const payload: any = {
+        name: shopData.name,
+        description: shopData.description,
+        address: shopData.address,
+        city: shopData.city,
+        state: shopData.state,
+        phone: shopData.phone,
+        images: shopData.images,
+        map_embed_url: shopData.mapEmbedUrl,
+        logo: shopData.logo,
+        banner_image: shopData.bannerImage,
+        website: shopData.website,
+        business_hours: shopData.businessHours,
+        updated_at: new Date().toISOString()
+      };
+
+      let { error } = await supabase
         .from('shops')
-        .update({
-          name: shopData.name,
-          description: shopData.description,
-          address: shopData.address,
-          city: shopData.city,
-          state: shopData.state,
-          phone: shopData.phone,
-          images: shopData.images,
-          map_embed_url: shopData.mapEmbedUrl,
-          updated_at: new Date().toISOString()
-        })
+        .update(payload)
         .eq('id', shopId);
+
+      if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+         const essentialPayload = {
+            name: shopData.name,
+            description: shopData.description,
+            address: shopData.address,
+            city: shopData.city,
+            state: shopData.state,
+            phone: shopData.phone,
+            images: shopData.images,
+            map_embed_url: shopData.mapEmbedUrl,
+            updated_at: new Date().toISOString()
+          };
+          const retry = await supabase.from('shops').update(essentialPayload).eq('id', shopId);
+          error = retry.error;
+      }
 
       if (error) throw error;
     } catch (error) {

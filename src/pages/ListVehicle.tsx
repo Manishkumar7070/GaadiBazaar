@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Upload, Loader2, CheckCircle2, Activity, Eye, PlayCircle, Star, Zap, Crown, Check } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { vehicleService } from '@/services/vehicle.service';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storageService } from '@/services/storage.service';
 import { VehicleType, FuelType, TransmissionType, OwnershipType, Shop, ListingType } from '@/types';
 import { shopService } from '@/services/shop.service';
 import { INDIAN_STATES, MAJOR_CITIES_BY_STATE } from '@/constants/locations';
 import { cn } from '@/lib/utils';
-import { PRICING_TIERS } from '@/constants/pricing';
+import { PRICING, BANK_DETAILS, QR_CODE_URL, PRICING_TIERS } from '@/constants/pricing';
+import { paymentService } from '@/services/payment.service';
 import { motion } from 'motion/react';
 
 const ListVehicle = () => {
@@ -23,8 +24,13 @@ const ListVehicle = () => {
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [success, setSuccess] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'form' | 'payment'>('form');
+  const [createdVehicleId, setCreatedVehicleId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'qr_code' | 'stripe'>('stripe');
+  const [transactionRef, setTransactionRef] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [shop, setShop] = useState<Shop | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState(() => {
@@ -58,6 +64,8 @@ const ListVehicle = () => {
         right: '',
         interior: '',
         exterior: '',
+        engine: '',
+        tires: '',
       } as Record<string, string>,
     };
 
@@ -72,6 +80,34 @@ const ListVehicle = () => {
     }
     return defaultData;
   });
+
+  // Handle Stripe Success Callback
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    const vehicleId = urlParams.get('vehicle_id');
+    
+    if (sessionId && vehicleId && user) {
+      const verify = async () => {
+        setLoading(true);
+        try {
+          const idToken = await (user as any).getIdToken();
+          const success = await paymentService.verifyStripeSession(sessionId, vehicleId, idToken);
+          if (success) {
+            setSuccess(true);
+            setTimeout(() => navigate('/profile'), 3000);
+          } else {
+            alert('Payment verification failed.');
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      verify();
+    }
+  }, [user, navigate]);
 
   // Save draft to localStorage whenever formData changes
   React.useEffect(() => {
@@ -145,30 +181,56 @@ const ListVehicle = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !user) return;
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
 
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await handleFiles(files);
+    }
+  };
+
+  const handleFiles = async (files: FileList) => {
+    if (!user) return;
     setUploading(true);
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-        const filePath = `vehicles/${user.id}/${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
-        const storageRef = ref(storage, filePath);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
+        return await storageService.uploadFile(file, 'vehicles', filePath);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
       setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading images:', error);
-      alert('Failed to upload images. Please make sure you are logged in and try again.');
+      alert(error.message || 'Failed to upload images. Check your connection or Supabase configuration.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      await handleFiles(files);
     }
   };
 
@@ -180,11 +242,9 @@ const ListVehicle = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${category}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `vehicles/${user.id}/${fileName}`;
+      const filePath = `${user.id}/${fileName}`;
 
-      const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, file);
-      const publicUrl = await getDownloadURL(storageRef);
+      const publicUrl = await storageService.uploadFile(file, 'vehicles', filePath);
       
       setFormData(prev => ({
         ...prev,
@@ -193,9 +253,9 @@ const ListVehicle = () => {
           [category]: publicUrl
         }
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      alert('Failed to upload image.');
+      alert(error.message || 'Failed to upload image.');
     } finally {
       setUploading(false);
     }
@@ -225,17 +285,15 @@ const ListVehicle = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${field}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `vehicles/${user.id}/videos/${fileName}`;
+      const filePath = `${user.id}/videos/${fileName}`;
 
-      const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, file);
-      const publicUrl = await getDownloadURL(storageRef);
+      const publicUrl = await storageService.uploadFile(file, 'vehicles', filePath);
       
       setUploadProgress(prev => ({ ...prev, [field]: 100 }));
       setFormData(prev => ({ ...prev, [field]: publicUrl }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading video:', error);
-      alert('Failed to upload video.');
+      alert(error.message || 'Failed to upload video.');
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => {
@@ -257,16 +315,11 @@ const ListVehicle = () => {
     setLoading(true);
     try {
       const allImages = [
-        formData.categorizedImages.front,
-        formData.categorizedImages.back,
-        formData.categorizedImages.left,
-        formData.categorizedImages.right,
-        formData.categorizedImages.interior,
-        formData.categorizedImages.exterior,
+        ...Object.values(formData.categorizedImages),
         ...formData.images
       ].filter(Boolean);
 
-      await vehicleService.createVehicle({
+      const created = await vehicleService.createVehicle({
         ...formData,
         price: Number(formData.price),
         kilometersDriven: Number(formData.kilometersDriven),
@@ -274,24 +327,80 @@ const ListVehicle = () => {
         sellerId: user.id,
         shopId: shop?.id,
         images: allImages,
+        imageMetadata: formData.categorizedImages,
         listingType: formData.listingType,
+        paymentStatus: formData.listingType === 'free' ? 'none' : 'pending',
+        status: formData.listingType === 'free' ? 'active' : 'inactive',
         priorityScore: formData.listingType === 'sponsored' ? 100 : 
                        formData.listingType === 'featured' ? 50 : 
                        formData.listingType === 'premium' ? 25 : 0,
-        clicksCount: 0,
-        leadsCount: 0,
-        viewsCount: 0,
         engineStartVideo: formData.engineStartVideo,
         engineSoundVideo: formData.engineSoundVideo,
         walkaroundVideo: formData.walkaroundVideo,
       });
+
       clearDraft();
-      setSuccess(true);
-      setTimeout(() => navigate('/profile'), 2000);
-    } catch (error) {
+
+      if (formData.listingType === 'free') {
+        setSuccess(true);
+        setTimeout(() => navigate('/profile'), 2000);
+      } else {
+        navigate(`/payment?vehicleId=${created.id}&plan=${formData.listingType}`);
+      }
+    } catch (error: any) {
       console.error('Error listing vehicle:', error);
-      alert('Failed to list vehicle. Please try again.');
+      const message = error.message || 'Unknown error';
+      alert(`Failed to list vehicle: ${message}. Please check your connection and try again.`);
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentSubmit = async () => {
+    if (!createdVehicleId || !user) return;
+    
+    if (paymentMethod === 'stripe') {
+      await handleStripePayment();
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await paymentService.createPayment({
+        userId: user.id,
+        vehicleId: createdVehicleId,
+        amount: PRICING[formData.listingType],
+        paymentMethod: paymentMethod,
+        transactionRef: transactionRef
+      });
+      
+      setSuccess(true);
+      setTimeout(() => navigate('/profile'), 3000);
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      alert('Failed to record payment. Please try again or contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStripePayment = async () => {
+    if (!createdVehicleId || !user) return;
+    setLoading(true);
+    try {
+      const idToken = await (user as any).getIdToken();
+      const { url } = await paymentService.createStripeSession({
+        vehicleId: createdVehicleId,
+        amount: PRICING[formData.listingType],
+        listingType: formData.listingType,
+        successUrl: window.location.origin + window.location.pathname,
+        cancelUrl: window.location.href,
+        idToken
+      });
+      window.location.href = url;
+    } catch (error) {
+      console.error('Stripe error:', error);
+      alert('Failed to initialize Stripe payment. Please try another method.');
       setLoading(false);
     }
   };
@@ -308,8 +417,154 @@ const ListVehicle = () => {
     );
   }
 
+  if (currentStep === 'payment' && createdVehicleId) {
+    const selectedPlan = PRICING_TIERS.VEHICLES.find(p => p.type === formData.listingType);
+    const amountToPay = PRICING[formData.listingType];
+
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-2xl space-y-8 pb-20">
+        <Helmet>
+          <title>Complete Payment | AsOneDealer</title>
+        </Helmet>
+
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-sm font-bold border border-amber-100">
+            <Zap size={16} fill="currentColor" />
+            Complete Payment for {selectedPlan?.name}
+          </div>
+          <h1 className="text-3xl font-black text-slate-900">Make Payment of ₹{amountToPay}</h1>
+          <p className="text-slate-500">Your listing is saved as "Inactive". It will go live after payment verification.</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <button
+            onClick={() => setPaymentMethod('stripe')}
+            className={cn(
+              "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+              paymentMethod === 'stripe' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:bg-slate-50"
+            )}
+          >
+            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", paymentMethod === 'stripe' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+              <Crown size={24} />
+            </div>
+            <span className="font-bold text-sm">Cards / UPI</span>
+          </button>
+
+          <button
+            onClick={() => setPaymentMethod('qr_code')}
+            className={cn(
+              "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+              paymentMethod === 'qr_code' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:bg-slate-50"
+            )}
+          >
+            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", paymentMethod === 'qr_code' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+              <Zap size={24} />
+            </div>
+            <span className="font-bold text-sm">Scan QR</span>
+          </button>
+
+          <button
+            onClick={() => setPaymentMethod('bank_transfer')}
+            className={cn(
+              "p-6 rounded-3xl border-2 transition-all flex flex-col items-center gap-3",
+              paymentMethod === 'bank_transfer' ? "border-primary bg-primary/5 shadow-md" : "border-slate-100 bg-white hover:bg-slate-50"
+            )}
+          >
+            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", paymentMethod === 'bank_transfer' ? "bg-primary text-white" : "bg-slate-100 text-slate-400")}>
+              <Activity size={24} />
+            </div>
+            <span className="font-bold text-sm">Bank</span>
+          </button>
+        </div>
+
+        <Card className="rounded-3xl border-none shadow-xl overflow-hidden bg-white">
+          <CardContent className="p-8 space-y-8">
+            {paymentMethod === 'stripe' ? (
+              <div className="flex flex-col items-center space-y-6">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                  <Check size={32} />
+                </div>
+                <div className="text-center space-y-2">
+                  <p className="font-black text-slate-900 text-lg">Secure Card Payment</p>
+                  <p className="text-sm text-slate-500">Pay securely using Credit/Debit cards or Net Banking via Stripe.</p>
+                </div>
+              </div>
+            ) : paymentMethod === 'qr_code' ? (
+              <div className="flex flex-col items-center space-y-6">
+                <div className="p-4 bg-white border-4 border-slate-50 rounded-3xl shadow-inner">
+                  <img src={QR_CODE_URL} alt="Payment QR" className="w-48 h-48 rounded-xl" />
+                </div>
+                <div className="text-center space-y-1">
+                  <p className="font-black text-slate-900">Scan using any UPI App</p>
+                  <p className="text-xs text-slate-400 uppercase font-bold tracking-widest">GPay, PhonePe, Paytm, etc.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Name</p>
+                    <p className="font-bold text-slate-900">{BANK_DETAILS.accountName}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Number</p>
+                      <p className="font-bold text-slate-900">{BANK_DETAILS.accountNumber}</p>
+                    </div>
+                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">IFSC Code</p>
+                      <p className="font-bold text-slate-900">{BANK_DETAILS.ifscCode}</p>
+                    </div>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bank & Branch</p>
+                    <p className="font-bold text-slate-900">{BANK_DETAILS.bankName}, {BANK_DETAILS.branch}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              {paymentMethod !== 'stripe' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Transaction ID / Reference Number</label>
+                  <Input 
+                    placeholder="Enter the 12-digit transaction ID"
+                    value={transactionRef}
+                    onChange={(e) => setTransactionRef(e.target.value)}
+                    className="h-12 rounded-xl bg-slate-50 border-slate-100"
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Enter the reference number after completing the transfer.</p>
+                </div>
+              )}
+
+              <Button 
+                onClick={handlePaymentSubmit}
+                disabled={loading || (paymentMethod !== 'stripe' && !transactionRef)}
+                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/91 text-white font-black text-lg shadow-xl shadow-primary/20"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : 
+                  paymentMethod === 'stripe' ? 'Pay Securely with Stripe' : 'Confirm Payment & Submit'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-[11px] text-slate-400 px-8">
+          By clicking confirm, you agree that you have made the payment. Manual verification may take up to 24 hours. Your listing will be activated once payment is confirmed.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6 pb-20">
+      <Helmet>
+        <title>Sell Your Car | List Your Vehicle at AsOneDealer</title>
+        <meta name="description" content="Sell your used car quickly with AsOneDealer. Reach thousands of verified buyers, upload videos, and get the best value for your vehicle." />
+        <meta name="keywords" content="sell car online, list vehicle, sell used car India, car selling marketplace" />
+      </Helmet>
+
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
           <ChevronLeft size={24} />
@@ -711,8 +966,8 @@ const ListVehicle = () => {
             </div>
 
             <div className="space-y-6">
-              <label className="text-sm font-semibold text-slate-700">Required Photos</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <label className="text-sm font-semibold text-slate-700">Key Vehicle Photos</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { id: 'front', label: 'Front View' },
                   { id: 'back', label: 'Back View' },
@@ -720,6 +975,8 @@ const ListVehicle = () => {
                   { id: 'right', label: 'Right Side' },
                   { id: 'interior', label: 'Interior' },
                   { id: 'exterior', label: 'Exterior' },
+                  { id: 'engine', label: 'Engine Bay' },
+                  { id: 'tires', label: 'Tires/Wheels' },
                 ].map((cat) => (
                   <div key={cat.id} className="space-y-2">
                     <p className="text-xs font-medium text-slate-500">{cat.label}</p>
@@ -762,40 +1019,81 @@ const ListVehicle = () => {
 
               <div className="space-y-4">
                 <label className="text-sm font-semibold text-slate-700">Additional Images (Optional)</label>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  multiple 
-                  accept="image/*" 
-                  className="hidden" 
-                />
-                <div className="grid grid-cols-3 gap-4">
-                  {formData.images.map((img, i) => (
-                    <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group">
-                      <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <button 
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }))}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Upload className="rotate-45" size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  <button 
-                    type="button"
-                    onClick={handleImageAdd}
+                
+                <div 
+                  className={cn(
+                    "relative border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center transition-all cursor-pointer group",
+                    isDragging ? "border-primary bg-primary/5 scale-[0.99]" : "border-slate-200 hover:border-primary/40 bg-slate-50",
+                    uploading && "opacity-50 cursor-not-allowed"
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={handleImageAdd}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    multiple 
+                    accept="image/*" 
+                    className="hidden" 
                     disabled={uploading}
-                    className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary transition-all disabled:opacity-50"
-                  >
-                    {uploading ? (
-                      <Loader2 className="animate-spin" size={24} />
-                    ) : (
-                      <Upload size={24} />
-                    )}
-                    <span className="text-xs mt-2">{uploading ? 'Uploading...' : 'Add More'}</span>
-                  </button>
+                  />
+                  
+                  <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 mb-4 group-hover:scale-110 transition-transform">
+                    {uploading ? <Loader2 size={32} className="animate-spin text-primary" /> : <Upload size={32} />}
+                  </div>
+                  
+                  <div className="text-center space-y-1">
+                    <p className="text-base font-bold text-slate-900">
+                      {uploading ? 'Uploading your images...' : 'Drag & drop images here'}
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      or click to browse from your device
+                    </p>
+                  </div>
+                  
+                  <div className="mt-4 flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span>JPEG, PNG</span>
+                    <span>•</span>
+                    <span>Up to 10MB each</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mt-6">
+                  {formData.images.map((img, i) => (
+                    <motion.div 
+                      key={img}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group shadow-sm bg-white"
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
+                          }}
+                          className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors"
+                          title="Remove Image"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                  
+                  {uploading && (
+                    <div className="aspect-square rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center">
+                      <Loader2 size={24} className="animate-spin text-primary/40" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

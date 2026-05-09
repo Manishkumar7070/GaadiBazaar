@@ -24,8 +24,9 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
+import { paymentService } from '@/services/payment.service';
 import { generateStartupSpecPDF } from '@/services/pdfService';
-import { Shop, Vehicle } from '@/types';
+import { Shop, Vehicle, Payment } from '@/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -190,6 +191,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [shops, setShops] = useState<Shop[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -215,12 +217,14 @@ const AdminDashboard = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [allShops, allVehicles] = await Promise.all([
+      const [allShops, allVehicles, allPayments] = await Promise.all([
         shopService.fetchShops(),
-        vehicleService.fetchVehicles()
+        vehicleService.fetchVehicles(),
+        paymentService.fetchAllPayments()
       ]);
       setShops(allShops);
       setVehicles(allVehicles);
+      setPayments(allPayments);
     } catch (error) {
       console.error('Error loading admin data:', error);
     } finally {
@@ -262,6 +266,20 @@ const AdminDashboard = () => {
       setSelectedVehicles(prev => prev.filter(id => id !== vehicleId));
     } catch (error) {
       alert('Failed to update vehicle status');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePaymentVerify = async (paymentId: string, status: 'completed' | 'failed') => {
+    setActionLoading(paymentId);
+    try {
+      await paymentService.updatePaymentStatus(paymentId, status);
+      setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status } : p));
+      // Refresh data to see updated vehicle payment_status
+      loadData();
+    } catch (error) {
+      alert('Failed to update payment status');
     } finally {
       setActionLoading(null);
     }
@@ -317,6 +335,7 @@ const AdminDashboard = () => {
 
   const pendingShops = shops.filter(s => s.verificationStatus === 'pending');
   const pendingVehicles = vehicles.filter(v => v.verificationStatus === 'pending');
+  const pendingPayments = payments.filter(p => p.status === 'pending');
 
   const filteredShops = shops.filter(s => s.verificationStatus === shopFilter);
   const filteredVehicles = vehicles.filter(v => v.verificationStatus === vehicleFilter);
@@ -380,12 +399,15 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="shops" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 h-12">
+        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 h-12">
           <TabsTrigger value="shops" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            Showrooms ({pendingShops.length} Pending)
+            Showrooms ({pendingShops.length})
           </TabsTrigger>
           <TabsTrigger value="vehicles" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            Vehicles ({pendingVehicles.length} Pending)
+            Vehicles ({pendingVehicles.length})
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Payments ({pendingPayments.length})
           </TabsTrigger>
         </TabsList>
 
@@ -831,6 +853,85 @@ const AdminDashboard = () => {
                 </div>
               )}
             </>
+          )}
+        </TabsContent>
+        <TabsContent value="payments" className="mt-6 space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-lg font-bold">Transaction Verification</h2>
+            <Badge variant="outline" className="bg-primary/5 text-primary">₹ {payments.reduce((acc, p) => acc + (p.status === 'completed' ? p.amount : 0), 0).toLocaleString()} Total Revenue</Badge>
+          </div>
+
+          {payments.length === 0 ? (
+            <Card className="rounded-3xl border-dashed border-2 border-slate-200 bg-slate-50/50">
+              <CardContent className="py-20 text-center space-y-3">
+                <FileText className="mx-auto text-slate-300" size={48} />
+                <p className="text-slate-500 font-medium">No payment history found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {payments.map(payment => {
+                const vehicle = vehicles.find(v => v.id === payment.vehicleId);
+                return (
+                  <Card key={payment.id} className="rounded-3xl border-none shadow-sm overflow-hidden">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-lg">₹{payment.amount}</span>
+                            <Badge className={cn(
+                              "rounded-lg",
+                              payment.status === 'completed' ? 'bg-green-500' : 
+                              payment.status === 'failed' ? 'bg-red-500' : 'bg-orange-500'
+                            )}>
+                              {payment.status.toUpperCase()}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-500">Method: <span className="font-bold text-slate-700 capitalize">{payment.paymentMethod.replace('_', ' ')}</span></p>
+                          <p className="text-xs text-slate-400">Ref: <span className="font-mono">{payment.transactionRef || 'N/A'}</span></p>
+                        </div>
+
+                        <div className="flex-1 px-4 border-l border-slate-100 hidden md:block">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Listing Info</p>
+                          <p className="font-bold text-slate-700 truncate">{vehicle?.title || 'Unknown Vehicle'}</p>
+                          <p className="text-xs text-slate-500">ID: {payment.vehicleId}</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {payment.status === 'pending' && (
+                            <>
+                              <Button 
+                                size="sm" 
+                                className="bg-green-600 hover:bg-green-700 rounded-xl gap-2"
+                                onClick={() => handlePaymentVerify(payment.id, 'completed')}
+                                disabled={actionLoading === payment.id}
+                              >
+                                {actionLoading === payment.id ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} />}
+                                Mark Received
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-red-600 border-red-100 hover:bg-red-50 rounded-xl gap-2"
+                                onClick={() => handlePaymentVerify(payment.id, 'failed')}
+                                disabled={actionLoading === payment.id}
+                              >
+                                <XCircle size={14} />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          <div className="text-[10px] text-right text-slate-400 space-y-1">
+                            <p>{format(new Date(payment.createdAt), 'PP')}</p>
+                            <p>{format(new Date(payment.createdAt), 'p')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
         </TabsContent>
       </Tabs>

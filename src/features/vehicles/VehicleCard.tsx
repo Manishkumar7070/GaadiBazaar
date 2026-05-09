@@ -26,6 +26,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
   const isSponsored = vehicle.listingType === 'sponsored';
   const isFeaturedListing = vehicle.listingType === 'featured';
   const isPremiumListing = vehicle.listingType === 'premium';
+  const isSold = vehicle.status === 'sold';
 
   // Smart Badges Logic
   const hasPriceHistory = vehicle.priceHistory && vehicle.priceHistory.length > 1;
@@ -128,10 +129,23 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             alt={vehicle.title}
             className={cn(
               "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
-              isSponsored && "scale-[1.02]"
+              isSponsored && "scale-[1.02]",
+              isSold && "grayscale opacity-80"
             )}
             referrerPolicy="no-referrer"
           />
+
+          {isSold && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <motion.div 
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white/10 border-2 border-white/50 px-6 py-2 rounded-xl backdrop-blur-md"
+              >
+                <span className="text-white text-2xl font-black tracking-widest uppercase">Sold Out</span>
+              </motion.div>
+            </div>
+          )}
 
           {/* Top Listing Ribbon */}
           {isSponsored && (
@@ -143,6 +157,11 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
           )}
 
           <div className="absolute top-4 left-4 flex flex-wrap gap-2 pr-12">
+            {isSold && (
+              <Badge className="bg-slate-900 text-white border-none shadow-lg flex gap-1 items-center px-3 py-1 font-black">
+                <XCircle size={12} /> SOLD
+              </Badge>
+            )}
             {isSponsored && (
               <Badge className="bg-amber-500 text-white border-none shadow-lg animate-bounce-slow flex gap-1 items-center">
                 <Crown size={12} fill="white" /> Top Ad
@@ -228,17 +247,17 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4 text-slate-500 text-xs font-medium">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 text-[10px] sm:text-xs font-medium">
               <div className="flex items-center gap-1">
-                <Calendar size={14} className="text-slate-400" />
+                <Calendar size={12} className="text-slate-400 sm:w-3.5 sm:h-3.5" />
                 <span>{vehicle.year}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Gauge size={14} className="text-slate-400" />
+                <Gauge size={12} className="text-slate-400 sm:w-3.5 sm:h-3.5" />
                 <span>{vehicle.kilometersDriven.toLocaleString()} km</span>
               </div>
               <div className="flex items-center gap-1 text-slate-400">
-                <User size={14} />
+                <User size={12} className="sm:w-3.5 sm:h-3.5" />
                 <span>{vehicle.ownership}</span>
               </div>
             </div>
@@ -246,19 +265,19 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
           
           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
             <div className={cn(
-              "text-2xl font-black transition-all",
+              "text-lg sm:text-2xl font-black transition-all",
               isSponsored ? "text-amber-600" : "text-slate-900"
             )}>
               ₹{vehicle.price.toLocaleString()}
             </div>
-            <Badge variant="secondary" className="bg-slate-50 text-slate-500 capitalize rounded-lg border-slate-100 text-[10px] font-bold">
+            <Badge variant="secondary" className="bg-slate-50 text-slate-500 capitalize rounded-lg border-slate-100 text-[9px] sm:text-[10px] font-bold px-1.5 py-0">
               {vehicle.fuelType}
             </Badge>
           </div>
 
           {shop && (
-            <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-white shadow-sm shrink-0 border border-slate-100">
+            <div className="flex items-center gap-2 p-1.5 sm:p-2 bg-slate-50 rounded-xl border border-slate-100/50">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-white shadow-sm shrink-0 border border-slate-100">
                 <img src={shop.images[0]} alt={shop.name} className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col min-w-0">
@@ -266,28 +285,28 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
                   <Link 
                     to={`/dealer/${shop.id}`} 
                     onClick={(e) => e.stopPropagation()} 
-                    className="text-xs font-bold text-slate-700 hover:text-primary transition-colors truncate"
+                    className="text-[10px] sm:text-xs font-bold text-slate-700 hover:text-primary transition-colors truncate"
                   >
                     {shop.name}
                   </Link>
                   {shop.isPremium && (
-                    <div className="bg-amber-100 text-amber-700 rounded-full p-0.5" title="Premium Seller">
-                      <Star size={8} fill="currentColor" />
+                    <div className="bg-amber-100 text-amber-700 rounded-full p-0.5 shrink-0" title="Premium Seller">
+                      <Star size={6} className="sm:w-2 sm:h-2" fill="currentColor" />
                     </div>
                   )}
                   {shop.verificationStatus === 'verified' && (
-                    <ShieldCheck size={12} className="text-blue-500 shrink-0" />
+                    <ShieldCheck size={10} className="text-blue-500 shrink-0 sm:w-3 sm:h-3" />
                   )}
                 </div>
-                <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                <div className="text-[8px] sm:text-[10px] text-slate-400 flex items-center gap-1 truncate">
                    {vehicle.rating ? (
                      <>
-                       <Star size={10} className="fill-blue-400 text-blue-400" /> {vehicle.rating} ({vehicle.reviewsCount})
+                       <Star size={8} className="fill-blue-400 text-blue-400 sm:w-2.5 sm:h-2.5" /> {vehicle.rating} ({vehicle.reviewsCount})
                      </>
                    ) : (
-                     <Star size={10} className="fill-amber-400 text-amber-400" />
+                     <Star size={8} className="fill-amber-400 text-amber-400 sm:w-2.5 sm:h-2.5" />
                    )}
-                   <span> {shop.rating || '4.5'} • 100+ listings</span>
+                   <span className="truncate"> {shop.rating || '4.5'} • 100+ items</span>
                 </div>
               </div>
             </div>
@@ -295,15 +314,26 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
 
           <Button 
             className={cn(
-              "w-full rounded-xl font-bold flex gap-2 h-11 transition-all active:scale-[0.98]",
+              "w-full rounded-xl font-bold flex gap-2 h-9 sm:h-11 text-xs sm:text-sm transition-all active:scale-[0.98]",
+              isSold ? "bg-slate-200 text-slate-500 hover:bg-slate-200 cursor-not-allowed" :
               isSponsored ? "bg-amber-500 hover:bg-amber-600 text-white" :
               isFeaturedListing ? "bg-blue-600 hover:bg-blue-700 text-white" :
               "bg-primary hover:bg-primary/90 text-white"
             )}
-            onClick={handleContactSeller}
+            onClick={isSold ? (e) => e.stopPropagation() : handleContactSeller}
+            disabled={isSold}
           >
-            <Phone size={18} />
-            Contact Seller
+            {isSold ? (
+              <>
+                <XCircle size={14} className="sm:w-[18px] sm:h-[18px]" />
+                Sold Out
+              </>
+            ) : (
+              <>
+                <Phone size={14} className="sm:w-[18px] sm:h-[18px]" />
+                Contact Seller
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

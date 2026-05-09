@@ -14,6 +14,8 @@ import Login from './pages/Login';
 import FindDealers from './pages/FindDealers';
 import Brands from './pages/Brands';
 import BlogUsedCarMarket from './pages/BlogUsedCarMarket';
+import SellerDashboard from './pages/SellerDashboard';
+import Payment from './pages/Payment';
 import Header from './layouts/Header';
 import Footer from './layouts/Footer';
 import MobileNav from './layouts/MobileNav';
@@ -47,6 +49,8 @@ export default function App() {
                     <Route path="/compare" element={<Compare />} />
                     <Route path="/dealer/:id" element={<DealerDetail />} />
                     <Route path="/list-vehicle" element={<ListVehicle />} />
+                    <Route path="/payment" element={<Payment />} />
+                    <Route path="/seller-dashboard" element={<SellerDashboard />} />
                     <Route path="/create-shop" element={<CreateShop />} />
                     <Route path="/edit-shop" element={<EditShop />} />
                     <Route path="/admin" element={<AdminDashboard />} />
