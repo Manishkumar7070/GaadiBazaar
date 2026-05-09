@@ -4,6 +4,8 @@
  * and improve security awareness.
  */
 
+import { logger } from './logger';
+
 const REQUIRED_ENV_VARS = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
@@ -16,15 +18,14 @@ export function validateEnv() {
 
   if (missing.length > 0) {
     if (process.env.NODE_ENV === 'production') {
-      console.error(`CRITICAL: Missing environment variables: ${missing.join(', ')}`);
-      // In production we might want to fail hard or show a maintenance page
+      logger.error(`CRITICAL: Missing environment variables: ${missing.join(', ')}`);
     } else {
-      console.warn(`Missing environment variables: ${missing.join(', ')}. Check your .env file.`);
+      logger.warn(`Missing environment variables: ${missing.join(', ')}. Check your .env file.`);
     }
   }
 
   // Check for common misconfigurations
   if (import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.startsWith('http')) {
-    console.error('VITE_SUPABASE_URL must be a valid URL starting with http/https');
+    logger.error('VITE_SUPABASE_URL must be a valid URL starting with http/https');
   }
 }

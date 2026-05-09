@@ -20,11 +20,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
-import { locationService } from '@/services/location.service';
+import { locationService, LocationError, LocationErrorType } from '@/services/location.service';
 import { useLocation } from '@/context/LocationContext';
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
 import { ConfirmationResult } from 'firebase/auth';
+import { POPULAR_CITIES } from '@/constants/cities';
 
 const LoginPage = () => {
   const { user, completeProfile, loginWithGoogle, logout } = useAuth();
@@ -50,6 +51,13 @@ const LoginPage = () => {
     address?: string;
   }>({});
   const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [showManualLocation, setShowManualLocation] = useState(false);
+  const [searchCity, setSearchCity] = useState('');
+
+  const filteredCities = POPULAR_CITIES.filter(city => 
+    city.name.toLowerCase().includes(searchCity.toLowerCase())
+  );
 
   const redirect = searchParams.get('redirect') || '/';
   const reason = searchParams.get('reason');
@@ -71,6 +79,11 @@ const LoginPage = () => {
       await loginWithGoogle();
       logger.info('Google login initiated from component');
     } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        logger.info('Google login popup closed by user');
+        return; // Exit silently
+      }
+      
       logger.error('Google Login Error', { data: error });
       if (error.code === 'auth/unauthorized-domain') {
         setError(`Domain not authorized: "${window.location.hostname}". Please add this domain to your Firebase Console under Auth > Settings > Authorized Domains.`);
@@ -150,6 +163,7 @@ const LoginPage = () => {
 
   const handleAutoDetectLocation = async () => {
     setLocationLoading(true);
+    setLocationError(null);
     try {
       const coords = await locationService.getCurrentPosition();
       const geo = await locationService.reverseGeocode(coords.latitude, coords.longitude);
@@ -166,17 +180,34 @@ const LoginPage = () => {
       }
       
       setTimeout(() => setStep('role'), 1000);
-    } catch (error) {
-      logger.error('Location detection failed', { data: error });
+    } catch (err: any) {
+      logger.error('Location detection failed', { data: err });
+      
+      let userMessage = 'We couldn\'t detect your location automatically.';
+      if (err instanceof LocationError) {
+        userMessage = err.message;
+      }
+      
+      setLocationError(userMessage);
+      setShowManualLocation(true);
+      
       setLocationData({
-        cityName: '', // Empty string instead of undefined
+        cityName: '', 
         address: 'Location access denied or unavailable'
       });
-      // Still proceed to role selection after a short delay to keep user flow
-      setTimeout(() => setStep('role'), 1500);
     } finally {
       setLocationLoading(false);
     }
+  };
+
+  const handleManualLocationSelect = (cityName: string) => {
+    setLocationData({
+      ...locationData,
+      cityName,
+      address: `Selected: ${cityName}`
+    });
+    setSelectedCity(cityName);
+    setStep('role');
   };
 
   const handleRoleSelect = async (role: 'buyer' | 'seller') => {
@@ -466,51 +497,100 @@ const LoginPage = () => {
                   key="location"
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="space-y-10 text-center"
+                  className="space-y-8 text-center"
                 >
-                   <div className="relative mx-auto w-32 h-32">
+                   <div className="relative mx-auto w-24 h-24">
                       <motion.div 
                         animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
                         transition={{ duration: 3, repeat: Infinity }}
                         className="absolute inset-0 bg-primary rounded-full"
                       />
-                      <div className="absolute inset-4 rounded-full bg-slate-900 flex items-center justify-center border-4 border-primary/20 shadow-2xl">
-                         <MapPin size={56} className="text-primary" />
+                      <div className="absolute inset-2 rounded-full bg-slate-900 flex items-center justify-center border-4 border-primary/20 shadow-2xl">
+                         <MapPin size={40} className="text-primary" />
                       </div>
                    </div>
 
-                   <div className="space-y-4">
-                      <h2 className="text-3xl font-black text-white px-2">Local Experience</h2>
+                   <div className="space-y-2">
+                      <h2 className="text-2xl font-black text-white px-2">Local Experience</h2>
                       <p className="text-slate-400 font-bold text-sm px-6 leading-relaxed">
-                        Find deals from certified dealerships in your immediate vicinity.
+                        Find deals from certified dealerships in your area.
                       </p>
                    </div>
 
-                   <div className="space-y-6">
-                      <Button
-                        onClick={handleAutoDetectLocation}
-                        disabled={locationLoading}
-                        className="w-full h-20 rounded-[2.5rem] bg-primary text-white hover:bg-primary/90 font-black text-xl shadow-[0_24px_48px_-12px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center gap-4 group"
-                      >
-                        {locationLoading ? (
-                           <>
-                            <Loader2 className="animate-spin" size={28} />
-                            <span>Locating...</span>
-                           </>
-                        ) : (
-                          <>
-                            <Navigation size={28} className="group-hover:fill-current group-hover:rotate-12 transition-all" />
-                            <span>Auto-Detect City</span>
-                          </>
-                        )}
-                      </Button>
+                   <div className="space-y-4">
+                      {!showManualLocation ? (
+                        <Button
+                          onClick={handleAutoDetectLocation}
+                          disabled={locationLoading}
+                          className="w-full h-18 rounded-[2rem] bg-primary text-white hover:bg-primary/90 font-black text-lg shadow-[0_24px_48px_-12px_rgba(var(--primary-rgb),0.4)] flex items-center justify-center gap-4 group"
+                        >
+                          {locationLoading ? (
+                             <>
+                              <Loader2 className="animate-spin" size={24} />
+                              <span>Locating...</span>
+                             </>
+                          ) : (
+                            <>
+                              <Navigation size={24} className="group-hover:fill-current group-hover:rotate-12 transition-all" />
+                              <span>Auto-Detect City</span>
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                          <input 
+                            type="text"
+                            value={searchCity}
+                            onChange={(e) => setSearchCity(e.target.value)}
+                            placeholder="Search your city..."
+                            className="w-full h-14 px-6 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all font-bold"
+                          />
+                          <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                            {filteredCities.map(city => (
+                              <button
+                                key={city.name}
+                                onClick={() => handleManualLocationSelect(city.name)}
+                                className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 transition-all text-left flex items-center justify-between group"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-white group-hover:text-primary transition-colors">{city.name}</span>
+                                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">{city.state}</span>
+                                </div>
+                                <ChevronRight size={16} className="text-slate-600 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                              </button>
+                            ))}
+                            {filteredCities.length === 0 && (
+                              <div className="p-8 text-center text-slate-500 italic text-sm">
+                                No cities found matching "{searchCity}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
-                      <button
-                        onClick={() => setStep('role')}
-                        className="text-xs font-black text-slate-500 hover:text-white transition-colors py-2 uppercase tracking-[0.3em] group"
-                      >
-                        Skip Selection <span className="group-hover:pl-1 transition-all">→</span>
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        {locationError && !showManualLocation && (
+                          <p className="text-red-400 text-xs font-bold bg-red-400/5 p-3 rounded-xl border border-red-400/10 mb-2">
+                            {locationError}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center justify-center gap-4">
+                          <button
+                            onClick={() => setShowManualLocation(!showManualLocation)}
+                            className="text-xs font-black text-primary hover:text-white transition-colors py-2 uppercase tracking-widest"
+                          >
+                            {showManualLocation ? 'Try Auto-Detect' : 'Select Manually'}
+                          </button>
+                          <span className="text-slate-700">|</span>
+                          <button
+                            onClick={() => setStep('role')}
+                            className="text-xs font-black text-slate-500 hover:text-white transition-colors py-2 uppercase tracking-widest group"
+                          >
+                            Skip Selection <span className="group-hover:pl-1 transition-all">→</span>
+                          </button>
+                        </div>
+                      </div>
                    </div>
                 </motion.div>
               )}

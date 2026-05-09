@@ -153,45 +153,69 @@ export const vehicleService = {
         .select();
 
       if (error) {
-        // Handle missing columns gracefully (Schema out of sync or PostgREST cache issues)
-        if (error.code === '42703' || error.code === 'PGRST204' || error.message.includes('column')) {
-          logger.warn('Schema mismatch detected. Retrying with essential fields only.');
-          // Truly essential fields that definitely existed from day 1
-          const essentialPayload = {
+        const errorMessage = error.message?.toLowerCase() || '';
+        // Handle common schema or connectivity issues that lead to PostgREST parsing errors
+        if (
+          error.code === '42703' || 
+          error.code === 'PGRST204' || 
+          errorMessage.includes('column') || 
+          errorMessage.includes('expected json array') ||
+          errorMessage.includes('not acceptable')
+        ) {
+          logger.warn('Potential schema mismatch or PostgREST error detected. Retrying with ultra-minimal payload.', { data: error });
+          
+          // The most basic payload that should work if the table exists at all
+          const minimalPayload = {
             seller_id: payload.seller_id,
-            shop_id: payload.shop_id,
             title: payload.title,
-            description: payload.description,
-            price: payload.price,
-            brand: payload.brand,
-            model: payload.model,
-            year: payload.year,
-            vehicle_type: payload.vehicle_type,
-            fuel_type: payload.fuel_type,
-            transmission: payload.transmission,
-            kilometers_driven: payload.kilometers_driven,
-            city: payload.city,
-            state: payload.state,
-            images: payload.images,
-            status: payload.status
+            price: Number(payload.price),
+            description: payload.description || '',
+            images: Array.isArray(payload.images) ? payload.images : [],
+            status: 'active'
           };
           
-          const retry = await supabase
+          const { data: retryData, error: retryError } = await supabase
             .from('vehicles')
-            .insert([essentialPayload])
+            .insert([minimalPayload])
             .select();
           
-          data = retry.data;
-          error = retry.error;
-        }
-        
-        if (error) {
+          if (retryError) {
+            logger.error('Retry failed as well', { data: retryError });
+            throw new Error(`Database Error: ${retryError.message}`);
+          }
+          data = retryData;
+        } else {
           logger.error('Supabase error inserting vehicle', { data: error });
-          throw error;
+          throw new Error(`Listing Failed: ${error.message}`);
         }
       }
-      if (!data || data.length === 0) throw new Error('Failed to create vehicle record');
-      return data[0] as unknown as Vehicle;
+      
+      if (!data || data.length === 0) {
+        throw new Error('Server returned empty data. The listing might not have been saved.');
+      }
+      
+      const v = data[0];
+      return {
+        ...v,
+        shopId: v.shop_id,
+        sellerId: v.seller_id,
+        verificationStatus: v.verification_status,
+        paymentStatus: v.payment_status,
+        kilometersDriven: v.kilometers_driven,
+        vehicleType: v.vehicle_type,
+        fuelType: v.fuel_type,
+        listingType: v.listing_type || 'free',
+        priorityScore: v.priority_score || 0,
+        registrationNumber: v.registration_number,
+        assemblyType: v.assembly_type,
+        vin: v.vin,
+        imageMetadata: v.image_metadata,
+        engineStartVideo: v.engine_start_video,
+        engineSoundVideo: v.engine_sound_video,
+        walkaroundVideo: v.walkaround_video,
+        createdAt: v.created_at,
+        updatedAt: v.updated_at
+      } as unknown as Vehicle;
     } catch (error) {
       logger.error('Error creating vehicle', { data: error });
       throw error;
@@ -227,6 +251,9 @@ export const vehicleService = {
           registration_number: vehicleData.registrationNumber,
           mileage: vehicleData.mileage,
           color: vehicleData.color,
+          payment_status: vehicleData.paymentStatus,
+          listing_type: vehicleData.listingType,
+          priority_score: vehicleData.priorityScore,
           updated_at: new Date().toISOString()
         })
         .eq('id', vehicleId);

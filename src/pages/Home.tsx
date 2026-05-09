@@ -234,7 +234,7 @@ const Home = () => {
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary to-orange-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                   <Button 
                     onClick={() => navigate('/search')}
-                    className="relative w-full h-14 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl bg-slate-900 text-white hover:bg-slate-800 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
+                    className="relative w-full h-16 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl bg-slate-900 text-white hover:bg-slate-800 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
                   >
                     <span>Find Best Car</span>
                     <span className="text-[7px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Browse Inventory</span>
@@ -245,7 +245,7 @@ const Home = () => {
                   <Button 
                     onClick={() => navigate('/list-vehicle')}
                     variant="outline"
-                    className="w-full h-14 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl border-2 border-white/20 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
+                    className="w-full h-16 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl border-2 border-white/20 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
                   >
                     <span>Sell Your Car</span>
                     <span className="text-[7px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Instant Valuations</span>
@@ -267,10 +267,10 @@ const Home = () => {
                       className="flex flex-row items-center h-10 sm:h-12 md:h-14"
                     >
                       <div className="flex-1 relative flex items-center h-full">
-                        <Search className="absolute left-3 sm:left-6 text-slate-400 group-focus-within:text-primary transition-colors" size={16} />
+                        <Search className="absolute left-3 sm:left-6 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
                         <Input 
                           placeholder="Search cars, brands..." 
-                          className="bg-transparent border-none text-slate-900 placeholder:text-slate-400 h-full pl-9 sm:pl-14 pr-4 focus-visible:ring-0 text-xs sm:text-base font-bold"
+                          className="bg-transparent border-none text-slate-900 placeholder:text-slate-400 h-full pl-10 sm:pl-14 pr-4 focus-visible:ring-0 text-sm sm:text-base font-bold"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           onFocus={() => setShowSuggestions(true)}
@@ -286,13 +286,13 @@ const Home = () => {
                       
                       <div className="h-6 w-px bg-slate-100 hidden sm:block mx-2" />
                       
-                      <div className="flex items-center gap-2 pr-1">
+                      <div className="flex items-center gap-1 sm:gap-2 pr-1">
                         <CitySelector 
                           className="bg-transparent hover:bg-slate-50 text-slate-900 border-none h-full px-2 sm:px-4 font-black text-[10px] sm:text-xs hidden md:flex"
                         />
                         <Button 
                           type="submit"
-                          className="h-8 sm:h-10 md:h-12 px-4 sm:px-8 rounded-lg sm:rounded-full bg-primary hover:bg-orange-600 text-white font-black text-xs sm:text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+                          className="h-8 sm:h-10 md:h-12 px-3 sm:px-8 rounded-lg sm:rounded-full bg-primary hover:bg-orange-600 text-white font-black text-[10px] sm:text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
                         >
                           Search
                         </Button>
@@ -701,7 +701,7 @@ const Home = () => {
               <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {shops.slice(0, 4).map((shop) => (
               <motion.div
                 key={shop.id}

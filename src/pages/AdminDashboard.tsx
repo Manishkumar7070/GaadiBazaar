@@ -449,7 +449,7 @@ const AdminDashboard = () => {
                   onClick={() => handleBulkShopAction('rejected')}
                   disabled={bulkLoading}
                 >
-                  <XCircle size={14} className="mr-1" />
+                  {bulkLoading ? <Loader2 className="animate-spin" size={14} /> : <XCircle size={14} className="mr-1" />}
                   Reject All
                 </Button>
                 <Button 
@@ -557,7 +557,7 @@ const AdminDashboard = () => {
                             disabled={actionLoading === shop.id}
                             className="text-red-600 border-red-100 hover:bg-red-50 rounded-xl gap-2"
                           >
-                            <XCircle size={18} />
+                            {actionLoading === shop.id ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}
                             Reject
                           </Button>
                         )}
@@ -647,7 +647,7 @@ const AdminDashboard = () => {
                   onClick={() => handleBulkVehiclesAction('rejected')}
                   disabled={bulkLoading}
                 >
-                  <XCircle size={14} className="mr-1" />
+                  {bulkLoading ? <Loader2 className="animate-spin" size={14} /> : <XCircle size={14} className="mr-1" />}
                   Reject All
                 </Button>
                 <Button 
@@ -801,7 +801,7 @@ const AdminDashboard = () => {
                             disabled={actionLoading === vehicle.id}
                             className="text-red-600 border-red-100 hover:bg-red-50 rounded-xl gap-2"
                           >
-                            <XCircle size={18} />
+                            {actionLoading === vehicle.id ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}
                             Reject
                           </Button>
                         )}
@@ -916,7 +916,7 @@ const AdminDashboard = () => {
                                 onClick={() => handlePaymentVerify(payment.id, 'failed')}
                                 disabled={actionLoading === payment.id}
                               >
-                                <XCircle size={14} />
+                                {actionLoading === payment.id ? <Loader2 className="animate-spin" size={14} /> : <XCircle size={14} />}
                                 Reject
                               </Button>
                             </>

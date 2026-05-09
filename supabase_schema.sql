@@ -203,11 +203,11 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='payment_status') THEN
-        ALTER TABLE public.vehicles ADD COLUMN payment_status text DEFAULT 'none';
+        ALTER TABLE public.vehicles ADD COLUMN payment_status text DEFAULT 'none' CHECK (payment_status IN ('none', 'pending', 'paid', 'failed'));
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='listing_type') THEN
-        ALTER TABLE public.vehicles ADD COLUMN listing_type text DEFAULT 'free';
+        ALTER TABLE public.vehicles ADD COLUMN listing_type text DEFAULT 'free' CHECK (listing_type IN ('free', 'premium', 'featured', 'sponsored'));
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='priority_score') THEN
@@ -239,7 +239,7 @@ BEGIN
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='verification_status') THEN
-        ALTER TABLE public.vehicles ADD COLUMN verification_status text DEFAULT 'pending';
+        ALTER TABLE public.vehicles ADD COLUMN verification_status text DEFAULT 'pending' CHECK (verification_status IN ('pending', 'verified', 'rejected'));
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='vehicles' AND column_name='is_featured') THEN
@@ -279,6 +279,9 @@ BEGIN
         ALTER TABLE public.shops ADD COLUMN pincode text;
     END IF;
 END $$;
+
+-- Reload schema cache
+NOTIFY pgrst, 'reload schema';
 
 -- Critical Indexes for Optimization
 CREATE INDEX IF NOT EXISTS idx_vehicles_status_city ON public.vehicles(status, city);

@@ -223,7 +223,7 @@ const Header = () => {
           </Button>
           
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-            <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
+            <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden h-10 w-10" />}>
               <Menu size={24} />
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] rounded-l-3xl p-0">

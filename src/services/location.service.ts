@@ -6,11 +6,28 @@ export interface LocationData {
   address?: string;
 }
 
+export enum LocationErrorType {
+  NOT_SUPPORTED = 'NOT_SUPPORTED',
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
+  POSITION_UNAVAILABLE = 'POSITION_UNAVAILABLE',
+  TIMEOUT = 'TIMEOUT',
+  UNKNOWN = 'UNKNOWN'
+}
+
+export class LocationError extends Error {
+  type: LocationErrorType;
+  constructor(message: string, type: LocationErrorType) {
+    super(message);
+    this.name = 'LocationError';
+    this.type = type;
+  }
+}
+
 export const locationService = {
   async getCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser'));
+        reject(new LocationError('Geolocation is not supported by your browser', LocationErrorType.NOT_SUPPORTED));
         return;
       }
 
@@ -23,18 +40,23 @@ export const locationService = {
         },
         (error) => {
           let message = 'An unknown error occurred while getting your location.';
+          let type = LocationErrorType.UNKNOWN;
+
           switch(error.code) {
             case error.PERMISSION_DENIED:
-              message = 'User denied the request for Geolocation. Please allow location access in your browser settings.';
+              message = 'Location access was denied. Please allow location access in your browser or device settings.';
+              type = LocationErrorType.PERMISSION_DENIED;
               break;
             case error.POSITION_UNAVAILABLE:
-              message = 'Location information is unavailable.';
+              message = 'Location information is unavailable at the moment.';
+              type = LocationErrorType.POSITION_UNAVAILABLE;
               break;
             case error.TIMEOUT:
-              message = 'The request to get user location timed out.';
+              message = 'The request to get your location timed out.';
+              type = LocationErrorType.TIMEOUT;
               break;
           }
-          reject(new Error(message));
+          reject(new LocationError(message, type));
         },
         {
           enableHighAccuracy: true,
