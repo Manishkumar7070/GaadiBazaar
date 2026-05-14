@@ -197,7 +197,7 @@ const Home = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen">
       <Helmet>
         <title>Buy & Sell Used Cars in {selectedCity || 'India'} | AsoneDealer</title>
         <meta name="description" content={`Find 100% verified used cars, bikes, and commercial vehicles in ${selectedCity || 'India'}. Connect directly with certified showrooms and dealers. Best prices and free paperwork.`} />
@@ -225,161 +225,122 @@ const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[2000ms] ease-in-out" />
       </div>
 
-      {/* Hero / Search Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 pb-24 sm:pt-28 sm:pb-32 overflow-hidden bg-slate-900">
-        {/* Carousel Background */}
-        <div className="absolute inset-0 z-0 text-center">
-          <HeroCarousel />
+      {/* Redesigned Hero Section */}
+      <section className="relative min-h-[90vh] flex items-center pt-16 pb-20 overflow-hidden bg-[#4a148c]">
+        {/* Decorative Background Elements */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] -mr-48 -mt-48 animate-pulse" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[100px] -ml-24 -mb-24" />
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10" />
         </div>
 
-        <div className="container mx-auto px-4 relative z-10 text-center space-y-4 sm:space-y-10">
-          {/* Status Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md text-white text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl mx-auto"
-          >
-            <span className="flex h-1.5 w-1.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-            </span>
-            Live in {selectedCity || 'India'} • 2,400+ Verified Cars
-          </motion.div>
-
-          <div className="flex flex-col items-center gap-4 sm:gap-6 md:gap-8">
-            <div className="space-y-2 sm:space-y-4">
-              <motion.h1 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[7rem] font-[1000] leading-[1.1] sm:leading-[1] md:leading-[0.85] tracking-[-0.05em] text-white"
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
+            <div className="text-center lg:text-left space-y-8 max-w-2xl mx-auto lg:mx-0">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest shadow-xl"
               >
-                Buy a Car.<br />
-                Get 5 Years of<br />
-                <span className="text-primary italic">Peace of Mind.</span>
-              </motion.h1>
-              
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-white/80 text-sm sm:text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto leading-relaxed font-semibold px-4"
-              >
-                FREE monthly mechanic visits to your home or office. <br className="hidden md:block" />
-                Zero cost. Professional care. Only on Asonedealer.
-              </motion.p>
-            </div>
+                <div className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </div>
+                Live in {selectedCity || 'India'} • 2,400+ Verified Cars
+              </motion.div>
 
-            <div className="w-full max-w-4xl space-y-6 sm:space-y-10 mt-2">
-              {/* Primary High-Converting CTAs */}
+              <div className="space-y-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-2"
+                >
+                  <span className="text-primary font-black uppercase tracking-[0.3em] text-xs sm:text-sm">
+                    🎉 Limited Time Exclusive
+                  </span>
+                  <motion.h1 
+                    className="text-4xl sm:text-6xl md:text-7xl font-[1000] leading-[1] tracking-tighter text-white"
+                  >
+                    5 YEARS FREE<br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-yellow-400">MECHANIC SERVICE</span><br />
+                    WITH EVERY CAR
+                  </motion.h1>
+                </motion.div>
+
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="space-y-4"
+                >
+                  <p className="text-white/70 text-lg sm:text-xl font-medium leading-relaxed max-w-xl">
+                    Professional monthly visits to your home or office.
+                  </p>
+                  <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 backdrop-blur-sm">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-primary font-bold text-sm sm:text-base">
+                      ₹5 Lakh total value included at zero cost
+                    </span>
+                  </div>
+                </motion.div>
+              </div>
+
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="flex flex-row items-center justify-center gap-2 sm:gap-8 px-2"
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
               >
-                <div className="relative group flex-1">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary/60 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                  <Button 
-                    onClick={() => navigate('/search')}
-                    className="relative w-full h-16 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl bg-slate-900 text-white hover:bg-slate-800 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
-                  >
-                    <span>Find Best Car</span>
-                    <span className="text-[7px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Browse Inventory</span>
-                  </Button>
-                </div>
-
-                <div className="relative group flex-1">
-                  <Button 
-                    onClick={() => navigate('/list-vehicle')}
-                    variant="outline"
-                    className="w-full h-16 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl border-2 border-white/20 bg-white/10 backdrop-blur-md text-white hover:bg-white/20 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
-                  >
-                    <span>Sell Your Car</span>
-                    <span className="text-[7px] sm:text-[10px] text-white/50 font-black tracking-[0.2em] sm:tracking-[0.3em]">Instant Valuations</span>
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => navigate('/search')}
+                  className="w-full sm:w-auto h-16 px-10 rounded-2xl bg-primary text-secondary hover:bg-primary/90 font-black uppercase text-sm tracking-widest transition-transform hover:scale-105 active:scale-95 shadow-2xl shadow-primary/20"
+                >
+                  SHOP CARS NOW
+                </Button>
+                <Button 
+                  onClick={() => navigate('/buyer-hub')}
+                  variant="outline"
+                  className="w-full sm:w-auto h-16 px-10 rounded-2xl border-2 border-white/20 bg-white/5 backdrop-blur-md text-white hover:bg-white/10 font-black uppercase text-sm tracking-widest transition-transform hover:scale-105 active:scale-95"
+                >
+                  LEARN MORE
+                </Button>
               </motion.div>
 
-              {/* Integrated Search Command Center */}
-              <div className="space-y-2 sm:space-y-4 w-full px-2 sm:px-0">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="relative"
-                >
-                  <div className="bg-white p-1 rounded-2xl sm:rounded-full shadow-2xl border border-white/10">
-                    <form 
-                      onSubmit={handleSearch}
-                      className="flex flex-row items-center h-10 sm:h-12 md:h-14"
-                    >
-                      <div className="flex-1 relative flex items-center h-full">
-                        <Search className="absolute left-3 sm:left-6 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
-                        <Input 
-                          placeholder="Search cars, brands..." 
-                          className="bg-transparent border-none text-slate-900 placeholder:text-slate-400 h-full pl-10 sm:pl-14 pr-4 focus-visible:ring-0 text-sm sm:text-base font-bold"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          onFocus={() => setShowSuggestions(true)}
-                          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        />
-                        <SearchSuggestions 
-                          suggestions={suggestions}
-                          query={searchQuery}
-                          isVisible={showSuggestions}
-                          onSelect={handleSuggestionSelect}
-                        />
-                      </div>
-                      
-                      <div className="h-6 w-px bg-slate-100 hidden sm:block mx-2" />
-                      
-                      <div className="flex items-center gap-1 sm:gap-2 pr-1">
-                        <CitySelector 
-                          className="bg-transparent hover:bg-slate-50 text-slate-900 border-none h-full px-2 sm:px-4 font-black text-[10px] sm:text-xs hidden md:flex"
-                        />
-                        <Button 
-                          type="submit"
-                          className="h-8 sm:h-10 md:h-12 px-3 sm:px-8 rounded-lg sm:rounded-full bg-primary hover:bg-primary/90 text-secondary font-black text-[10px] sm:text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
-                        >
-                          Search
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </motion.div>
 
-                {/* Quick Discovery Tags Row */}
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="flex flex-wrap justify-center gap-4 sm:gap-10 px-4"
-                >
-                  {[
-                    { label: "Nearest Me", icon: MapPin, action: () => navigate('/search?sortBy=nearest') },
-                    { label: "Top Rated", icon: Star, action: () => navigate('/search?sortBy=best_rated') },
-                    { label: "Certified", icon: ShieldCheck, action: () => navigate('/search?verifiedOnly=true') },
-                    { label: "Bihar/UP Hub", icon: Store, action: () => navigate('/buyer-hub') }
-                  ].map((tag) => (
-                    <button 
-                      key={tag.label}
-                      onClick={() => tag.action()}
-                      className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-primary transition-all group"
-                    >
-                      <tag.icon size={10} className="text-white/20 group-hover:text-primary transition-colors" />
-                      {tag.label}
-                    </button>
-                  ))}
-                </motion.div>
-              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Floating Background Assets */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] pointer-events-none opacity-40 mix-blend-multiply overflow-hidden">
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px]" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-indigo-500/20 rounded-full blur-[100px]" />
+            {/* Right Image Content */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8, x: 50 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              transition={{ delay: 0.4, type: "spring", stiffness: 50 }}
+              className="relative hidden lg:block"
+            >
+              <div className="absolute -inset-10 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
+              <div className="relative rounded-[3rem] overflow-hidden shadow-2xl transform rotate-1 hover:rotate-0 transition-transform duration-700 border-8 border-white/10">
+                <img 
+                  src="/familytakingdelivery.png" 
+                  alt="Family taking delivery of their new car" 
+                  className="w-full h-auto object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-900/60 via-transparent to-transparent" />
+              </div>
+              
+              {/* Floating Trust Card */}
+              <div className="absolute -bottom-8 -left-8 bg-white rounded-3xl p-6 shadow-2xl animate-bounce duration-[4000ms]">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <ShieldCheck size={32} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Certified Dealers</p>
+                    <p className="text-xl font-black text-slate-900">100% Reliable</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
