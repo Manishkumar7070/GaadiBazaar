@@ -142,6 +142,7 @@ const ListVehicle = () => {
         vehicle_type: formData.vehicleType,
         fuel_type: formData.fuelType,
         registration_number: formData.registrationNumber,
+        assembly_type: formData.assemblyType,
         images: [
           ...Object.values(formData.categorizedImages),
           ...formData.images

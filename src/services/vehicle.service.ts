@@ -314,20 +314,20 @@ export const vehicleService = {
     }
   },
 
-  async fetchPopularMetadata(): Promise<{ brands: string[], models: string[], cities: string[] }> {
+  async fetchPopularMetadata(): Promise<{ brands: string[], models: string[], cities: string[], states: string[] }> {
     try {
-      // In Supabase, we can use distinct or specific selects if needed
-      // For now, consistent with previous behavior, fetch and aggregate
       const vehicles = await this.fetchVehicles({ verificationStatus: 'verified' });
       
       const brandsCount: Record<string, number> = {};
       const modelsCount: Record<string, number> = {};
       const citiesCount: Record<string, number> = {};
+      const statesCount: Record<string, number> = {};
 
       vehicles.forEach(v => {
         if (v.brand) brandsCount[v.brand] = (brandsCount[v.brand] || 0) + 1;
         if (v.model) modelsCount[v.model] = (modelsCount[v.model] || 0) + 1;
         if (v.city) citiesCount[v.city] = (citiesCount[v.city] || 0) + 1;
+        if (v.state) statesCount[v.state] = (statesCount[v.state] || 0) + 1;
       });
 
       const brands = Object.entries(brandsCount)
@@ -342,13 +342,22 @@ export const vehicleService = {
 
       const cities = Object.entries(citiesCount)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
+        .slice(0, 12)
         .map(([city]) => city);
+      
+      const states = Object.entries(statesCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .map(([state]) => state);
 
-      return { brands, models, cities };
+      // Fallback for demo if data is sparse
+      const defaultStates = ['Delhi-NCR', 'Bihar', 'Uttar Pradesh', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'West Bengal', 'Gujarat', 'Punjab', 'Rajasthan', 'Haryana', 'Madhya Pradesh'];
+      const finalStates = states.length > 0 ? states : defaultStates;
+
+      return { brands, models, cities, states: finalStates };
     } catch (error) {
       logger.error('Error fetching popular metadata', { data: error });
-      return { brands: [], models: [], cities: [] };
+      return { brands: [], models: [], cities: [], states: [] };
     }
   }
 };

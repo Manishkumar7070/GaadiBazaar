@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface ReviewFormProps {
   targetId: string;
-  targetType: 'vehicle' | 'shop';
+  targetType: 'vehicle' | 'shop' | 'seller';
   onSuccess?: () => void;
 }
 

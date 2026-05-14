@@ -13,6 +13,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Logo from '@/components/Logo';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -60,12 +61,7 @@ const Footer = () => {
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-8">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-                <Car size={24} strokeWidth={3} />
-              </div>
-              <span className="text-2xl font-black tracking-tighter text-white">
-                ASONE<span className="text-primary italic">DEALER</span>
-              </span>
+              <Logo fontSize="text-3xl" iconSize={32} variant="light" />
             </Link>
             
             <p className="text-slate-500 max-w-sm leading-relaxed font-medium">

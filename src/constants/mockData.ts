@@ -19,6 +19,12 @@ export const MOCK_DEALERS: Shop[] = [
     isPremium: true,
     rating: 4.8,
     reviewsCount: 124,
+    trustScore: 9.4,
+    yearsInBusiness: 12,
+    inventoryQualityScore: 9.6,
+    responseTime: 'Under 1 hour',
+    inventoryCount: 45,
+    dealerHistory: 'Serving the Heart of India since 2012. Specializing in transparency and fair multi-point inspections.',
     reviews: [
       {
         id: 'r1',
@@ -63,6 +69,12 @@ export const MOCK_DEALERS: Shop[] = [
     verificationStatus: 'verified',
     rating: 4.5,
     reviewsCount: 89,
+    trustScore: 8.9,
+    yearsInBusiness: 8,
+    inventoryQualityScore: 9.1,
+    responseTime: 'Under 3 hours',
+    inventoryCount: 32,
+    dealerHistory: 'Patna\'s most trusted multi-brand showroom on Boring Road. Focused on local trust and relationship building.',
     reviews: [
       {
         id: 'r4',

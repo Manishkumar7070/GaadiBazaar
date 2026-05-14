@@ -29,8 +29,10 @@ import {
   Zap,
   UserCheck,
   Star,
-  Activity
+  Activity,
+  Store
 } from 'lucide-react';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { Helmet } from 'react-helmet-async';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -116,6 +118,9 @@ const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: 
   );
 };
 
+import { bookingService } from '@/services/booking.service';
+import { BookingModal } from '@/components/BookingModal';
+
 const VehicleDetail = () => {
   const { user } = useAuth();
   const { id } = useParams();
@@ -125,8 +130,9 @@ const VehicleDetail = () => {
   
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [showContactInfo, setShowContactInfo] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isBooked, setIsBooked] = useState(false);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
@@ -135,11 +141,19 @@ const VehicleDetail = () => {
   const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([]);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
   
+  const checkBookingStatus = async () => {
+    if (user && id) {
+      const booked = await bookingService.isVehicleBookedByUser(id, user.id);
+      setIsBooked(booked);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
       setLoading(true);
       try {
+        await checkBookingStatus();
         const vehicles = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
         setAllVehicles(vehicles);
 
@@ -196,7 +210,12 @@ const VehicleDetail = () => {
       navigate(`/login?reason=contact_seller&redirect=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
-    setShowContactInfo(true);
+    
+    if (isBooked) {
+      // Already booked, show contact
+    } else {
+      setIsBookingModalOpen(true);
+    }
   };
 
   useEffect(() => {
@@ -226,6 +245,7 @@ const VehicleDetail = () => {
     { icon: User, label: 'Ownership', value: vehicle.ownership },
     { icon: Calendar, label: 'Make Year', value: vehicle.year },
     { icon: Palette, label: 'Color', value: vehicle.color || 'N/A' },
+    { icon: ShieldCheck, label: 'Assembly', value: vehicle.assemblyType || 'Local' },
     { icon: ShieldCheck, label: 'Spare Key', value: 'Yes' },
     { icon: FileText, label: 'Reg. No', value: 'DL8C*****' }
   ];
@@ -290,6 +310,32 @@ const VehicleDetail = () => {
           >
             <Heart size={20} className={isInWishlist(vehicle.id) ? "fill-current" : ""} />
           </Button>
+        </div>
+      </div>
+
+      {/* Service Advantage Banner */}
+      <div className="bg-[#1B301B] rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 group-hover:rotate-0 transition-transform duration-1000">
+          <Wrench size={200} className="text-white" />
+        </div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 bg-primary text-secondary px-4 py-1.5 rounded-full text-[10px] font-[1000] uppercase tracking-[0.2em]">
+              EXCLUSIVE DEALER PACKAGE
+            </div>
+            <h3 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">
+              Get 5 Years of <br />
+              <span className="text-primary italic">Peace of Mind.</span>
+            </h3>
+            <p className="text-white/70 text-base md:text-lg font-medium leading-relaxed max-w-xl">
+              Professional mechanic visits to your doorstep every month. Zero cost to you. <br />
+              <span className="text-white font-bold">Estimated value: ₹5,00,000</span>
+            </p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 flex flex-col items-center justify-center text-center min-w-[240px]">
+             <span className="text-5xl font-black text-primary tracking-tighter">FREE</span>
+             <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] mt-2">5-Year Service</span>
+          </div>
         </div>
       </div>
 
@@ -507,6 +553,87 @@ const VehicleDetail = () => {
           <VehicleAIInsights vehicle={vehicle} />
           <PriceComparisonSection vehicle={vehicle} allVehicles={allVehicles} />
 
+          {/* Seller Showroom Details - Revealed after booking */}
+          {isBooked && shop && (
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-8 bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <Store size={150} />
+              </div>
+              
+              <div className="relative z-10 space-y-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-2">
+                    <Badge className="bg-primary text-secondary border-none px-4 py-1 rounded-full uppercase text-[10px] font-black tracking-widest">
+                      Showroom Access Unlocked
+                    </Badge>
+                    <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Visit {shop.name}</h2>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
+                      <MapPin size={14} className="text-primary" /> {shop.address}, {shop.city}
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <a href={`tel:${shop.phone}`}>
+                      <Button className="bg-white text-slate-900 hover:bg-slate-100 rounded-2xl h-14 px-8 font-black flex gap-2">
+                        <Phone size={20} /> Call Showroom
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                   <div className="space-y-4">
+                      <h4 className="text-sm font-black uppercase tracking-[0.2em] text-primary">About the Showroom</h4>
+                      <p className="text-slate-300 leading-relaxed font-medium">
+                        {shop.description}
+                      </p>
+                      <div className="flex items-center gap-6 pt-4">
+                        <div className="flex flex-col">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Business Hours</span>
+                           <span className="text-sm font-bold">{shop.businessHours || '10:00 AM - 08:00 PM'}</span>
+                        </div>
+                        <Separator orientation="vertical" className="h-8 bg-white/10" />
+                        <div className="flex flex-col">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Established</span>
+                           <span className="text-sm font-bold">{shop.yearsInBusiness || '5+'} Years</span>
+                        </div>
+                      </div>
+                   </div>
+
+                   <div className="space-y-4">
+                      <h4 className="text-sm font-black uppercase tracking-[0.2em] text-primary">Showroom Gallery</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                         {shop.images?.slice(0, 6).map((img, i) => (
+                           <div key={i} className="aspect-square rounded-xl overflow-hidden bg-white/5 border border-white/10">
+                              <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                           </div>
+                         ))}
+                      </div>
+                   </div>
+                </div>
+
+                {shop.mapEmbedUrl && (
+                  <div className="space-y-4 pt-4">
+                    <h4 className="text-sm font-black uppercase tracking-[0.2em] text-primary">Exact Location</h4>
+                    <div className="aspect-video rounded-[2.5rem] overflow-hidden border border-white/10">
+                      <iframe 
+                        src={shop.mapEmbedUrl}
+                        className="w-full h-full border-none"
+                        allowFullScreen
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title="Shop Location"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.section>
+          )}
+
           {/* Expert Description */}
           <section className="space-y-4">
             <h2 className="text-xl font-black uppercase tracking-wider text-slate-800 px-4">Expert Description</h2>
@@ -589,8 +716,10 @@ const VehicleDetail = () => {
             
             <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white overflow-hidden">
               <CardContent className="p-8 space-y-6">
-                <div className="space-y-1">
-                  <Badge className="bg-green-100 text-green-700 border-none px-3 py-1 font-black text-[10px] uppercase tracking-widest">Verified Listing</Badge>
+                <div className="space-y-2">
+                  {vehicle.verificationStatus === 'verified' && (
+                    <VerifiedBadge status={vehicle.verificationStatus} type="vehicle" />
+                  )}
                   <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-tight">
                     {vehicle.year} {vehicle.brand} {vehicle.title}
                   </h1>
@@ -613,13 +742,21 @@ const VehicleDetail = () => {
                 <Button 
                   className={cn(
                     "w-full h-16 rounded-2xl text-lg font-black uppercase tracking-widest shadow-xl transition-all",
-                    isSold ? "bg-slate-200 text-slate-500 hover:bg-slate-200 cursor-not-allowed shadow-none" : "bg-slate-900 hover:bg-slate-800 hover:scale-[1.02] active:scale-95"
+                    isSold ? "bg-slate-200 text-slate-500 hover:bg-slate-200 cursor-not-allowed shadow-none" : "bg-slate-900 hover:bg-slate-800 hover:scale-[1.02] active:scale-95",
+                    isBooked && "bg-green-600 hover:bg-green-700"
                   )}
                   onClick={isSold ? undefined : handleContactSeller}
                   disabled={isSold}
                 >
-                  {isSold ? 'Vehicle Sold Out' : showContactInfo ? (shop?.phone || '+91 99999 99999') : 'Contact Seller'}
+                  {isSold ? 'Vehicle Sold Out' : isBooked ? (shop?.phone || '+91 99999 99999') : 'Book for ₹5,000'}
                 </Button>
+                
+                {!isBooked && !isSold && (
+                  <div className="flex items-center gap-2 justify-center pt-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Dealer details revealed after booking</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -628,16 +765,34 @@ const VehicleDetail = () => {
                 {shop ? (
                   <Link to={`/dealer/${shop.id}`} className="flex items-center gap-4 group">
                     <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-xl font-bold text-primary">{shop.name[0]}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2"><h3 className="font-bold group-hover:text-primary transition-colors">{shop.name}</h3> <ShieldCheck size={14} className="text-green-500" /></div>
-                      <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><span>★ {shop.rating || '4.5'}</span></div>
+                    <div className="flex-1 truncate">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold group-hover:text-primary transition-colors">{shop.name}</h3> 
+                        {shop.verificationStatus === 'verified' && (
+                          <VerifiedBadge status={shop.verificationStatus} type="dealer" showLabel={false} size="sm" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><span>★ {shop.rating || '4.5'}</span></div>
+                        <Separator orientation="vertical" className="h-2 bg-slate-200" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{isBooked ? shop.city : `${vehicle.city} Area`}</span>
+                      </div>
                     </div>
                   </Link>
                 ) : (
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center font-bold">P</div>
-                    <div><h3 className="font-bold">Private Seller</h3><p className="text-xs text-slate-400">{vehicle.city}</p></div>
-                  </div>
+                  <Link to={`/seller/${vehicle.sellerId}`} className="flex items-center gap-4 group">
+                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center font-bold group-hover:text-primary transition-colors">
+                      {vehicle.sellerId[0]}
+                    </div>
+                    <div>
+                      <h3 className="font-bold group-hover:text-primary transition-colors">Private Seller</h3>
+                      <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 text-yellow-500 text-[10px] font-bold"><span>★ 4.2</span></div>
+                        <Separator orientation="vertical" className="h-2 bg-slate-200" />
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">{vehicle.city}</p>
+                      </div>
+                    </div>
+                  </Link>
                 )}
                 <div className="bg-orange-50 p-6 rounded-3xl space-y-2">
                   <h4 className="text-[10px] font-black text-orange-900 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={14}/> Trust Certified</h4>
@@ -671,18 +826,31 @@ const VehicleDetail = () => {
       )}
 
       {/* Mobile Sticky CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-50 flex gap-3 md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-100 z-50 flex flex-col gap-2 md:hidden">
+        {!isBooked && !isSold && (
+          <p className="text-[9px] font-black uppercase text-center text-slate-400 tracking-tighter">Pay ₹5,000 commitment to unlock seller contact</p>
+        )}
         <Button 
           className={cn(
             "w-full h-14 rounded-2xl text-lg font-black shadow-lg",
-            isSold ? "bg-slate-200 text-slate-500 hover:bg-slate-200" : "bg-primary"
+            isSold ? "bg-slate-200 text-slate-500 hover:bg-slate-200" : isBooked ? "bg-green-600" : "bg-primary"
           )} 
           onClick={isSold ? undefined : handleContactSeller}
           disabled={isSold}
         >
-          {isSold ? 'Sold Out' : showContactInfo ? shop?.phone || '+91 99999 99999' : 'Contact Seller'}
+          {isSold ? 'Sold Out' : isBooked ? (shop?.phone || '+91 99999 99999') : 'Book Now ₹5,000'}
         </Button>
       </div>
+
+      {vehicle && user && (
+        <BookingModal 
+          isOpen={isBookingModalOpen}
+          onOpenChange={setIsBookingModalOpen}
+          vehicle={vehicle}
+          userId={user.id}
+          onSuccess={() => setIsBooked(true)}
+        />
+      )}
 
       {/* Lightbox */}
       <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>

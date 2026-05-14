@@ -9,6 +9,9 @@ create table public.profiles (
   city_name text,
   address text,
   is_profile_complete boolean default false,
+  rating numeric default 0,
+  reviews_count integer default 0,
+  response_time text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -277,6 +280,19 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='shops' AND column_name='pincode') THEN
         ALTER TABLE public.shops ADD COLUMN pincode text;
+    END IF;
+
+    -- Profiles migrations
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='rating') THEN
+        ALTER TABLE public.profiles ADD COLUMN rating numeric DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='reviews_count') THEN
+        ALTER TABLE public.profiles ADD COLUMN reviews_count integer DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='response_time') THEN
+        ALTER TABLE public.profiles ADD COLUMN response_time text;
     END IF;
 END $$;
 

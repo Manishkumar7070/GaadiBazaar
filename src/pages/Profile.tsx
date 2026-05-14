@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { SavedSearch, Vehicle, WishlistItem, Shop } from '@/types';
@@ -181,7 +182,12 @@ const Profile = () => {
           <AvatarFallback>{user.fullName?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold">{user.fullName}</h1>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold">{user.fullName}</h1>
+            {user.role === 'seller' && (
+              <VerifiedBadge status={user.verificationStatus || 'pending'} type="seller" showLabel={false} size="md" />
+            )}
+          </div>
           <p className="text-slate-500">{user.email}</p>
           {user.phone && <p className="text-slate-500">{user.phone}</p>}
         </div>

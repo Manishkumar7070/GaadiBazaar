@@ -73,6 +73,7 @@ const SearchPage = () => {
     fuelType: undefined,
     transmission: undefined,
     ownership: undefined,
+    assemblyType: undefined,
     purpose: searchParams.get('purpose') as any || undefined,
   });
 
@@ -83,7 +84,8 @@ const SearchPage = () => {
   const [searchName, setSearchName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | 'condition-best' | 'distance-closest' | 'city-asc' | null>(null);
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'newest' | 'km-low' | 'condition-best' | 'distance-closest' | 'city-asc' | 'nearest' | 'best_rated' | null>(null);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -373,9 +375,15 @@ const SearchPage = () => {
     const fuel = searchParams.get('fuel');
     const trans = searchParams.get('trans');
     const owner = searchParams.get('owner');
+    const assembly = searchParams.get('assembly');
     const purpose = searchParams.get('purpose');
+    const sort = searchParams.get('sortBy');
+    const verified = searchParams.get('verifiedOnly') === 'true';
 
-    if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner || purpose) {
+    if (q || type || city || state || minPrice || maxPrice || brand || model || minYear || maxYear || minKm || maxKm || fuel || trans || owner || assembly || purpose || sort || verified) {
+      if (sort) setSortBy(sort as any);
+      if (verified) setVerifiedOnly(true);
+      
       if (q) {
         setSearchQuery(q);
         const wordsCount = q.trim().split(/\s+/).length;
@@ -400,7 +408,10 @@ const SearchPage = () => {
         fuelType: (fuel as any) || undefined,
         transmission: (trans as any) || undefined,
         ownership: (owner as any) || undefined,
+        assemblyType: (assembly as any) || undefined,
         purpose: (purpose as any) || undefined,
+        sortBy: sort as any || undefined,
+        verifiedOnly: verified || undefined,
       });
     }
     setCurrentPage(1);
@@ -460,10 +471,12 @@ const SearchPage = () => {
     const matchesOwnership = !filters.ownership || v.ownership === filters.ownership;
     const matchesPurpose = !filters.purpose || v.purposes?.includes(filters.purpose);
     const matchesCertified = !filters.isCertified || v.verificationStatus === 'verified';
+    const matchesAssembly = !filters.assemblyType || v.assemblyType === filters.assemblyType;
+    const matchesVerifiedOnly = !verifiedOnly || v.verificationStatus === 'verified';
 
     return matchesQuery && matchesType && matchesMinPrice && matchesMaxPrice && matchesCity && matchesState && 
            matchesBrand && matchesModel && matchesMinYear && matchesMaxYear && matchesMinKm && matchesMaxKm && 
-           matchesFuel && matchesTrans && matchesOwnership && matchesCertified && matchesPurpose;
+           matchesFuel && matchesTrans && matchesOwnership && matchesCertified && matchesPurpose && matchesVerifiedOnly && matchesAssembly;
   })
   const sortedVehicles = (() => {
     const list = [...filteredVehicles];
@@ -472,8 +485,9 @@ const SearchPage = () => {
     if (sortBy === 'newest') return list.sort((a, b) => b.year - a.year);
     if (sortBy === 'km-low') return list.sort((a, b) => a.kilometersDriven - b.kilometersDriven);
     if (sortBy === 'condition-best') return list.sort((a, b) => (b.isVerified ? 1 : 0) - (a.isVerified ? 1 : 0));
-    if (sortBy === 'distance-closest') return list.sort((a, b) => (a.city === selectedCity ? -1 : 1) - (b.city === selectedCity ? -1 : 1));
+    if (sortBy === 'distance-closest' || sortBy === 'nearest') return list.sort((a, b) => (a.city === selectedCity ? -1 : 1) - (b.city === selectedCity ? -1 : 1));
     if (sortBy === 'city-asc') return list.sort((a, b) => a.city.localeCompare(b.city));
+    if (sortBy === 'best_rated') return list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     
     // Default to priority sorting
     return vehicleService.sortVehiclesByPriority(list, selectedCity && selectedCity !== 'India' ? selectedCity : undefined);
@@ -643,6 +657,7 @@ const SearchPage = () => {
                     {filters.fuelType && <Badge variant="secondary">Fuel: {filters.fuelType}</Badge>}
                     {filters.transmission && <Badge variant="secondary">Trans: {filters.transmission}</Badge>}
                     {filters.ownership && <Badge variant="secondary">Owner: {filters.ownership}</Badge>}
+                    {filters.assemblyType && <Badge variant="secondary">Assembly: {filters.assemblyType}</Badge>}
                   </div>
                 </div>
               </div>
@@ -835,53 +850,68 @@ const SearchPage = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="space-y-3">
-                    <label className="text-sm font-bold">Fuel Type</label>
-                    <select 
-                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={filters.fuelType || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, fuelType: e.target.value as any || undefined }))}
-                    >
-                      <option value="">All Fuel Types</option>
-                      <option value="petrol">Petrol</option>
-                      <option value="diesel">Diesel</option>
-                      <option value="electric">Electric</option>
-                      <option value="cng">CNG</option>
-                      <option value="hybrid">Hybrid</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-sm font-bold">Transmission</label>
-                    <select 
-                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={filters.transmission || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, transmission: e.target.value as any || undefined }))}
-                    >
-                      <option value="">All Transmissions</option>
-                      <option value="manual">Manual</option>
-                      <option value="automatic">Automatic</option>
-                      <option value="semi-automatic">Semi-Automatic</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-sm font-bold">Ownership</label>
-                    <select 
-                      className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      value={filters.ownership || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, ownership: e.target.value as any || undefined }))}
-                    >
-                      <option value="">All Owners</option>
-                      <option value="1st">1st Owner</option>
-                      <option value="2nd">2nd Owner</option>
-                      <option value="3rd">3rd Owner</option>
-                      <option value="4th">4th Owner</option>
-                      <option value="4th+">4th+ Owner</option>
-                    </select>
-                  </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold">Fuel Type</label>
+                  <select 
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={filters.fuelType || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, fuelType: e.target.value as any || undefined }))}
+                  >
+                    <option value="">All Fuel Types</option>
+                    <option value="petrol">Petrol</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="electric">Electric</option>
+                    <option value="cng">CNG</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
                 </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold">Transmission</label>
+                  <select 
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={filters.transmission || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, transmission: e.target.value as any || undefined }))}
+                  >
+                    <option value="">All Transmissions</option>
+                    <option value="manual">Manual</option>
+                    <option value="automatic">Automatic</option>
+                    <option value="semi-automatic">Semi-Automatic</option>
+                  </select>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold">Ownership</label>
+                  <select 
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={filters.ownership || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, ownership: e.target.value as any || undefined }))}
+                  >
+                    <option value="">All Owners</option>
+                    <option value="1st">1st Owner</option>
+                    <option value="2nd">2nd Owner</option>
+                    <option value="3rd">3rd Owner</option>
+                    <option value="4th">4th Owner</option>
+                    <option value="4th+">4th+ Owner</option>
+                  </select>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold">Assembly Type</label>
+                  <select 
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={filters.assemblyType || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, assemblyType: e.target.value as any || undefined }))}
+                  >
+                    <option value="">All Assemblies</option>
+                    <option value="Local">Local</option>
+                    <option value="Imported">Imported</option>
+                    <option value="CKD">CKD</option>
+                    <option value="CBU">CBU</option>
+                  </select>
+                </div>
+              </div>
 
                 <div className="space-y-3">
                   <label className="text-sm font-bold">Location</label>
@@ -983,7 +1013,26 @@ const SearchPage = () => {
             </Badge>
           )}
           <Button 
-            variant={sortBy?.startsWith('price') ? 'default' : 'secondary'} 
+            variant={sortBy === 'best_rated' ? 'default' : 'secondary'} 
+            size="sm" 
+            className="rounded-full shrink-0"
+            onClick={() => setSortBy(prev => prev === 'best_rated' ? null : 'best_rated')}
+          >
+            Top Quality
+          </Button>
+          <Button 
+            variant={verifiedOnly ? 'default' : 'secondary'} 
+            size="sm" 
+            className={cn(
+              "rounded-full shrink-0",
+              verifiedOnly && "bg-green-600 hover:bg-green-700"
+            )}
+            onClick={() => setVerifiedOnly(prev => !prev)}
+          >
+            Verified Only
+          </Button>
+          <Button 
+            variant={sortBy === 'price-asc' || sortBy === 'price-desc' ? 'default' : 'secondary'} 
             size="sm" 
             className="rounded-full"
             onClick={() => setSortBy(prev => prev === 'price-asc' ? 'price-desc' : 'price-asc')}

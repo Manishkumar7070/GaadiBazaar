@@ -7,7 +7,7 @@ import { serverLogger } from '../logger';
 
 const router = express.Router();
 
-const syncAverageRating = async (targetId: string, targetType: 'vehicle' | 'shop') => {
+const syncAverageRating = async (targetId: string, targetType: 'vehicle' | 'shop' | 'seller') => {
   try {
     const db = getFirestore();
     const reviewsSnapshot = await db.collection("reviews")
@@ -25,7 +25,11 @@ const syncAverageRating = async (targetId: string, targetType: 'vehicle' | 'shop
       ? parseFloat((totalRating / count).toFixed(1))
       : 0;
 
-    const targetCollection = targetType === 'vehicle' ? 'vehicles' : 'shops';
+    let targetCollection = '';
+    if (targetType === 'vehicle') targetCollection = 'vehicles';
+    else if (targetType === 'shop') targetCollection = 'shops';
+    else if (targetType === 'seller') targetCollection = 'profiles';
+
     try {
       await db.collection(targetCollection).doc(targetId).set({ 
         rating: avg, 
@@ -57,7 +61,7 @@ const syncAverageRating = async (targetId: string, targetType: 'vehicle' | 'shop
 router.get("/:targetType/:targetId", async (req, res) => {
   const { targetType, targetId } = req.params;
   
-  if (!['vehicle', 'shop'].includes(targetType)) {
+  if (!['vehicle', 'shop', 'seller'].includes(targetType)) {
     return res.status(400).json({ error: "Invalid target type" });
   }
 

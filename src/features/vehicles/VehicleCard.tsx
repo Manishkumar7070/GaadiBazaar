@@ -4,6 +4,7 @@ import { MapPin, Calendar, Gauge, User, ShieldCheck, Heart, ArrowLeftRight, Phon
 import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { Vehicle } from '@/types';
 import { useComparison } from '@/hooks/useComparison';
 import { useAuth } from '@/hooks/useAuth';
@@ -102,7 +103,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
         <div className={cn(
           "absolute -inset-[2px] rounded-[34px] z-0 animate-pulse opacity-70 blur-[1px]",
           isSponsored ? "bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" :
-          isFeaturedListing ? "bg-gradient-to-r from-blue-400 via-purple-500 to-blue-400" :
+          isFeaturedListing ? "bg-gradient-to-r from-secondary/60 via-secondary to-secondary/60" :
           "bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400"
         )} />
       )}
@@ -110,7 +111,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
       <Card className={cn(
         "group overflow-hidden border-none shadow-sm hover:shadow-2xl transition-all duration-300 bg-white rounded-3xl relative z-10",
         isSponsored && "bg-gradient-to-b from-amber-50/30 to-white",
-        isFeaturedListing && "bg-gradient-to-b from-blue-50/30 to-white"
+        isFeaturedListing && "bg-gradient-to-b from-secondary/5 to-white"
       )}>
         {/* Shimmer Effect for Premium listings */}
         {(isSponsored || isPremiumListing) && (
@@ -168,7 +169,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
               </Badge>
             )}
             {isFeaturedListing && (
-              <Badge className="bg-blue-600 text-white border-none shadow-lg flex gap-1 items-center">
+              <Badge className="bg-secondary text-white border-none shadow-lg flex gap-1 items-center">
                 <Star size={12} fill="white" /> Featured
               </Badge>
             )}
@@ -179,9 +180,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             )}
 
             {vehicle.verificationStatus === 'verified' && (
-              <Badge className="bg-white/90 backdrop-blur-sm text-green-600 border-none flex gap-1 items-center shadow-sm">
-                <ShieldCheck size={12} /> Verified
-              </Badge>
+              <VerifiedBadge status={vehicle.verificationStatus} type="vehicle" showLabel={false} className="shadow-sm" />
             )}
 
             {isPriceDropped && (
@@ -275,6 +274,14 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
             </Badge>
           </div>
 
+          <div className="bg-[#E9F0E9] rounded-xl p-3 border border-[#D5E2D5]">
+            <div className="flex items-center gap-2 text-[#2E4D2E]">
+              <span className="text-sm">✨</span>
+              <p className="text-[10px] font-black uppercase tracking-wider">5 YEARS FREE SERVICE</p>
+            </div>
+            <p className="text-[9px] text-[#2E4D2E]/70 font-bold mt-0.5">Professional mechanic visits • Monthly • ₹5L value</p>
+          </div>
+
           {shop && (
             <div className="flex items-center gap-2 p-1.5 sm:p-2 bg-slate-50 rounded-xl border border-slate-100/50">
               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-white shadow-sm shrink-0 border border-slate-100">
@@ -295,7 +302,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
                     </div>
                   )}
                   {shop.verificationStatus === 'verified' && (
-                    <ShieldCheck size={10} className="text-blue-500 shrink-0 sm:w-3 sm:h-3" />
+                    <VerifiedBadge status={shop.verificationStatus} type="dealer" showLabel={false} size="sm" />
                   )}
                 </div>
                 <div className="text-[8px] sm:text-[10px] text-slate-400 flex items-center gap-1 truncate">
@@ -317,10 +324,15 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
               "w-full rounded-xl font-bold flex gap-2 h-9 sm:h-11 text-xs sm:text-sm transition-all active:scale-[0.98]",
               isSold ? "bg-slate-200 text-slate-500 hover:bg-slate-200 cursor-not-allowed" :
               isSponsored ? "bg-amber-500 hover:bg-amber-600 text-white" :
-              isFeaturedListing ? "bg-blue-600 hover:bg-blue-700 text-white" :
+              isFeaturedListing ? "bg-secondary hover:bg-secondary/90 text-white" :
               "bg-primary hover:bg-primary/90 text-white"
             )}
-            onClick={isSold ? (e) => e.stopPropagation() : handleContactSeller}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isSold) {
+                navigate(`/vehicle/${vehicle.id}`);
+              }
+            }}
             disabled={isSold}
           >
             {isSold ? (
@@ -330,8 +342,8 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle }) => {
               </>
             ) : (
               <>
-                <Phone size={14} className="sm:w-[18px] sm:h-[18px]" />
-                Contact Seller
+                <Zap size={14} className="sm:w-[18px] sm:h-[18px]" />
+                Book for ₹{Number(5000).toLocaleString()}
               </>
             )}
           </Button>

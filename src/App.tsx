@@ -18,6 +18,7 @@ const Search = lazy(() => import('@/pages/Search'));
 const Profile = lazy(() => import('@/pages/Profile'));
 const Compare = lazy(() => import('@/pages/Compare'));
 const DealerDetail = lazy(() => import('@/pages/DealerDetail'));
+const SellerDetail = lazy(() => import('@/pages/SellerDetail'));
 const ListVehicle = lazy(() => import('@/pages/ListVehicle'));
 const CreateShop = lazy(() => import('@/pages/CreateShop'));
 const EditShop = lazy(() => import('@/pages/EditShop'));
@@ -28,6 +29,7 @@ const Brands = lazy(() => import('@/pages/Brands'));
 const BlogUsedCarMarket = lazy(() => import('@/pages/BlogUsedCarMarket'));
 const SellerDashboard = lazy(() => import('@/pages/SellerDashboard'));
 const Payment = lazy(() => import('@/pages/Payment'));
+const SmartBuyerHub = lazy(() => import('@/pages/SmartBuyerHub'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
@@ -54,6 +56,7 @@ export default function App() {
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/compare" element={<Compare />} />
                       <Route path="/dealer/:id" element={<DealerDetail />} />
+                      <Route path="/seller/:id" element={<SellerDetail />} />
                       <Route path="/list-vehicle" element={<ListVehicle />} />
                       <Route path="/payment" element={<Payment />} />
                       <Route path="/seller-dashboard" element={<SellerDashboard />} />
@@ -61,6 +64,7 @@ export default function App() {
                       <Route path="/edit-shop" element={<EditShop />} />
                       <Route path="/admin" element={<AdminDashboard />} />
                       <Route path="/find-dealers" element={<FindDealers />} />
+                      <Route path="/buyer-hub" element={<SmartBuyerHub />} />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/blog/used-car-market-india" element={<BlogUsedCarMarket />} />
                     </Routes>

@@ -49,6 +49,17 @@ npx cap open ios
 - In Xcode: Select a generic iOS device, then **Product > Archive**.
 - Once archived, you can upload to App Store Connect.
 
+## Instant Mobile Preview (No IDE Required)
+
+If you want to test the app on your physical device immediately without installing Android Studio or Xcode:
+
+1. **Use the Shared App URL:** Copy the **Shared App URL** from your project settings.
+2. **Open on Phone:** Send this link to your mobile device and open it in Chrome (Android) or Safari (iOS).
+3. **PWA Experience:** 
+   - On **Android**: Tap the menu (three dots) and select "Add to Home screen".
+   - On **iOS**: Tap the Share button and select "Add to Home Screen".
+4. **Result:** The app will install on your home screen and function like a native app, allowing you to test interactions and layout instantly.
+
 ## Important Configurations
 - **App Name:** You can change the name in `capacitor.config.ts`.
 - **App Icon:** Use `@capacitor/assets` to generate icons and splash screens.

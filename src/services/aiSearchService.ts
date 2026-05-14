@@ -35,6 +35,8 @@ export const aiSearchService = {
         - ownership: '1st' | '2nd' | '3rd' | '4th' | '4th+'
         - city: string
         - state: string
+        - sortBy: 'nearest' | 'best_rated' | 'price_low' | 'price_high' | 'newest'
+        - verifiedOnly: boolean
 
         Rules:
         1. If a field is not mentioned, do not include it.
@@ -42,6 +44,10 @@ export const aiSearchService = {
         3. 'low mileage' -> maxKm: 30000
         4. 'automatic cars under 5 lakhs in Delhi' -> transmission: 'automatic', maxPrice: 500000, city: 'Delhi', vehicleType: 'car'
         5. 'first owner' -> ownership: '1st'
+        6. 'near me' or 'closest' -> sortBy: 'nearest'
+        7. 'top rated' or 'best dealer' -> sortBy: 'best_rated'
+        8. 'verified car' or 'certified' -> verifiedOnly: true
+        9. 'best quality' -> sortBy: 'best_rated', verifiedOnly: true
         
         The normalizedQuery should be a cleaned version of the input query that can be used for secondary text matching.
 
@@ -68,6 +74,8 @@ export const aiSearchService = {
                   ownership: { type: Type.STRING },
                   city: { type: Type.STRING },
                   state: { type: Type.STRING },
+                  sortBy: { type: Type.STRING },
+                  verifiedOnly: { type: Type.BOOLEAN },
                 }
               },
               normalizedQuery: { type: Type.STRING }

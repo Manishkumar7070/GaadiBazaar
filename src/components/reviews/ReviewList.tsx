@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 
 interface ReviewListProps {
   targetId: string;
-  targetType: 'vehicle' | 'shop';
+  targetType: 'vehicle' | 'shop' | 'seller';
   refreshKey?: number;
 }
 

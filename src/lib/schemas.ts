@@ -17,6 +17,7 @@ export const VehicleSchema = z.object({
   registration_number: z.string().regex(/^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/i, 'Invalid registration number format'),
   mileage: z.string().optional(),
   color: z.string().optional(),
+  assembly_type: z.enum(['Local', 'Imported', 'CKD', 'CBU']).optional(),
   vin: z.string().length(17, 'VIN must be 17 characters').optional().or(z.literal('')),
   images: z.array(z.string()).min(1, 'At least one image is required'),
 });

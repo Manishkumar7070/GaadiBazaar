@@ -24,9 +24,10 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { shopService } from '@/services/shop.service';
 import { vehicleService } from '@/services/vehicle.service';
+import { userService } from '@/services/user.service';
 import { paymentService } from '@/services/payment.service';
 import { generateStartupSpecPDF } from '@/services/pdfService';
-import { Shop, Vehicle, Payment } from '@/types';
+import { Shop, Vehicle, Payment, User as AppUser } from '@/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -191,21 +192,25 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [shops, setShops] = useState<Shop[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [sellers, setSellers] = useState<AppUser[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [shopFilter, setShopFilter] = useState<'pending' | 'verified' | 'rejected'>('pending');
   const [vehicleFilter, setVehicleFilter] = useState<'pending' | 'verified' | 'rejected'>('pending');
+  const [sellerFilter, setSellerFilter] = useState<'pending' | 'verified' | 'rejected'>('pending');
   
   // Selection state
   const [selectedShops, setSelectedShops] = useState<string[]>([]);
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+  const [selectedSellers, setSelectedSellers] = useState<string[]>([]);
   const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null);
 
   // Pagination state
   const [shopPage, setShopPage] = useState(1);
   const [vehiclePage, setVehiclePage] = useState(1);
+  const [sellerPage, setSellerPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
   useEffect(() => {
@@ -217,14 +222,16 @@ const AdminDashboard = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [allShops, allVehicles, allPayments] = await Promise.all([
+      const [allShops, allVehicles, allPayments, allSellers] = await Promise.all([
         shopService.fetchShops(),
         vehicleService.fetchVehicles(),
-        paymentService.fetchAllPayments()
+        paymentService.fetchAllPayments(),
+        userService.fetchUsers()
       ]);
       setShops(allShops);
       setVehicles(allVehicles);
       setPayments(allPayments);
+      setSellers(allSellers.filter(u => u.role === 'seller' || u.role === 'dealer'));
     } catch (error) {
       console.error('Error loading admin data:', error);
     } finally {
@@ -266,6 +273,19 @@ const AdminDashboard = () => {
       setSelectedVehicles(prev => prev.filter(id => id !== vehicleId));
     } catch (error) {
       alert('Failed to update vehicle status');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSellerVerify = async (sellerId: string, status: 'verified' | 'rejected') => {
+    setActionLoading(sellerId);
+    try {
+      await userService.updateUserVerification(sellerId, status);
+      setSellers(prev => prev.map(s => s.id === sellerId ? { ...s, verificationStatus: status } : s));
+      setSelectedSellers(prev => prev.filter(id => id !== sellerId));
+    } catch (error) {
+      alert('Failed to update seller status');
     } finally {
       setActionLoading(null);
     }
@@ -313,6 +333,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleBulkSellersAction = async (status: 'verified' | 'rejected') => {
+    if (selectedSellers.length === 0) return;
+    setBulkLoading(true);
+    try {
+      await Promise.all(selectedSellers.map(id => userService.updateUserVerification(id, status)));
+      setSellers(prev => prev.map(s => selectedSellers.includes(s.id) ? { ...s, verificationStatus: status } : s));
+      setSelectedSellers([]);
+    } catch (error) {
+      alert('Bulk action failed for some items');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const toggleShopSelection = (id: string) => {
     setSelectedShops(prev => 
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
@@ -321,6 +355,12 @@ const AdminDashboard = () => {
 
   const toggleVehicleSelection = (id: string) => {
     setSelectedVehicles(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSellerSelection = (id: string) => {
+    setSelectedSellers(prev => 
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -335,10 +375,12 @@ const AdminDashboard = () => {
 
   const pendingShops = shops.filter(s => s.verificationStatus === 'pending');
   const pendingVehicles = vehicles.filter(v => v.verificationStatus === 'pending');
+  const pendingSellers = sellers.filter(u => u.verificationStatus === 'pending');
   const pendingPayments = payments.filter(p => p.status === 'pending');
 
   const filteredShops = shops.filter(s => s.verificationStatus === shopFilter);
   const filteredVehicles = vehicles.filter(v => v.verificationStatus === vehicleFilter);
+  const filteredSellers = sellers.filter(s => (s.verificationStatus || 'pending') === sellerFilter);
 
   // Paginated data
   const shopTotalPages = Math.ceil(filteredShops.length / ITEMS_PER_PAGE);
@@ -347,8 +389,12 @@ const AdminDashboard = () => {
   const vehicleTotalPages = Math.ceil(filteredVehicles.length / ITEMS_PER_PAGE);
   const paginatedVehicles = filteredVehicles.slice((vehiclePage - 1) * ITEMS_PER_PAGE, vehiclePage * ITEMS_PER_PAGE);
 
+  const sellerTotalPages = Math.ceil(filteredSellers.length / ITEMS_PER_PAGE);
+  const paginatedSellers = filteredSellers.slice((sellerPage - 1) * ITEMS_PER_PAGE, sellerPage * ITEMS_PER_PAGE);
+
   const allFilteredShopsSelected = paginatedShops.length > 0 && paginatedShops.every(s => selectedShops.includes(s.id));
   const allFilteredVehiclesSelected = paginatedVehicles.length > 0 && paginatedVehicles.every(v => selectedVehicles.includes(v.id));
+  const allFilteredSellersSelected = paginatedSellers.length > 0 && paginatedSellers.every(s => selectedSellers.includes(s.id));
 
   const toggleSelectAllShops = () => {
     if (allFilteredShopsSelected) {
@@ -365,6 +411,15 @@ const AdminDashboard = () => {
     } else {
       const newSelections = paginatedVehicles.map(v => v.id);
       setSelectedVehicles(prev => Array.from(new Set([...prev, ...newSelections])));
+    }
+  };
+
+  const toggleSelectAllSellers = () => {
+    if (allFilteredSellersSelected) {
+      setSelectedSellers(prev => prev.filter(id => !paginatedSellers.find(s => s.id === id)));
+    } else {
+      const newSelections = paginatedSellers.map(s => s.id);
+      setSelectedSellers(prev => Array.from(new Set([...prev, ...newSelections])));
     }
   };
 
@@ -399,9 +454,12 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="shops" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 h-12">
+        <TabsList className="grid w-full grid-cols-4 rounded-2xl bg-slate-100 p-1 h-12">
           <TabsTrigger value="shops" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Showrooms ({pendingShops.length})
+          </TabsTrigger>
+          <TabsTrigger value="sellers" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Sellers ({pendingSellers.length})
           </TabsTrigger>
           <TabsTrigger value="vehicles" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Vehicles ({pendingVehicles.length})
@@ -602,6 +660,187 @@ const AdminDashboard = () => {
                             if (shopPage < shopTotalPages) setShopPage(shopPage + 1);
                           }}
                           className={shopPage === shopTotalPages ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="sellers" className="mt-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div className="flex gap-2">
+              {(['pending', 'verified', 'rejected'] as const).map((status) => (
+                <Button
+                  key={status}
+                  variant={sellerFilter === status ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSellerFilter(status)}
+                  className="rounded-full capitalize"
+                >
+                  {status} ({sellers.filter(s => (s.verificationStatus || 'pending') === status).length})
+                </Button>
+              ))}
+            </div>
+            {selectedSellers.length > 0 && (
+              <div className="flex items-center gap-2 bg-primary/5 p-2 px-4 rounded-2xl border border-primary/10 animate-in fade-in slide-in-from-right-2">
+                <span className="text-sm font-bold text-primary">{selectedSellers.length} Selected</span>
+                <div className="h-4 w-px bg-primary/20 mx-2" />
+                <Button 
+                  size="sm" 
+                  className="bg-green-600 hover:bg-green-700 h-8 rounded-lg"
+                  onClick={() => handleBulkSellersAction('verified')}
+                  disabled={bulkLoading}
+                >
+                  {bulkLoading ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle size={14} className="mr-1" />}
+                  Approve All
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                   className="text-red-600 border-red-200 hover:bg-red-50 h-8 rounded-lg"
+                  onClick={() => handleBulkSellersAction('rejected')}
+                  disabled={bulkLoading}
+                >
+                  {bulkLoading ? <Loader2 className="animate-spin" size={14} /> : <XCircle size={14} className="mr-1" />}
+                  Reject All
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-8 rounded-lg text-slate-500"
+                  onClick={() => setSelectedSellers([])}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 mb-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="p-0 h-auto font-bold flex items-center gap-2 text-slate-600 hover:text-primary"
+              onClick={toggleSelectAllSellers}
+            >
+              {allFilteredSellersSelected ? <CheckSquare className="text-primary" size={20} /> : <Square size={20} />}
+              Select All Shown
+            </Button>
+            <span className="text-xs text-slate-400">({paginatedSellers.length} items shown)</span>
+          </div>
+
+          {paginatedSellers.length === 0 ? (
+            <Card className="rounded-3xl border-dashed border-2 border-slate-200 bg-slate-50/50">
+              <CardContent className="py-20 text-center space-y-3">
+                <Shield className="mx-auto text-slate-300" size={48} />
+                <p className="text-slate-500 font-medium">No sellers with status '{sellerFilter}'</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {paginatedSellers.map(seller => (
+                <Card key={seller.id} className={cn(
+                  "rounded-3xl border-none shadow-sm overflow-hidden transition-all",
+                  selectedSellers.includes(seller.id) ? "ring-2 ring-primary ring-inset bg-primary/5" : ""
+                )}>
+                  <CardContent className="p-6 flex flex-col md:flex-row gap-6 relative">
+                    <button 
+                      onClick={() => toggleSellerSelection(seller.id)}
+                      className="absolute top-4 left-4 z-10 p-1 bg-white rounded-lg shadow-md hover:bg-slate-50 transition-colors"
+                    >
+                      {selectedSellers.includes(seller.id) ? <CheckSquare className="text-primary" size={24} /> : <Square className="text-slate-300" size={24} />}
+                    </button>
+                    <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 flex-shrink-0">
+                      <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary text-xl font-bold">
+                        {seller.fullName?.charAt(0) || 'U'}
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-xl font-bold">{seller.fullName}</h3>
+                          <p className="text-slate-500 text-sm">{seller.email}</p>
+                          <div className="flex gap-2 mt-1">
+                            <Badge variant="outline" className="rounded-lg capitalize">{seller.role}</Badge>
+                            <Badge variant="outline" className="rounded-lg">{seller.phone || 'No Phone'}</Badge>
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={(seller.verificationStatus || 'pending') === 'verified' ? 'default' : (seller.verificationStatus || 'pending') === 'rejected' ? 'destructive' : 'secondary'} 
+                          className={(seller.verificationStatus || 'pending') === 'verified' ? 'bg-green-500 hover:bg-green-600' : 
+                                     (seller.verificationStatus || 'pending') === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100' : ''}
+                        >
+                          {(seller.verificationStatus || 'pending').charAt(0).toUpperCase() + (seller.verificationStatus || 'pending').slice(1)}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-2 items-center">
+                        <div className="flex-1" />
+                        {(seller.verificationStatus || 'pending') !== 'verified' && (
+                          <Button 
+                            onClick={() => handleSellerVerify(seller.id, 'verified')}
+                            disabled={actionLoading === seller.id}
+                            className="bg-green-600 hover:bg-green-700 text-white rounded-xl gap-2"
+                          >
+                            {actionLoading === seller.id ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                            Approve
+                          </Button>
+                        )}
+                        {(seller.verificationStatus || 'pending') !== 'rejected' && (
+                          <Button 
+                            variant="outline"
+                            onClick={() => handleSellerVerify(seller.id, 'rejected')}
+                            disabled={actionLoading === seller.id}
+                            className="text-red-600 border-red-100 hover:bg-red-50 rounded-xl gap-2"
+                          >
+                            {actionLoading === seller.id ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}
+                            Reject
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {sellerTotalPages > 1 && (
+                <div className="pt-6">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          href="#" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (sellerPage > 1) setSellerPage(sellerPage - 1);
+                          }}
+                          className={sellerPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: sellerTotalPages }, (_, i) => i + 1).map(page => (
+                        <PaginationItem key={page}>
+                          <PaginationLink 
+                            href="#" 
+                            isActive={sellerPage === page}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setSellerPage(page);
+                            }}
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          href="#" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (sellerPage < sellerTotalPages) setSellerPage(sellerPage + 1);
+                          }}
+                          className={sellerPage === sellerTotalPages ? "pointer-events-none opacity-50" : ""}
                         />
                       </PaginationItem>
                     </PaginationContent>

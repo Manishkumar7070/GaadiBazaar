@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp, ShieldCheck, Shield, Users, Briefcase, Compass, IndianRupee, Mountain, Heart } from 'lucide-react';
+import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp, ShieldCheck, Shield, Users, Briefcase, Compass, IndianRupee, Mountain, Heart, Handshake, Camera, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -150,6 +150,30 @@ const Home = () => {
     const cityParam = selectedCity && selectedCity !== 'India' ? `&city=${encodeURIComponent(selectedCity)}` : '';
     
     if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      let cityParam = selectedCity && selectedCity !== 'India' ? `&city=${encodeURIComponent(selectedCity)}` : '';
+      
+      // Auto-handle high intent keywords
+      if (query.includes('dealer') || query.includes('showroom')) {
+        if (query.includes('near me') || query.includes('closest') || query.includes('nearby')) {
+          navigate(`/find-dealers?nearMe=true${cityParam}`);
+          return;
+        }
+      }
+
+      if (query.includes('near me') || query.includes('closest')) {
+        navigate(`/search?sortBy=nearest${cityParam}`);
+        return;
+      }
+      if (query.includes('top rated') || query.includes('best dealer')) {
+        navigate(`/search?sortBy=best_rated${cityParam}`);
+        return;
+      }
+      if (query.includes('verified')) {
+        navigate(`/search?verifiedOnly=true${cityParam}`);
+        return;
+      }
+
       // Save to recent searches
       const saved = JSON.parse(localStorage.getItem('recentSearches') || '[]');
       const updated = [searchQuery.trim(), ...saved.filter((s: string) => s !== searchQuery.trim())].slice(0, 5);
@@ -157,7 +181,8 @@ const Home = () => {
       
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}${cityParam}`);
     } else {
-      navigate(`/search?${cityParam.startsWith('&') ? cityParam.substring(1) : cityParam}`);
+      const cityParam = selectedCity && selectedCity !== 'India' ? `city=${encodeURIComponent(selectedCity)}` : '';
+      navigate(`/search?${cityParam}`);
     }
   };
 
@@ -179,10 +204,31 @@ const Home = () => {
         <meta name="keywords" content={`used cars ${selectedCity}, second hand cars Indian, buy used cars, sell my car, certified showrooms, asonedealer, car market India`} />
         <link rel="canonical" href="https://asonedealer.com/" />
       </Helmet>
+
+      {/* EXCLUSIVE SERVICE BANNER */}
+      <div className="bg-[#1B301B] text-white py-3 px-4 relative overflow-hidden group">
+        <div className="container mx-auto flex flex-col md:flex-row items-center justify-center gap-2 md:gap-8 text-center md:text-left relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🎉</span>
+            <p className="text-xs md:text-sm font-black tracking-widest uppercase text-white">
+              EXCLUSIVE: 5 YEARS FREE MECHANIC SERVICE WITH EVERY CAR
+            </p>
+          </div>
+          <p className="text-[10px] md:text-xs text-white/70 font-semibold uppercase tracking-wider">
+            Professional monthly visits to your home or office | ₹5 Lakh value included
+          </p>
+          <div className="flex gap-4">
+            <button onClick={() => navigate('/search')} className="text-[10px] font-black underline underline-offset-4 hover:text-primary transition-colors">SHOP CARS NOW</button>
+            <button onClick={() => navigate('/buyer-hub')} className="text-[10px] font-black underline underline-offset-4 hover:text-primary transition-colors">LEARN MORE</button>
+          </div>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[2000ms] ease-in-out" />
+      </div>
+
       {/* Hero / Search Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center pt-24 pb-24 sm:pt-28 sm:pb-32 overflow-hidden bg-slate-900">
         {/* Carousel Background */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 text-center">
           <HeroCarousel />
         </div>
 
@@ -191,7 +237,7 @@ const Home = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md text-white text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md text-white text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl mx-auto"
           >
             <span className="flex h-1.5 w-1.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -207,8 +253,9 @@ const Home = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[7rem] font-[1000] leading-[1.1] sm:leading-[1] md:leading-[0.85] tracking-[-0.05em] text-white"
               >
-                Find your <br className="sm:hidden" />
-                Next <span className="text-primary underline decoration-white underline-offset-[8px] sm:underline-offset-[12px] decoration-2 sm:decoration-4">Legend.</span>
+                Buy a Car.<br />
+                Get 5 Years of<br />
+                <span className="text-primary italic">Peace of Mind.</span>
               </motion.h1>
               
               <motion.p 
@@ -217,8 +264,8 @@ const Home = () => {
                 transition={{ delay: 0.1 }}
                 className="text-white/80 text-sm sm:text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto leading-relaxed font-semibold px-4"
               >
-                The dealer-first marketplace for people who value <br className="hidden md:block" />
-                transparency, local trust, and premium service.
+                FREE monthly mechanic visits to your home or office. <br className="hidden md:block" />
+                Zero cost. Professional care. Only on Asonedealer.
               </motion.p>
             </div>
 
@@ -231,7 +278,7 @@ const Home = () => {
                 className="flex flex-row items-center justify-center gap-2 sm:gap-8 px-2"
               >
                 <div className="relative group flex-1">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-orange-600 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-primary/60 rounded-2xl sm:rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                   <Button 
                     onClick={() => navigate('/search')}
                     className="relative w-full h-16 sm:h-20 md:h-24 px-4 sm:px-8 rounded-xl sm:rounded-3xl bg-slate-900 text-white hover:bg-slate-800 font-[950] uppercase text-[10px] sm:text-base md:text-xl tracking-widest transition-all hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0 sm:gap-1"
@@ -292,7 +339,7 @@ const Home = () => {
                         />
                         <Button 
                           type="submit"
-                          className="h-8 sm:h-10 md:h-12 px-3 sm:px-8 rounded-lg sm:rounded-full bg-primary hover:bg-orange-600 text-white font-black text-[10px] sm:text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+                          className="h-8 sm:h-10 md:h-12 px-3 sm:px-8 rounded-lg sm:rounded-full bg-primary hover:bg-primary/90 text-secondary font-black text-[10px] sm:text-sm shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
                         >
                           Search
                         </Button>
@@ -309,17 +356,14 @@ const Home = () => {
                   className="flex flex-wrap justify-center gap-4 sm:gap-10 px-4"
                 >
                   {[
-                    { label: "Family Cars", icon: Users },
-                    { label: "Luxury SUVs", icon: Star },
-                    { label: "Budget Friendly", icon: IndianRupee },
-                    { label: "Verified Dealers", icon: Store }
+                    { label: "Nearest Me", icon: MapPin, action: () => navigate('/search?sortBy=nearest') },
+                    { label: "Top Rated", icon: Star, action: () => navigate('/search?sortBy=best_rated') },
+                    { label: "Certified", icon: ShieldCheck, action: () => navigate('/search?verifiedOnly=true') },
+                    { label: "Bihar/UP Hub", icon: Store, action: () => navigate('/buyer-hub') }
                   ].map((tag) => (
                     <button 
                       key={tag.label}
-                      onClick={() => {
-                        setSearchQuery(tag.label);
-                        handleSearch();
-                      }}
+                      onClick={() => tag.action()}
                       className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-primary transition-all group"
                     >
                       <tag.icon size={10} className="text-white/20 group-hover:text-primary transition-colors" />
@@ -390,7 +434,7 @@ const Home = () => {
                <TrendingUp size={160} strokeWidth={3} />
              </div>
              <div className="space-y-4 relative z-10">
-               <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center text-primary mb-6">
+               <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6">
                  <ArrowRight size={32} />
                </div>
                <h3 className="text-4xl font-black leading-tight tracking-tighter text-slate-900">
@@ -476,6 +520,57 @@ const Home = () => {
         </div>
       </section>
 
+      {/* The Trust Advantage - DIFFERENTIATOR SECTION */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="bg-gradient-to-br from-secondary to-[#2D0F50] rounded-[3.5rem] p-8 md:p-20 text-white relative overflow-hidden group shadow-2xl">
+          <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform duration-[2000ms] pointer-events-none">
+            <Handshake size={300} strokeWidth={1} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+            <div className="space-y-8">
+              <Badge className="bg-white/20 text-white border-none px-4 py-1.5 rounded-full uppercase text-[10px] tracking-widest font-black backdrop-blur-md">
+                The Trust Gap Solution
+              </Badge>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.95]">
+                Buying shouldn't feel like a <span className="text-white/40 italic">Gamble.</span>
+              </h2>
+              <p className="text-white/80 text-lg md:text-xl font-medium leading-relaxed max-w-xl">
+                We're not just another listing site. We're a dealer-first trust ecosystem. We solve the gaps in physical dealership and vehicle transparency that big platforms ignore.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  onClick={() => navigate('/buyer-hub')}
+                  className="h-16 px-10 rounded-2xl bg-primary text-secondary hover:bg-primary/90 font-[950] uppercase text-xs tracking-widest shadow-xl shadow-secondary/40"
+                >
+                  Visit Smart Buyer Hub
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="h-16 px-10 rounded-2xl border-white/20 text-white hover:bg-white/10 font-[950] uppercase text-xs tracking-widest"
+                  onClick={() => navigate('/find-dealers')}
+                >
+                  Explore Trusted Dealers
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               {[
+                 { title: "Dealer Identity", desc: "Know the history, reputation, and scores of the person behind the showroom.", icon: Store },
+                 { title: "Virtual Tour", desc: "Digitized showroom experience with inventory walkthroughs & dealer stories.", icon: Camera },
+                 { title: "Trust Score", desc: "Simplified 1-10 transparency metrics for every verified partner.", icon: Shield },
+                 { title: "Local Expert Hub", desc: "Buyer education, checklists, and Bihar/UP local market alerts.", icon: BookOpen }
+               ].map((item, i) => (
+                 <div key={i} className="bg-white/10 backdrop-blur-xl border border-white/10 p-6 rounded-3xl space-y-3 hover:bg-white/20 transition-all duration-300">
+                    <item.icon className="text-primary" size={32} />
+                    <h4 className="font-black text-white text-lg tracking-tight uppercase leading-none">{item.title}</h4>
+                    <p className="text-white/60 text-xs font-bold leading-relaxed">{item.desc}</p>
+                 </div>
+               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Recently Viewed (Continue Browsing) */}
       {recentlyViewed.length > 0 && (
         <section className="space-y-4">
@@ -533,9 +628,9 @@ const Home = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {[
-            { id: 'family', label: 'Family First', desc: 'Space, Safety & Comfort', icon: Users, color: 'bg-blue-50 text-blue-600', hover: 'hover:bg-blue-600' },
-            { id: 'commute', label: 'Office/Daily', desc: 'Efficiency & Ease', icon: Briefcase, color: 'bg-indigo-50 text-indigo-600', hover: 'hover:bg-indigo-600' },
-            { id: 'touring', label: 'Long Drive', desc: 'Power & Performance', icon: Compass, color: 'bg-orange-50 text-orange-600', hover: 'hover:bg-orange-600' },
+            { id: 'family', label: 'Family First', desc: 'Space, Safety & Comfort', icon: Users, color: 'bg-secondary/5 text-secondary', hover: 'hover:bg-secondary' },
+            { id: 'commute', label: 'Office/Daily', desc: 'Efficiency & Ease', icon: Briefcase, color: 'bg-secondary/10 text-secondary', hover: 'hover:bg-secondary' },
+            { id: 'touring', label: 'Long Drive', desc: 'Power & Performance', icon: Compass, color: 'bg-primary/10 text-primary', hover: 'hover:bg-primary' },
             { id: 'budget', label: 'Mileage King', desc: 'Savings & Value', icon: IndianRupee, color: 'bg-green-50 text-green-600', hover: 'hover:bg-green-600' },
             { id: 'offroad', label: 'Off-Roading', desc: 'Rugged & Capable', icon: Mountain, color: 'bg-slate-50 text-slate-600', hover: 'hover:bg-slate-900' }
           ].map((item, i) => (

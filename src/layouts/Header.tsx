@@ -1,10 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star, BarChart3, Instagram, Smartphone } from 'lucide-react';
+import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star, BarChart3, Instagram, Smartphone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal
+} from '@/components/ui/dropdown-menu';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 import { 
   Sheet, 
   SheetContent, 
@@ -12,6 +34,15 @@ import {
   SheetTitle, 
   SheetTrigger 
 } from '@/components/ui/sheet';
+
+const STATES_LIST = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 
+  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 
+  'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 
+  'Uttarakhand', 'West Bengal', 'Delhi', 'Chandigarh', 'Jammu & Kashmir', 'Ladakh'
+];
+import { ChevronDown, Car as CarIcon, Bike, Globe, Store, History, Info } from 'lucide-react';
 
 import CitySelector from '@/components/shared/CitySelector';
 import SearchSuggestions from '@/features/search/SearchSuggestions';
@@ -25,12 +56,15 @@ const Header = () => {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
+  const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[], states: string[] }>({ brands: [], models: [], cities: [], states: [] });
 
   useEffect(() => {
     const fetchMetadata = async () => {
       const data = await vehicleService.fetchPopularMetadata();
-      setPopularMetadata(data);
+      // Ensure states are included or derived
+      const vehicles = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
+      const uniqueStates = Array.from(new Set(vehicles.map(v => v.state).filter(Boolean))) as string[];
+      setPopularMetadata({ ...data, states: uniqueStates });
     };
     fetchMetadata();
   }, []);
@@ -107,24 +141,119 @@ const Header = () => {
           <Logo fontSize="text-xl sm:text-2xl" iconSize={24} />
         </Link>
 
-        <div className="hidden lg:flex items-center gap-6 ml-4">
-          <Link to="/search" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            Explore
-          </Link>
-          <Link to="/search?type=car" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            Cars
-          </Link>
-          <Link to="/search?type=bike" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            Bikes
-          </Link>
-          <Link to="/brands" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            Brands
-          </Link>
-          <Link to="/find-dealers" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors">
-            Dealers
-          </Link>
-          <Link to="/blog/used-car-market-india" className="text-sm font-semibold text-slate-600 hover:text-primary transition-colors hidden xl:block">
-            Market Trends
+        <div className="hidden lg:flex items-center gap-2 ml-2">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger 
+                  onClick={() => navigate('/search?type=car')}
+                  className="bg-transparent hover:bg-transparent data-[state=open]:bg-transparent text-sm font-bold text-slate-600 hover:text-primary transition-colors h-10 px-3 cursor-pointer"
+                >
+                  Buy Used Car
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="grid w-[500px] gap-3 p-4 md:grid-cols-2 bg-white rounded-3xl shadow-2xl border-none">
+                    <div className="space-y-4">
+                      <div className="px-2 py-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Quick Browse</p>
+                        <div className="grid gap-2">
+                          <button onClick={() => navigate('/search?type=car')} className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition-colors text-left group">
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                              <CarIcon size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">All Used Cars</p>
+                              <p className="text-[10px] text-slate-500 font-medium">Sedans, SUVs, Luxury</p>
+                            </div>
+                          </button>
+                          <button onClick={() => navigate('/search?type=bike')} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 transition-colors text-left group">
+                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                              <Bike size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">Used Bikes</p>
+                              <p className="text-[10px] text-slate-500 font-medium">Sport, Daily, Cruisers</p>
+                            </div>
+                          </button>
+                          <button onClick={() => navigate('/find-dealers')} className="flex items-center gap-3 p-3 rounded-xl hover:bg-green-50 transition-colors text-left group">
+                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600 group-hover:scale-110 transition-transform">
+                              <Store size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">Verified Dealers</p>
+                              <p className="text-[10px] text-slate-500 font-medium">Buy with total confidence</p>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50/50 p-4 rounded-2xl">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Browse by State</p>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                        {(popularMetadata.states.length > 0 ? popularMetadata.states : STATES_LIST).slice(0, 16).map(state => (
+                          <button 
+                            key={state} 
+                            onClick={() => navigate(`/search?state=${encodeURIComponent(state)}`)}
+                            className="px-3 py-2 text-xs font-bold text-slate-600 hover:text-primary hover:bg-white rounded-lg transition-all text-left truncate"
+                          >
+                            {state}
+                          </button>
+                        ))}
+                        <button 
+                          onClick={() => navigate('/search')}
+                          className="col-span-2 mt-2 px-3 py-2 text-[10px] font-black uppercase text-primary hover:bg-primary/5 rounded-lg transition-all border border-primary/10 text-center"
+                        >
+                          View All 20+ States
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <NavigationMenuTrigger 
+                  onClick={handleSellClick}
+                  className="bg-transparent hover:bg-transparent data-[state=open]:bg-transparent text-sm font-bold text-slate-600 hover:text-primary transition-colors h-10 px-3 cursor-pointer"
+                >
+                  Sell Car
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="w-[300px] p-4 bg-white rounded-3xl shadow-2xl border-none">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Seller Services</p>
+                    <div className="grid gap-2">
+                      <button onClick={handleSellClick} className="flex items-center gap-4 p-4 rounded-2xl bg-primary/5 hover:bg-primary border border-primary/10 group transition-all">
+                        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-secondary shadow-lg group-hover:bg-white group-hover:text-primary transition-colors">
+                          <PlusCircle size={20} strokeWidth={2.5} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-black text-slate-900 group-hover:text-white transition-colors">QUICK LIST</p>
+                          <p className="text-[10px] text-primary group-hover:text-white font-black uppercase tracking-widest transition-colors">Free Listing</p>
+                        </div>
+                      </button>
+                      
+                      <button onClick={() => navigate('/seller-dashboard')} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors text-left group">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:text-primary">
+                          <BarChart3 size={16} />
+                        </div>
+                        <p className="text-sm font-bold text-slate-700">Manage Listings</p>
+                      </button>
+
+                      <button onClick={() => navigate('/blog/used-car-market-india')} className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition-colors text-left group">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                          <History size={16} />
+                        </div>
+                        <p className="text-sm font-bold text-slate-700">Valuation Guide</p>
+                      </button>
+                    </div>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+
+          <Link to="/buyer-hub" className="text-sm font-bold text-secondary hover:text-secondary/80 transition-colors flex items-center gap-1 px-4 border-l border-slate-100">
+            <Handshake size={14} /> Smart Buyer Hub
           </Link>
         </div>
 
@@ -196,35 +325,66 @@ const Header = () => {
             </Link>
           )}
 
-          {user ? (
-            <Link to="/profile">
-              <Button variant="ghost" className="hidden lg:flex gap-2 items-center text-slate-700 font-semibold">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <User size={18} />
-                </div>
-                {user.fullName || 'Account'}
+          <div className="hidden lg:flex items-center gap-2">
+            {user ? (
+               <DropdownMenu>
+                 <DropdownMenuTrigger render={<Button variant="ghost" className="flex gap-2 items-center text-slate-700 font-semibold px-2" />}>
+                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                     <User size={18} />
+                   </div>
+                   <span className="max-w-[100px] truncate">{user.fullName || 'Account'}</span>
+                   <ChevronDown size={14} className="text-slate-400" />
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent className="w-56 rounded-2xl p-2 shadow-2xl border-none">
+                   <DropdownMenuLabel className="flex items-center gap-3 p-3">
+                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                       <User size={20} />
+                     </div>
+                     <div className="flex flex-col">
+                       <span className="font-bold text-sm truncate">{user.fullName}</span>
+                       <span className="text-[10px] text-slate-400 font-bold uppercase truncate">{user.role} Account</span>
+                     </div>
+                   </DropdownMenuLabel>
+                   <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                   <DropdownMenuItem onClick={() => navigate('/profile')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer">
+                     <Package size={16} className="text-slate-400" />
+                     <span className="font-semibold text-sm">Dashboard</span>
+                   </DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => navigate('/profile')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer">
+                     <Heart size={16} className="text-slate-400" />
+                     <span className="font-semibold text-sm">Wishlist</span>
+                   </DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => navigate('/profile')} className="rounded-xl flex items-center gap-3 p-3 cursor-pointer">
+                     <Settings size={16} className="text-slate-400" />
+                     <span className="font-semibold text-sm">Settings</span>
+                   </DropdownMenuItem>
+                   <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                   <DropdownMenuItem 
+                     onClick={() => {
+                       logout();
+                       navigate('/');
+                     }} 
+                     className="rounded-xl flex items-center gap-3 p-3 cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-50"
+                   >
+                     <LogOut size={16} />
+                     <span className="font-semibold text-sm">Logout</span>
+                   </DropdownMenuItem>
+                 </DropdownMenuContent>
+               </DropdownMenu>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="border-primary text-primary hover:bg-primary/5 rounded-xl h-10"
+                onClick={() => navigate('/login')}
+              >
+                Login
               </Button>
-            </Link>
-          ) : (
-            <Button 
-              variant="outline" 
-              className="hidden lg:flex border-primary text-primary hover:bg-primary/5"
-              onClick={() => navigate('/login')}
-            >
-              Login
-            </Button>
-          )}
-
-          <Button 
-            className="hidden lg:flex bg-primary hover:bg-primary/90"
-            onClick={handleSellClick}
-          >
-            Sell Vehicle
-          </Button>
+            )}
+          </div>
           
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden h-10 w-10" />}>
-              <Menu size={24} />
+                <Menu size={24} />
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] rounded-l-3xl p-0">
               <div className="flex flex-col h-full">
@@ -280,6 +440,11 @@ const Header = () => {
                     <Link to="/find-dealers" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl transition-colors">
                       <MapPin size={20} className="text-slate-400" />
                       <span className="font-semibold text-slate-700">Find Dealers</span>
+                    </Link>
+                    <Link to="/buyer-hub" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 bg-secondary/5 text-secondary rounded-xl transition-colors border border-secondary/10">
+                      <ShieldCheck size={20} className="text-secondary" />
+                      <span className="font-bold">Smart Buyer Hub</span>
+                      <Badge className="ml-auto bg-secondary text-white border-none text-[8px] px-1 h-4">NEW</Badge>
                     </Link>
                     
                     <div className="grid grid-cols-2 gap-2 p-2">

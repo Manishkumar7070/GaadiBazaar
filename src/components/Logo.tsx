@@ -1,6 +1,6 @@
 import React from 'react';
-import { Handshake, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Car } from 'lucide-react';
 
 interface LogoProps {
   className?: string;
@@ -11,26 +11,18 @@ interface LogoProps {
 
 const Logo: React.FC<LogoProps> = ({ className, iconSize = 24, fontSize = "text-xl", variant = 'default' }) => {
   const isLight = variant === 'light';
-  const darkColor = isLight ? "text-white" : "text-[#8B3D52]";
-  const orangeColor = isLight ? "text-white/90" : "text-[#F5A661]";
-
+  
   return (
-    <div className={cn("flex items-center gap-0 font-bold tracking-tight", className, fontSize)}>
-      <span className={darkColor}>As</span>
-      <div className="relative flex items-center justify-center px-1">
-        <div className="relative">
-          <Handshake 
-            size={iconSize} 
-            className={orangeColor} 
-          />
-          <ShieldCheck 
-            size={iconSize * 0.5} 
-            className={cn("absolute -top-2 left-1/2 -translate-x-1/2", orangeColor, isLight ? "fill-white/10" : "fill-[#F5A661]/20")} 
-          />
+    <div className={cn("flex items-center gap-2 font-black tracking-tighter group cursor-pointer", className)}>
+      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500 text-white shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+        <Car size={18} fill="white" />
+      </div>
+      <div className="flex items-center gap-0">
+        <div className={cn("flex items-center", fontSize)}>
+          <span className="text-amber-500">ASONE</span>
+          <span className={isLight ? "text-white" : "text-slate-900"}>DEALER</span>
         </div>
       </div>
-      <span className={orangeColor}>ne</span>
-      <span className={darkColor}>Dealer</span>
     </div>
   );
 };

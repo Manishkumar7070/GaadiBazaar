@@ -1,5 +1,5 @@
 {
   "name": "AsOneDealer",
-  "description": "A production-ready marketplace for buying and selling second-hand vehicles in Tier-2/3 India.",
+  "description": "A production-ready marketplace for buying and selling second-hand vehicles in India. Featuring 5 years of free door-step mechanic services with every car purchase.",
   "requestFramePermissions": ["geolocation", "camera", "microphone"]
 }

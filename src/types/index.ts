@@ -3,6 +3,7 @@ export type FuelType = 'petrol' | 'diesel' | 'electric' | 'cng' | 'hybrid';
 export type TransmissionType = 'manual' | 'automatic' | 'semi-automatic';
 export type OwnershipType = '1st' | '2nd' | '3rd' | '4th' | '4th+';
 export type VehiclePurpose = 'family' | 'commute' | 'touring' | 'budget' | 'luxury' | 'offroad' | 'student';
+export type AssemblyType = 'Local' | 'Imported' | 'CKD' | 'CBU';
 export type VehicleStatus = 'active' | 'sold' | 'pending' | 'inactive';
 
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
@@ -38,7 +39,13 @@ export interface User {
   longitude?: number;
   cityName?: string;
   address?: string;
+  verificationStatus?: VerificationStatus;
   createdAt: string;
+  
+  // Reputation layers for private sellers
+  rating?: number;
+  reviewsCount?: number;
+  responseTime?: string;
 }
 
 export interface Review {
@@ -73,6 +80,26 @@ export interface Shop {
   rating?: number;
   reviewsCount?: number;
   reviews?: Review[];
+  
+  // New Reputation Layer Metrics
+  trustScore?: number; // 0-10
+  yearsInBusiness?: number;
+  inventoryQualityScore?: number;
+  responseTime?: string; // e.g. "under 2 hours"
+  inventoryCount?: number;
+  dealerHistory?: string;
+  showroomVideoUrl?: string; // Virtual showroom walkthrough walkthrough
+  openingHours?: {
+    open: string;
+    close: string;
+    closedDays: string[];
+  };
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    whatsapp?: string;
+  };
+  
   createdAt: string;
   updatedAt?: string;
 }
@@ -117,7 +144,7 @@ export interface Vehicle {
   registrationNumber?: string;
   mileage?: string;
   color?: string;
-  assemblyType?: string;
+  assemblyType?: AssemblyType;
   vin?: string;
   engineStartVideo?: string;
   engineSoundVideo?: string;
@@ -144,8 +171,11 @@ export interface SearchFilters {
   ownership?: OwnershipType;
   city?: string;
   state?: string;
+  assemblyType?: AssemblyType;
   isCertified?: boolean;
   purpose?: VehiclePurpose;
+  sortBy?: 'nearest' | 'best_rated' | 'price_low' | 'price_high' | 'newest';
+  verifiedOnly?: boolean;
 }
 
 export interface SavedSearch {

@@ -6,20 +6,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Search, 
-  MapPin, 
-  Star, 
-  Phone, 
-  Filter, 
-  ChevronRight, 
-  ShieldCheck, 
-  Navigation,
-  Loader2
-} from 'lucide-react';
+import { Search, MapPin, Star, Phone, Filter, ChevronRight, ShieldCheck, Navigation, Loader2, Handshake } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { TrustScore } from '@/components/TrustScore';
 
 const FindDealers: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
@@ -27,7 +18,23 @@ const FindDealers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'rating' | 'trust' | 'nearest' | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const requestLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation([latitude, longitude]);
+        setSortBy('nearest');
+      }, (error) => {
+        console.error("Error getting location:", error);
+        // On mobile/Sandboxed iframes, this might fail, so we just log it
+      });
+    }
+  };
 
   useEffect(() => {
     const loadShops = async () => {
@@ -36,12 +43,18 @@ const FindDealers: React.FC = () => {
       setShops(data);
       setFilteredShops(data);
       setLoading(false);
+      
+      // Auto-trigger location if param exists
+      const params = new URLSearchParams(location.search);
+      if (params.get('nearMe') === 'true') {
+        requestLocation();
+      }
     };
     loadShops();
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
-    let result = shops;
+    let result = [...shops];
     
     if (searchQuery) {
       result = result.filter(shop => 
@@ -54,9 +67,23 @@ const FindDealers: React.FC = () => {
     if (selectedCity) {
       result = result.filter(shop => shop.city === selectedCity);
     }
+
+    if (sortBy === 'rating') {
+      result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    } else if (sortBy === 'trust') {
+      result.sort((a, b) => (b.trustScore || 0) - (a.trustScore || 0));
+    } else if (sortBy === 'nearest' && userLocation) {
+      // Sort by crow-flies distance
+      result.sort((a, b) => {
+        if (!a.latitude || !a.longitude || !b.latitude || !b.longitude) return 0;
+        const distA = Math.sqrt(Math.pow(a.latitude - userLocation[0], 2) + Math.pow(a.longitude - userLocation[1], 2));
+        const distB = Math.sqrt(Math.pow(b.latitude - userLocation[0], 2) + Math.pow(b.longitude - userLocation[1], 2));
+        return distA - distB;
+      });
+    }
     
     setFilteredShops(result);
-  }, [searchQuery, selectedCity, shops]);
+  }, [searchQuery, selectedCity, sortBy, shops, userLocation]);
 
   const uniqueCities = Array.from(new Set(shops.map(s => s.city)));
 
@@ -100,6 +127,31 @@ const FindDealers: React.FC = () => {
                 <div className="space-y-3">
                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest pl-1">Quick Filters</p>
                   <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant={sortBy === 'nearest' ? "default" : "secondary"}
+                      size="sm"
+                      onClick={() => {
+                        if (sortBy === 'nearest') {
+                          setSortBy(null);
+                        } else {
+                          requestLocation();
+                        }
+                      }}
+                      className="rounded-full text-xs font-bold gap-1.5"
+                    >
+                      <MapPin size={12} />
+                      Nearest
+                    </Button>
+                    <Button 
+                      variant={sortBy === 'trust' ? "default" : "secondary"}
+                      size="sm"
+                      onClick={() => setSortBy(prev => prev === 'trust' ? null : 'trust')}
+                      className="rounded-full text-xs font-bold gap-1.5"
+                    >
+                      <ShieldCheck size={12} />
+                      Top Quality
+                    </Button>
+                    <div className="w-full h-px bg-slate-100 my-1" />
                     <Button 
                       variant={!selectedCity ? "default" : "secondary"}
                       size="sm"
@@ -152,23 +204,24 @@ const FindDealers: React.FC = () => {
                             referrerPolicy="no-referrer"
                           />
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold text-slate-900 group-hover:text-primary transition-colors truncate">
-                              {shop.name}
-                            </h4>
-                            <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-1">
-                              <MapPin size={10} className="text-secondary" />
-                              <span className="truncate">{shop.city}</span>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <h4 className="text-sm font-bold text-slate-900 group-hover:text-primary transition-colors truncate">
+                                {shop.name}
+                              </h4>
+                              {shop.verificationStatus === 'verified' && (
+                                <ShieldCheck size={12} className="text-primary" />
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold uppercase tracking-tight mb-2">
+                              <MapPin size={10} className="text-primary" />
+                              <span className="truncate">{shop.city} • {shop.yearsInBusiness || '5+'}Y Exp</span>
+                            </div>
+                            <div className="flex items-center justify-between mt-auto">
+                              <TrustScore score={shop.trustScore || 8.5} size="sm" variant="stars" />
                               <div className="flex items-center gap-0.5 text-yellow-500">
                                 <Star size={10} fill="currentColor" />
-                                <span className="text-[10px] font-bold">{shop.rating}</span>
+                                <span className="text-[10px] font-black">{shop.rating || '4.5'}</span>
                               </div>
-                              {shop.verificationStatus === 'verified' && (
-                                <Badge className="bg-green-100 text-green-700 border-none text-[9px] px-1.5 py-0 h-4">
-                                  Verified
-                                </Badge>
-                              )}
                             </div>
                           </div>
                           <ChevronRight size={16} className="text-slate-300 self-center group-hover:text-primary transition-transform group-hover:translate-x-1" />
@@ -191,6 +244,7 @@ const FindDealers: React.FC = () => {
               className="h-[650px] shadow-sm"
               initialCenter={filteredShops.length > 0 && filteredShops[0].latitude ? [filteredShops[0].latitude, filteredShops[0].longitude] : [22.9734, 78.6569]}
               initialZoom={selectedCity ? 12 : 5}
+              userLocation={userLocation}
             />
             
             <div className="mt-6 flex flex-col md:flex-row gap-4 items-center justify-between p-6 bg-secondary/10 rounded-[2rem] border border-secondary/10">

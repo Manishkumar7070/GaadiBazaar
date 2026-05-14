@@ -26,23 +26,50 @@ interface DealerMapProps {
   className?: string;
   initialCenter?: [number, number];
   initialZoom?: number;
+  userLocation?: [number, number] | null;
 }
 
 // Component to handle map center changes
 const ChangeView = ({ center, zoom }: { center: [number, number]; zoom: number }) => {
   const map = useMap();
-  map.setView(center, zoom);
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
   return null;
+};
+
+// Component to handle user location marker
+const UserLocationMarker = ({ location }: { location: [number, number] }) => {
+  const userIcon = new L.Icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: markerShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
+  return (
+    <Marker position={location} icon={userIcon}>
+      <Popup>
+        <div className="font-bold text-xs">You are here</div>
+      </Popup>
+    </Marker>
+  );
 };
 
 const DealerMap: React.FC<DealerMapProps> = ({ 
   shops, 
   className = "h-[500px]", 
   initialCenter = [22.9734, 78.6569], // Central India
-  initialZoom = 5
+  initialZoom = 5,
+  userLocation
 }) => {
   const [activeShop, setActiveShop] = useState<Shop | null>(null);
   const navigate = useNavigate();
+  
+  const mapCenter = userLocation || initialCenter;
+  const mapZoom = userLocation ? 13 : initialZoom;
 
   // Custom icon for premium dealers
   const premiumIcon = new L.Icon({
@@ -57,15 +84,18 @@ const DealerMap: React.FC<DealerMapProps> = ({
   return (
     <div className={`relative w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner ${className}`}>
       <MapContainer 
-        center={initialCenter} 
-        zoom={initialZoom} 
+        center={mapCenter} 
+        zoom={mapZoom} 
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
       >
+        <ChangeView center={mapCenter} zoom={mapZoom} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        
+        {userLocation && <UserLocationMarker location={userLocation} />}
         
         {shops.map((shop) => (
           shop.latitude && shop.longitude && (
@@ -90,15 +120,17 @@ const DealerMap: React.FC<DealerMapProps> = ({
                   
                   <div className="flex items-center gap-1 text-slate-500 text-[10px] mb-2">
                     <MapPin size={10} className="text-secondary" />
-                    <span className="line-clamp-1">{shop.address}, {shop.city}</span>
+                    <span className="line-clamp-1">{shop.city}, {shop.state}</span>
                   </div>
 
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="flex items-center gap-0.5 text-yellow-500">
                       <Star size={10} fill="currentColor" />
-                      <span className="text-[10px] font-bold">{shop.rating || 'N/A'}</span>
+                      <span className="text-[10px] font-black">{shop.rating || '4.5'}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400">({shop.reviewsCount || 0} reviews)</span>
+                    <Badge variant="outline" className="text-[9px] font-black border-slate-200 text-slate-500 rounded-md py-0 h-4">
+                      {shop.inventoryCount || '15+'} Cars
+                    </Badge>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -112,10 +144,10 @@ const DealerMap: React.FC<DealerMapProps> = ({
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="h-7 text-[10px] font-bold rounded-lg flex gap-1"
-                      onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${shop.latitude},${shop.longitude}`, '_blank')}
+                      className="h-7 text-[10px] font-bold rounded-lg flex gap-1 bg-slate-50 border-slate-200"
+                      onClick={() => navigate(`/dealer/${shop.id}`)}
                     >
-                      <Navigation size={10} /> Directions
+                      <Navigation size={10} /> View Showroom
                     </Button>
                   </div>
                 </div>
@@ -153,16 +185,21 @@ const DealerMap: React.FC<DealerMapProps> = ({
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-sm font-bold text-yellow-500">
-                    <Star size={14} fill="currentColor" /> {activeShop.rating}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 text-sm font-black text-yellow-500">
+                      <Star size={14} fill="currentColor" /> {activeShop.rating || '4.5'}
+                    </div>
+                    <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black uppercase tracking-widest h-5">
+                      {activeShop.inventoryCount || '20+'} Live Inventory
+                    </Badge>
                   </div>
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="h-8 text-xs font-bold text-primary p-0 hover:bg-transparent"
+                    className="h-8 text-xs font-black text-primary p-0 hover:bg-transparent uppercase tracking-tighter"
                     onClick={() => navigate(`/dealer/${activeShop.id}`)}
                   >
-                    View Dealer Profile <ExternalLink size={12} className="ml-1" />
+                    View Showroom <ExternalLink size={12} className="ml-1" />
                   </Button>
                 </div>
               </div>
