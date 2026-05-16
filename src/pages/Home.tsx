@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp, ShieldCheck, Shield, Users, Briefcase, Compass, IndianRupee, Mountain, Heart, Handshake, Camera, BookOpen } from 'lucide-react';
+import { Search, Filter, MapPin, Car, Bike, Truck, Clock, Store, Star, ChevronRight, ArrowRight, CheckCircle2, TrendingUp, ShieldCheck, Shield, Users, Briefcase, Compass, IndianRupee, Mountain, Heart, Handshake, Camera, BookOpen, Gauge, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_VEHICLES } from '@/constants/mockData';
+import { MOCK_VEHICLES, MOCK_DEALERS } from '@/constants/mockData';
 import VehicleCard from '@/features/vehicles/VehicleCard';
 import VehicleCardSkeleton from '@/features/vehicles/VehicleCardSkeleton';
 import SearchSuggestions from '@/features/search/SearchSuggestions';
@@ -20,6 +20,7 @@ import CitySelector from '@/components/shared/CitySelector';
 import { useLocation } from '@/context/LocationContext';
 import { Helmet } from 'react-helmet-async';
 import HeroCarousel from '@/features/home/HeroCarousel';
+import { POPULAR_CITIES } from '@/constants/cities';
 
 const Home = () => {
   const { user } = useAuth();
@@ -45,10 +46,11 @@ const Home = () => {
           shopService.fetchShops()
         ]);
         setVehicles(vehicleData.length > 0 ? vehicleData : MOCK_VEHICLES);
-        setShops(shopData);
+        setShops(shopData.length > 0 ? shopData : MOCK_DEALERS);
       } catch (error) {
         console.error('Error loading data:', error);
         setVehicles(MOCK_VEHICLES);
+        setShops(MOCK_DEALERS);
       } finally {
         setIsLoading(false);
       }
@@ -196,6 +198,15 @@ const Home = () => {
     setShowSuggestions(false);
   };
 
+  const [heroTab, setHeroTab] = useState<'used' | 'sell'>('used');
+  const [searchMode, setSearchMode] = useState<'budget' | 'brand'>('budget');
+  const [budgetRange, setBudgetRange] = useState('');
+  const [vehicleType, setVehicleType] = useState('all');
+  const [purpose, setPurpose] = useState('');
+  const [sellerLocation, setSellerLocation] = useState('');
+  const [kmDriven, setKmDriven] = useState('');
+  const [modelYear, setModelYear] = useState('');
+
   return (
     <div className="min-h-screen">
       <Helmet>
@@ -236,79 +247,258 @@ const Home = () => {
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <div className="text-center lg:text-left space-y-8 max-w-2xl mx-auto lg:mx-0">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest shadow-xl"
-              >
-                <div className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </div>
-                Live in {selectedCity || 'India'} • 2,400+ Verified Cars
-              </motion.div>
+            {/* Left Content: Search Widget */}
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="relative z-20 mx-auto lg:mx-0 w-full max-w-[380px]"
+            >
+              <div className="bg-white rounded-[2rem] p-5 shadow-2xl flex flex-col gap-4">
+                {/* Heading */}
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight text-center lg:text-left">
+                  {heroTab === 'used' ? 'Find your personalized car' : 'Find best customer'}
+                </h2>
 
-              <div className="space-y-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-2"
-                >
-                  <span className="text-primary font-black uppercase tracking-[0.3em] text-xs sm:text-sm">
-                    🎉 Limited Time Exclusive
-                  </span>
-                  <motion.h1 
-                    className="text-4xl sm:text-6xl md:text-7xl font-[1000] leading-[1] tracking-tighter text-white"
+                {/* Toggles */}
+                <div className="flex p-1 bg-slate-100 rounded-xl">
+                  <button 
+                    onClick={() => setHeroTab('used')}
+                    className={cn(
+                      "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all relative",
+                      heroTab === 'used' ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
+                    )}
                   >
-                    5 YEARS FREE<br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-yellow-400">MECHANIC SERVICE</span><br />
-                    WITH EVERY CAR
-                  </motion.h1>
-                </motion.div>
+                    Used Car
+                    {heroTab === 'used' && (
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-2 bg-slate-900 clip-path-triangle" />
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => setHeroTab('sell')}
+                    className={cn(
+                      "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all relative",
+                      heroTab === 'sell' ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    List Your Vehicle
+                    {heroTab === 'sell' && (
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-2 bg-slate-900 clip-path-triangle" />
+                    )}
+                  </button>
+                </div>
 
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="space-y-4"
-                >
-                  <p className="text-white/70 text-lg sm:text-xl font-medium leading-relaxed max-w-xl">
-                    Professional monthly visits to your home or office.
-                  </p>
-                  <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20 backdrop-blur-sm">
-                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-primary font-bold text-sm sm:text-base">
-                      ₹5 Lakh total value included at zero cost
-                    </span>
+                {/* Radio Buttons */}
+                {heroTab === 'used' && (
+                  <div className="flex items-center justify-center lg:justify-start gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div className="relative">
+                        <input 
+                          type="radio" 
+                          className="sr-only" 
+                          name="searchMode" 
+                          checked={searchMode === 'budget'} 
+                          onChange={() => setSearchMode('budget')} 
+                        />
+                        <div className={cn(
+                          "w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center",
+                          searchMode === 'budget' ? "border-orange-500" : "border-slate-300 group-hover:border-slate-400"
+                        )}>
+                          {searchMode === 'budget' && <div className="w-2 h-2 rounded-full bg-orange-500" />}
+                        </div>
+                      </div>
+                      <span className={cn(
+                        "text-[9px] font-black uppercase tracking-widest",
+                        searchMode === 'budget' ? "text-orange-500" : "text-slate-500"
+                      )}>By Budget</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div className="relative">
+                        <input 
+                          type="radio" 
+                          className="sr-only" 
+                          name="searchMode" 
+                          checked={searchMode === 'brand'} 
+                          onChange={() => setSearchMode('brand')} 
+                        />
+                        <div className={cn(
+                          "w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center",
+                          searchMode === 'brand' ? "border-orange-500" : "border-slate-300 group-hover:border-slate-400"
+                        )}>
+                          {searchMode === 'brand' && <div className="w-2 h-2 rounded-full bg-orange-500" />}
+                        </div>
+                      </div>
+                      <span className={cn(
+                        "text-[9px] font-black uppercase tracking-widest",
+                        searchMode === 'brand' ? "text-orange-500" : "text-slate-500"
+                      )}>By Brand</span>
+                    </label>
                   </div>
-                </motion.div>
+                )}
+
+                {/* Selection Fields */}
+                <div className="space-y-2">
+                  {heroTab === 'used' ? (
+                    <>
+                      <div className="relative">
+                        <select 
+                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
+                          value={searchMode === 'budget' ? budgetRange : ''}
+                          onChange={(e) => setBudgetRange(e.target.value)}
+                        >
+                          <option value="">{searchMode === 'budget' ? 'Select Budget' : 'Select Brand'}</option>
+                          {searchMode === 'budget' ? (
+                            <>
+                              <option value="0-300000">Under ₹3 Lakhs</option>
+                              <option value="300000-700000">₹3L – ₹7 Lakhs</option>
+                              <option value="700000-1500000">₹7L – ₹15 Lakhs</option>
+                              <option value="1500000-10000000">Above ₹15 Lakhs</option>
+                            </>
+                          ) : (
+                            popularMetadata.brands.map(brand => (
+                              <option key={brand} value={brand}>{brand}</option>
+                            ))
+                          )}
+                        </select>
+                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <Search size={16} />
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <select 
+                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
+                          value={purpose}
+                          onChange={(e) => setPurpose(e.target.value)}
+                        >
+                          <option value="">Select Purpose</option>
+                          <option value="family">Family First</option>
+                          <option value="commute">Office/Daily</option>
+                          <option value="touring">Long Drive</option>
+                          <option value="budget">Mileage King</option>
+                          <option value="offroad">Off-Roading</option>
+                        </select>
+                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <Compass size={16} />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <select 
+                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
+                          value={sellerLocation}
+                          onChange={(e) => setSellerLocation(e.target.value)}
+                        >
+                          <option value="">Select Location</option>
+                          {POPULAR_CITIES.map(city => (
+                            <option key={city.name} value={city.name}>{city.name}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <MapPin size={16} />
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <select 
+                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
+                          value={kmDriven}
+                          onChange={(e) => setKmDriven(e.target.value)}
+                        >
+                          <option value="">Select KM Driven</option>
+                          <option value="0-10000">0 - 10,000 km</option>
+                          <option value="10000-30000">10,000 - 30,000 km</option>
+                          <option value="30000-60000">30,000 - 60,000 km</option>
+                          <option value="60000-100000">60,000 - 1,00,000 km</option>
+                          <option value="100000+">Above 1,00,000 km</option>
+                        </select>
+                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <Gauge size={16} />
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <select 
+                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
+                          value={modelYear}
+                          onChange={(e) => setModelYear(e.target.value)}
+                        >
+                          <option value="">Select Model Year</option>
+                          {Array.from({ length: 15 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <Calendar size={16} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="relative">
+                    <select 
+                      className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
+                      value={vehicleType}
+                      onChange={(e) => setVehicleType(e.target.value)}
+                    >
+                      <option value="all">All Vehicle Types</option>
+                      <option value="car">Cars</option>
+                      <option value="bike">Bikes</option>
+                      <option value="commercial">Trucks / Commercial</option>
+                    </select>
+                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <Filter size={16} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search Button */}
+                <Button 
+                  onClick={() => {
+                    if (heroTab === 'sell') {
+                      const params = new URLSearchParams();
+                      if (sellerLocation) params.set('city', sellerLocation);
+                      if (kmDriven) params.set('km', kmDriven);
+                      if (modelYear) params.set('year', modelYear);
+                      if (vehicleType !== 'all') params.set('type', vehicleType);
+                      navigate(`/list-vehicle?${params.toString()}`);
+                    } else {
+                      const params = new URLSearchParams();
+                      if (searchMode === 'budget' && budgetRange) {
+                        const [min, max] = budgetRange.split('-');
+                        params.set('minPrice', min);
+                        params.set('maxPrice', max);
+                      } else if (searchMode === 'brand' && budgetRange) {
+                        params.set('q', budgetRange);
+                      }
+                      if (purpose) {
+                        params.set('purpose', purpose);
+                      }
+                      if (vehicleType !== 'all') {
+                        params.set('type', vehicleType);
+                      }
+                      navigate(`/search?${params.toString()}`);
+                    }
+                  }}
+                  className="w-full h-12 rounded-xl bg-[#ff5a3c] hover:bg-[#e64a2e] text-white font-black text-base uppercase tracking-widest shadow-xl shadow-orange-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                >
+                  {heroTab === 'used' ? 'Search Now' : 'List Now'}
+                </Button>
+
+                {/* Advanced Search Link */}
+                <div className="flex justify-end pt-1">
+                  <button 
+                    onClick={() => navigate('/search')}
+                    className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] tracking-wider uppercase group"
+                  >
+                    Advanced Search
+                    <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
               </div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
-              >
-                <Button 
-                  onClick={() => navigate('/search')}
-                  className="w-full sm:w-auto h-16 px-10 rounded-2xl bg-primary text-secondary hover:bg-primary/90 font-black uppercase text-sm tracking-widest transition-transform hover:scale-105 active:scale-95 shadow-2xl shadow-primary/20"
-                >
-                  SHOP CARS NOW
-                </Button>
-                <Button 
-                  onClick={() => navigate('/buyer-hub')}
-                  variant="outline"
-                  className="w-full sm:w-auto h-16 px-10 rounded-2xl border-2 border-white/20 bg-white/5 backdrop-blur-md text-white hover:bg-white/10 font-black uppercase text-sm tracking-widest transition-transform hover:scale-105 active:scale-95"
-                >
-                  LEARN MORE
-                </Button>
-              </motion.div>
-
-
-            </div>
+            </motion.div>
 
             {/* Right Image Content */}
             <motion.div 
@@ -534,7 +724,7 @@ const Home = () => {
 
       {/* Recently Viewed (Continue Browsing) */}
       {recentlyViewed.length > 0 && (
-        <section className="space-y-4">
+        <section className="container mx-auto px-4 py-12 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Clock className="text-primary" size={24} />
@@ -572,48 +762,6 @@ const Home = () => {
           </div>
         </section>
       )}
-
-      {/* Browse by Purpose Section */}
-      <section className="container mx-auto px-4 py-12 space-y-8">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <Badge variant="outline" className="text-primary border-primary/20 px-4 py-1 rounded-full uppercase text-[10px] tracking-widest font-black">
-            Personalized Discovery
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter">
-            Browse by <span className="text-primary italic">Purpose.</span>
-          </h2>
-          <p className="text-slate-500 font-medium max-w-xl">
-            Choose the perfect vehicle based on how you actually plan to use it.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[
-            { id: 'family', label: 'Family First', desc: 'Space, Safety & Comfort', icon: Users, color: 'bg-secondary/5 text-secondary', hover: 'hover:bg-secondary' },
-            { id: 'commute', label: 'Office/Daily', desc: 'Efficiency & Ease', icon: Briefcase, color: 'bg-secondary/10 text-secondary', hover: 'hover:bg-secondary' },
-            { id: 'touring', label: 'Long Drive', desc: 'Power & Performance', icon: Compass, color: 'bg-primary/10 text-primary', hover: 'hover:bg-primary' },
-            { id: 'budget', label: 'Mileage King', desc: 'Savings & Value', icon: IndianRupee, color: 'bg-green-50 text-green-600', hover: 'hover:bg-green-600' },
-            { id: 'offroad', label: 'Off-Roading', desc: 'Rugged & Capable', icon: Mountain, color: 'bg-slate-50 text-slate-600', hover: 'hover:bg-slate-900' }
-          ].map((item, i) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={() => navigate(`/search?purpose=${item.id}`)}
-              className="group bg-white border border-slate-100 rounded-[2rem] p-6 flex flex-col items-center text-center gap-4 cursor-pointer hover:border-transparent hover:shadow-2xl transition-all duration-300"
-            >
-              <div className={`w-16 h-16 rounded-2xl ${item.color} flex items-center justify-center group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-300`}>
-                <item.icon size={28} />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">{item.label}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{item.desc}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
 
       {/* Browse by Budget Section */}
       <section className="bg-slate-900 py-20 overflow-hidden relative">
@@ -950,9 +1098,9 @@ const Home = () => {
                   <div className="absolute inset-0 bg-[#e5e3df] flex items-center justify-center">
                      <div className="relative w-full h-full opacity-60">
                        <img 
-                        src="https://static.vecteezy.com/system/resources/previews/000/094/281/original/vector-world-map.jpg" 
+                        src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1000&auto=format&fit=crop" 
                         alt="Map Visual"
-                        className="w-full h-full object-cover grayscale"
+                        className="w-full h-full object-cover grayscale opacity-30"
                         referrerPolicy="no-referrer"
                        />
                      </div>
@@ -1103,22 +1251,33 @@ const Home = () => {
           </div>
 
           <div className="flex-1 relative hidden lg:block">
-            <div className="relative z-10 w-[320px] aspect-[9/19] bg-slate-800 rounded-[3rem] border-[8px] border-slate-700 shadow-2xl mx-auto overflow-hidden rotate-6 hover:rotate-0 transition-transform duration-700 group">
-              <div className="absolute top-0 inset-x-0 h-6 bg-slate-800 flex justify-center items-end pb-1">
-                <div className="w-16 h-1 rounded-full bg-slate-700" />
+            <div className="relative z-10 w-[320px] aspect-[9/19] mx-auto group">
+              {/* iPhone Frame Mockup */}
+              <div className="relative w-full h-full rounded-[3.5rem] border-[12px] border-slate-900 bg-slate-900 shadow-[0_0_60px_rgba(0,0,0,0.3)] overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-900 rounded-b-2xl z-20" />
+                <div className="absolute inset-x-0 bottom-1.5 h-1 w-24 bg-white/20 mx-auto rounded-full z-20" />
+                <img 
+                  src="https://images.unsplash.com/photo-1512428559083-a4979b20916e?q=80&w=1000&auto=format&fit=crop" 
+                  alt="App UI" 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-[3000ms]"
+                  referrerPolicy="no-referrer"
+                />
               </div>
-              <img 
-                src="/src/assets/images/regenerated_image_1778243130971.png" 
-                alt="App Screenshot" 
-                className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent flex flex-col justify-end p-8 text-white">
-                <p className="text-2xl font-black italic">Buy your legend.</p>
+
+              {/* Back Mockup */}
+              <div className="absolute -right-16 top-16 -z-10 scale-90 opacity-40 group-hover:opacity-60 transition-all duration-700 rotate-12 group-hover:rotate-6">
+                <div className="relative aspect-[9/19] w-64 rounded-[3rem] border-[8px] border-slate-800 bg-slate-800 overflow-hidden shadow-2xl">
+                   <img 
+                    src="https://images.unsplash.com/photo-1551288049-bbbda536639a?q=80&w=1000&auto=format&fit=crop" 
+                    alt="App Stats"
+                    className="w-full h-full object-cover opacity-60"
+                    referrerPolicy="no-referrer"
+                   />
+                </div>
               </div>
             </div>
             {/* Ambient Shadow */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-64 h-12 bg-black/40 blur-3xl rounded-full" />
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-64 h-12 bg-black/40 blur-3xl rounded-full" />
           </div>
         </div>
       </section>

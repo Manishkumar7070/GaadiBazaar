@@ -171,6 +171,7 @@ export const MOCK_DEALERS: Shop[] = [
     isPremium: true,
     rating: 4.8,
     reviewsCount: 55,
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d112063.818306016!2d77.1353279!3d28.6138954!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390cfd5b347eb62d%3A0x37205b7153200eb2!2sNew%20Delhi%2C%20Delhi!5e0!3m2!1sen!2sin!4v1715857200000!5m2!1sen!2sin",
     reviews: [],
     createdAt: new Date().toISOString(),
   },
@@ -191,6 +192,7 @@ export const MOCK_DEALERS: Shop[] = [
     isPremium: true,
     rating: 4.7,
     reviewsCount: 42,
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d112063.818306016!2d77.1353279!3d28.6138954!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390cfd5b347eb62d%3A0x37205b7153200eb2!2sNew%20Delhi%2C%20Delhi!5e0!3m2!1sen!2sin!4v1715857200000!5m2!1sen!2sin",
     reviews: [],
     createdAt: new Date().toISOString(),
   },
@@ -210,6 +212,7 @@ export const MOCK_DEALERS: Shop[] = [
     verificationStatus: 'verified',
     rating: 4.5,
     reviewsCount: 29,
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d112063.818306016!2d77.1353279!3d28.6138954!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390cfd5b347eb62d%3A0x37205b7153200eb2!2sNew%20Delhi%2C%20Delhi!5e0!3m2!1sen!2sin!4v1715857200000!5m2!1sen!2sin",
     reviews: [],
     createdAt: new Date().toISOString(),
   },
@@ -229,6 +232,7 @@ export const MOCK_DEALERS: Shop[] = [
     verificationStatus: 'verified',
     rating: 4.6,
     reviewsCount: 34,
+    mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d112063.818306016!2d77.1353279!3d28.6138954!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390cfd5b347eb62d%3A0x37205b7153200eb2!2sNew%20Delhi%2C%20Delhi!5e0!3m2!1sen!2sin!4v1715857200000!5m2!1sen!2sin",
     reviews: [],
     createdAt: new Date().toISOString(),
   }
@@ -303,7 +307,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '480 km/charge',
     color: 'Tactical Green',
     assemblyType: 'Imported',
-    purposes: ['luxury', 'commute', 'budget'],
+    purposes: ['family', 'commute', 'budget'],
     seats: 4,
     safetyRating: 5
   },
@@ -375,6 +379,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '600 km/charge',
     color: 'Aventurine Red',
     assemblyType: 'Imported',
+    purposes: ['luxury', 'commute', 'budget'],
   },
   {
     id: 'v59',
@@ -408,6 +413,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '15 kmpl',
     color: 'Sonic Quartz',
     assemblyType: 'Imported',
+    purposes: ['luxury', 'touring'],
   },
   {
     id: 'v60',
@@ -507,6 +513,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '9 kmpl',
     color: 'Grey',
     assemblyType: 'Local',
+    purposes: ['family', 'touring'],
   },
   {
     id: 'v63',
@@ -540,6 +547,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '470 km/charge',
     color: 'Eiger Grey',
     assemblyType: 'Imported',
+    purposes: ['commute', 'budget', 'luxury'],
   },
   {
     id: 'v64',
@@ -942,6 +950,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '12 kmpl',
     color: 'White',
     assemblyType: 'Local',
+    purposes: ['offroad', 'touring', 'family'],
   },
   {
     id: 'v20',
@@ -1536,6 +1545,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '18 kmpl',
     color: 'Magma Grey',
     assemblyType: 'Local',
+    purposes: ['commute', 'budget', 'family'],
   },
   {
     id: 'v38',
@@ -1569,6 +1579,7 @@ export const MOCK_VEHICLES: Vehicle[] = [
     mileage: '13 kmpl',
     color: 'Deep Forest',
     assemblyType: 'Local',
+    purposes: ['offroad', 'touring'],
   },
   {
     id: 'v39',

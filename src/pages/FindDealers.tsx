@@ -12,6 +12,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { TrustScore } from '@/components/TrustScore';
 
+import { MOCK_DEALERS } from '@/constants/mockData';
+
 const FindDealers: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [filteredShops, setFilteredShops] = useState<Shop[]>([]);
@@ -39,10 +41,18 @@ const FindDealers: React.FC = () => {
   useEffect(() => {
     const loadShops = async () => {
       setLoading(true);
-      const data = await shopService.fetchShops();
-      setShops(data);
-      setFilteredShops(data);
-      setLoading(false);
+      try {
+        const data = await shopService.fetchShops();
+        const combinedShops = data.length > 0 ? data : MOCK_DEALERS;
+        setShops(combinedShops);
+        setFilteredShops(combinedShops);
+      } catch (error) {
+        console.error("Error fetching shops:", error);
+        setShops(MOCK_DEALERS);
+        setFilteredShops(MOCK_DEALERS);
+      } finally {
+        setLoading(false);
+      }
       
       // Auto-trigger location if param exists
       const params = new URLSearchParams(location.search);

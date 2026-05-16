@@ -3,10 +3,20 @@ import { supabase } from '@/lib/supabase';
 import { MOCK_VEHICLES } from '@/constants/mockData';
 import { sanitizeObject } from '@/lib/sanitizer';
 import { logger } from '@/lib/logger';
+import { isUUID } from '@/lib/validation';
 
 export const vehicleService = {
   async fetchVehicles(filters?: { shopId?: string; sellerId?: string; verificationStatus?: VerificationStatus; userCity?: string }): Promise<Vehicle[]> {
     try {
+      // If shopId or sellerId are mock IDs (not UUIDs), fallback to mock data immediately
+      if ((filters?.shopId && !isUUID(filters.shopId)) || (filters?.sellerId && !isUUID(filters.sellerId))) {
+        let fallback = MOCK_VEHICLES;
+        if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
+        if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
+        if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
+        return this.sortVehiclesByPriority(fallback, filters?.userCity);
+      }
+
       let query = supabase
         .from('vehicles')
         .select('*')
@@ -79,6 +89,53 @@ export const vehicleService = {
       if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
       if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
       return this.sortVehiclesByPriority(fallback, filters?.userCity);
+    }
+  },
+
+  async fetchVehicleById(id: string): Promise<Vehicle | null> {
+    try {
+      if (!isUUID(id)) {
+        return MOCK_VEHICLES.find(v => v.id === id) || null;
+      }
+
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        if (error.code === 'PGRST205') return MOCK_VEHICLES.find(v => v.id === id) || null;
+        throw error;
+      }
+
+      return {
+        ...data,
+        shopId: data.shop_id,
+        sellerId: data.seller_id,
+        verificationStatus: data.verification_status,
+        paymentStatus: data.payment_status,
+        kilometersDriven: data.kilometers_driven,
+        vehicleType: data.vehicle_type,
+        fuelType: data.fuel_type,
+        listingType: data.listing_type || 'free',
+        priorityScore: data.priority_score || 0,
+        registrationNumber: data.registration_number,
+        assemblyType: data.assembly_type,
+        vin: data.vin,
+        imageMetadata: data.image_metadata,
+        engineStartVideo: data.engine_start_video,
+        engineSoundVideo: data.engine_sound_video,
+        walkaroundVideo: data.walkaround_video,
+        rating: data.rating,
+        reviewsCount: data.reviews_count,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      } as unknown as Vehicle;
+    } catch (error) {
+      logger.error('Error fetching vehicle by ID', { data: error });
+      return MOCK_VEHICLES.find(v => v.id === id) || null;
     }
   },
 

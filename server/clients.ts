@@ -33,24 +33,45 @@ export const getSupabaseClient = () => {
 let firebaseAdminInstance: admin.app.App | null = null;
 export const getFirebaseAdmin = () => {
   if (!firebaseAdminInstance) {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    let configProjectId = '';
+    
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        configProjectId = config.projectId;
+      } catch (e) {
+        serverLogger.warn("Failed to parse firebase-applet-config.json for projectId");
+      }
+    }
+
+    const projectId = configProjectId || process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKeyEnv = process.env.FIREBASE_PRIVATE_KEY;
 
-    if (!projectId || !clientEmail || !privateKeyEnv) {
-      serverLogger.error("Missing Firebase Admin credentials (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)");
-      throw new Error("Missing Firebase Admin credentials");
+    serverLogger.info(`Initializing Firebase Admin for project: ${projectId}`);
+
+    try {
+      if (projectId && clientEmail && privateKeyEnv) {
+        const privateKey = privateKeyEnv.replace(/\\n/g, '\n');
+        firebaseAdminInstance = admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        }, "admin-app-" + Date.now());
+      } else {
+        // Fallback to Application Default Credentials but with specific projectId
+        firebaseAdminInstance = admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+          projectId: projectId || undefined,
+        }, "admin-app-" + Date.now());
+      }
+    } catch (err: any) {
+      serverLogger.error("Failed to initialize Firebase Admin", { error: err.message });
+      throw err;
     }
-
-    const privateKey = privateKeyEnv.replace(/\\n/g, '\n');
-
-    firebaseAdminInstance = admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    }, "admin-app-" + Date.now());
   }
   return firebaseAdminInstance;
 };

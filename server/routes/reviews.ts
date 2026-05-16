@@ -66,7 +66,8 @@ router.get("/:targetType/:targetId", async (req, res) => {
   }
 
   try {
-    const reviewsSnapshot = await getFirestore().collection("reviews")
+    const db = getFirestore();
+    const reviewsSnapshot = await db.collection("reviews")
       .where("target_id", "==", targetId)
       .where("target_type", "==", targetType)
       .orderBy('created_at', 'desc')

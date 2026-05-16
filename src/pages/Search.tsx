@@ -707,16 +707,16 @@ const SearchPage = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-sm font-bold">Purpose / Lifestyle</label>
+                  <label className="text-sm font-bold">Purpose of Use</label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {[
-                      { id: 'family', label: 'Family', icon: Users },
-                      { id: 'commute', label: 'Office', icon: Briefcase },
-                      { id: 'touring', label: 'Touring', icon: Compass },
-                      { id: 'budget', label: 'Budget', icon: IndianRupee },
-                      { id: 'luxury', label: 'Luxury', icon: Star },
-                      { id: 'offroad', label: 'Off-road', icon: Mountain },
-                      { id: 'student', label: 'Student', icon: Heart },
+                      { id: 'family', label: 'Family First', icon: Users },
+                      { id: 'commute', label: 'Office/Daily', icon: Briefcase },
+                      { id: 'touring', label: 'Long Drive', icon: Compass },
+                      { id: 'budget', label: 'Mileage King', icon: IndianRupee },
+                      { id: 'luxury', label: 'Luxury Icons', icon: Star },
+                      { id: 'offroad', label: 'Off-Roading', icon: Mountain },
+                      { id: 'student', label: 'Student Friendly', icon: Heart },
                     ].map((item) => {
                       const Icon = item.icon;
                       const isActive = filters.purpose === item.id;
@@ -1148,7 +1148,7 @@ const SearchPage = () => {
             value={filters.purpose || ''}
             onChange={(e) => setFilters(prev => ({ ...prev, purpose: e.target.value as any || undefined }))}
           >
-            <option value="">By Purpose: All</option>
+            <option value="">Purpose: All</option>
             <option value="family">Family First</option>
             <option value="commute">Office/Daily</option>
             <option value="touring">Long Drive</option>

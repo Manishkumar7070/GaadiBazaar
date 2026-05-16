@@ -16,6 +16,7 @@ import authRoutes from "./server/routes/auth";
 import vehicleRoutes from "./server/routes/vehicles";
 import paymentRoutes from "./server/routes/payments";
 import reviewRoutes from "./server/routes/reviews";
+import aiRoutes from "./server/routes/ai";
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ async function startServer() {
   app.use("/api/vehicles", vehicleRoutes);
   app.use("/api/payments", paymentRoutes);
   app.use("/api/reviews", reviewRoutes);
+  app.use("/api/ai", aiRoutes);
 
   // Health Checks
   app.get("/api/health", (req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));

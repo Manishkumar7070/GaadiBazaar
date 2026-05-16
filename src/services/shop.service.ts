@@ -2,6 +2,7 @@ import { Shop } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { MOCK_DEALERS } from '@/constants/mockData';
 import { logger } from '@/lib/logger';
+import { isUUID } from '@/lib/validation';
 
 export const shopService = {
   async fetchShops(): Promise<Shop[]> {
@@ -43,6 +44,10 @@ export const shopService = {
 
   async fetchUserShop(userId: string): Promise<Shop | null> {
     try {
+      if (!isUUID(userId)) {
+        return MOCK_DEALERS.find(s => s.ownerId === userId) || null;
+      }
+
       const { data, error } = await supabase
         .from('shops')
         .select('*')
@@ -81,6 +86,10 @@ export const shopService = {
 
   async fetchShopById(shopId: string): Promise<Shop | null> {
     try {
+      if (!isUUID(shopId)) {
+        return MOCK_DEALERS.find(s => s.id === shopId) || null;
+      }
+
       const { data, error } = await supabase
         .from('shops')
         .select('*')

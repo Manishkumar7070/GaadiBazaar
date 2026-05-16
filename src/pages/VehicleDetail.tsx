@@ -154,21 +154,22 @@ const VehicleDetail = () => {
       setLoading(true);
       try {
         await checkBookingStatus();
-        const vehicles = await vehicleService.fetchVehicles({ verificationStatus: 'verified' });
-        setAllVehicles(vehicles);
-
-        let v = MOCK_VEHICLES.find(v => v.id === id) as any;
-        if (!v) {
-          v = vehicles.find(item => item.id === id);
-        }
+        
+        // Fetch specific vehicle first
+        const v = await vehicleService.fetchVehicleById(id);
         
         if (v) {
           setVehicle(v);
-          if (v.shopId) {
-            const s = await shopService.fetchShopById(v.shopId);
-            setShop(s);
-          }
-          setSimilarVehicles(vehicles.filter(item => item.id !== v.id && (item.brand === v.brand || item.vehicleType === v.vehicleType)).slice(0, 4));
+          
+          // Fetch similar vehicles in parallel
+          const [verifiedVehicles, s] = await Promise.all([
+            vehicleService.fetchVehicles({ verificationStatus: 'verified' }),
+            v.shopId ? shopService.fetchShopById(v.shopId) : Promise.resolve(null)
+          ]);
+          
+          setAllVehicles(verifiedVehicles);
+          setShop(s);
+          setSimilarVehicles(verifiedVehicles.filter(item => item.id !== v.id && (item.brand === v.brand || item.vehicleType === v.vehicleType)).slice(0, 4));
         }
       } catch (error) {
         console.error('Error loading vehicle details:', error);

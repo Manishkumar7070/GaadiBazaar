@@ -48,10 +48,13 @@ import CitySelector from '@/components/shared/CitySelector';
 import SearchSuggestions from '@/features/search/SearchSuggestions';
 import { vehicleService } from '@/services/vehicle.service';
 
+import LoginModal from '@/components/auth/LoginModal';
+
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -375,12 +378,17 @@ const Header = () => {
               <Button 
                 variant="outline" 
                 className="border-primary text-primary hover:bg-primary/5 rounded-xl h-10"
-                onClick={() => navigate('/login')}
+                onClick={() => setIsLoginModalOpen(true)}
               >
                 Login
               </Button>
             )}
           </div>
+          
+          <LoginModal 
+            isOpen={isLoginModalOpen} 
+            onClose={() => setIsLoginModalOpen(false)} 
+          />
           
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden h-10 w-10" />}>
@@ -410,7 +418,7 @@ const Header = () => {
                       className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg"
                       onClick={() => {
                         setIsMobileMenuOpen(false);
-                        navigate('/login');
+                        setIsLoginModalOpen(true);
                       }}
                     >
                       Login / Register

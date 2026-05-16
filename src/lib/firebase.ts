@@ -8,7 +8,11 @@ import {
   getRedirectResult,
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  PhoneAuthProvider
+  PhoneAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updatePassword
 } from 'firebase/auth';
 import { 
   initializeFirestore, 
@@ -114,4 +118,13 @@ async function checkConnectivity() {
 }
 checkConnectivity();
 
-export { onAuthStateChanged, RecaptchaVerifier, signInWithPhoneNumber, PhoneAuthProvider };
+export { 
+  onAuthStateChanged, 
+  RecaptchaVerifier, 
+  signInWithPhoneNumber, 
+  PhoneAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updatePassword
+};

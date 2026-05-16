@@ -1,5 +1,6 @@
 {
   "name": "AsOneDealer",
   "description": "A production-ready marketplace for buying and selling second-hand vehicles in India. Featuring 5 years of free door-step mechanic services with every car purchase.",
-  "requestFramePermissions": ["geolocation", "camera", "microphone"]
+  "requestFramePermissions": ["geolocation", "camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
