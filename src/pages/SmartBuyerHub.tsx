@@ -187,9 +187,18 @@ const SmartBuyerHub = () => {
                 ))}
                 <div className="w-12 h-12 rounded-full border-4 border-white bg-primary flex items-center justify-center text-white text-xs font-black">+400</div>
               </div>
-              <Button className="rounded-2xl h-14 px-8 bg-slate-900 font-black">
-                Join Community Discussion
-              </Button>
+              <a 
+                href="https://chat.whatsapp.com/Bxko0Ug1mBg3Snhiuv57Pn" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                <Button className="rounded-2xl h-14 px-8 bg-slate-900 font-black hover:bg-slate-800 transition-all flex items-center gap-2">
+                  <span className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                    <Users size={12} className="text-white" />
+                  </span>
+                  Join Community Discussion
+                </Button>
+              </a>
             </div>
             <div className="flex-1">
               <Card className="rounded-[2.5rem] border-none shadow-2xl bg-white p-6 rotate-2 hover:rotate-0 transition-transform">

@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, signInWithGoogle, handleRedirectResult, signOut as firebaseSignOut, onAuthStateChanged, db, handleFirestoreError, OperationType, isPopupClosedError } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import { AlertCircle, WifiOff } from 'lucide-react';
-import { User, MembershipTier } from '@/types';
+import { WifiOff } from 'lucide-react';
+import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +19,7 @@ interface AuthContextType {
     cityName?: string;
     address?: string;
   }) => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,68 +37,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Handle redirect result
-    const checkRedirect = async () => {
-      try {
-        const result = await handleRedirectResult();
-        if (result?.user) {
-          logger.info('Redirect Sign-In handled', { data: result.user.uid });
-        }
-      } catch (error) {
-        logger.error('Redirect Sign-In Error', { data: error });
-      }
+  const fetchProfileAndSetUser = async (supabaseUser: any) => {
+    if (!supabaseUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    const fallbackUser: User = {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      fullName: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || 'User',
+      phone: supabaseUser.user_metadata?.phone || supabaseUser.phone || '',
+      role: 'buyer' as const,
+      isProfileComplete: false,
+      walletBalance: 0,
+      membershipTier: 'none' as const,
+      createdAt: supabaseUser.created_at || new Date().toISOString(),
     };
-    checkRedirect();
 
-    let unsubscribeProfile: (() => void) | null = null;
+    try {
+      // Query profiles table
+      const { data: profile, error: dbError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .maybeSingle();
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (unsubscribeProfile) unsubscribeProfile();
+      if (dbError) throw dbError;
 
-      if (firebaseUser) {
-        // Fallback user while loading from Firestore
-        const fallbackUser: User = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          fullName: firebaseUser.displayName || 'User',
-          phone: firebaseUser.phoneNumber || '',
-          role: 'buyer' as const,
-          isProfileComplete: false,
+      if (profile) {
+        setUser({
+          ...fallbackUser,
+          id: profile.id,
+          fullName: profile.full_name || fallbackUser.fullName,
+          phone: profile.phone || fallbackUser.phone,
+          role: profile.role || 'buyer',
+          isProfileComplete: profile.is_profile_complete || false,
           walletBalance: 0,
-          membershipTier: 'none' as const,
-          createdAt: new Date().toISOString(),
-        };
-        setUser(fallbackUser);
-
-        // Real-time listener for profile
-        const profileRef = doc(db, 'profiles', firebaseUser.uid);
-        unsubscribeProfile = onSnapshot(profileRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data();
-            // Removed hardcoded admin check in favor of database-driven role
-            setUser({
-              ...fallbackUser,
-              ...data,
-              role: data.role || 'buyer',
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (data.createdAt || fallbackUser.createdAt),
-            });
-            setError(null);
-          } else {
-            // New user or no profile doc yet
-            setUser(fallbackUser);
-          }
-          setLoading(false);
-        }, (err) => {
-          logger.warn('Profile listener error', { data: err });
-          if (err.message?.includes('offline')) {
-            // Don't show loud error for background listener issues if we have auth data
-            logger.info('Client is offline, using persistence/auth data');
-          } else {
-            setError('Account sync issue. Please refresh.');
-          }
-          setLoading(false);
+          membershipTier: 'none',
+          createdAt: profile.created_at || fallbackUser.createdAt,
         });
+      } else {
+        setUser(fallbackUser);
+      }
+    } catch (err: any) {
+      logger.warn('Failed to load user profile from Supabase db', { data: err.message });
+      // Fallback gracefully so they aren't locked out of the UI
+      setUser(fallbackUser);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await fetchProfileAndSetUser(session.user);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    } catch (err) {
+      logger.error('Error refreshing Supabase auth session', { data: err });
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Check active session on mount
+    refreshSession();
+
+    // Listen for auth state events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      logger.info(`[AUTH EVENT] Supabase Auth event detected: ${event}`);
+      if (session?.user) {
+        await fetchProfileAndSetUser(session.user);
       } else {
         setUser(null);
         setLoading(false);
@@ -106,22 +121,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
-      unsubscribeAuth();
-      if (unsubscribeProfile) unsubscribeProfile();
+      subscription?.unsubscribe();
     };
   }, []);
 
   const loginWithGoogle = async () => {
     try {
       setError(null);
-      await signInWithGoogle();
-      logger.info('Google Sign-In initiated');
+      const { error: oAuthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+      if (oAuthError) throw oAuthError;
+      logger.info('Google Sign-In initiated successfully via Supabase');
     } catch (error: any) {
-      if (isPopupClosedError(error)) {
-        logger.info('User cancelled Google Sign-In');
-      } else {
-        logger.error('Google Sign-In Error', { data: error });
-      }
+      logger.error('Google Sign-In Error', { data: error });
       throw error;
     }
   };
@@ -135,53 +151,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     cityName?: string;
     address?: string;
   }) => {
-    if (!auth.currentUser) return;
-
-    const path = `profiles/${auth.currentUser.uid}`;
-    const profileRef = doc(db, 'profiles', auth.currentUser.uid);
-    const validProfileData: any = {
-      fullName: profileData.fullName,
-      role: profileData.role,
-      phone: profileData.phone,
-      cityName: profileData.cityName,
-      address: profileData.address,
-      isProfileComplete: true,
-      updatedAt: serverTimestamp(),
-      walletBalance: 0,
-      membershipTier: 'none'
-    };
-
-    // Only include location data if it exists and is valid
-    if (profileData.latitude !== undefined && profileData.longitude !== undefined) {
-      validProfileData.latitude = profileData.latitude;
-      validProfileData.longitude = profileData.longitude;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      throw new Error("Active session is required to complete profile setup.");
     }
 
-    try {
-      await setDoc(profileRef, {
-        ...validProfileData,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
+    const userId = session.user.id;
+    const body = {
+      userId,
+      role: profileData.role,
+      name: profileData.fullName || 'User',
+      phone: profileData.phone || session.user.phone || '',
+      latitude: profileData.latitude,
+      longitude: profileData.longitude,
+      cityName: profileData.cityName,
+      address: profileData.address
+    };
 
-      setUser(prev => prev ? {
-        ...prev,
-        ...validProfileData,
-        isProfileComplete: true,
-      } : null);
+    try {
+      const response = await fetch('/api/auth/complete-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || 'Failed to complete profile inside backend');
+      }
+
+      // Re-fetch profile values to sync context status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile) {
+        setUser(prev => prev ? {
+          ...prev,
+          fullName: profile.full_name || prev.fullName,
+          phone: profile.phone || prev.phone,
+          role: profile.role,
+          isProfileComplete: true,
+        } : null);
+      }
       setError(null);
-      logger.info('Profile completed successfully', { data: auth.currentUser.uid });
-    } catch (error) {
-      logger.error('Error completing profile', { data: error });
-      handleFirestoreError(error, OperationType.WRITE, path);
+      logger.info('Profile completed successfully on Supabase source');
+    } catch (error: any) {
+      logger.error('Error completing profile setup', { data: error });
+      throw error;
     }
   };
 
   const logout = async () => {
-    await firebaseSignOut();
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (err: any) {
+      logger.error('Failed to log out cleanly', { data: err });
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, loginWithGoogle, logout, completeProfile }}>
+    <AuthContext.Provider value={{ user, loading, error, loginWithGoogle, logout, completeProfile, refreshSession }}>
       {children}
       {error && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4">
@@ -197,5 +233,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-
-

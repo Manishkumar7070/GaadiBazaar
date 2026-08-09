@@ -21,8 +21,44 @@ export const storageService = {
   },
 
   async uploadFile(file: File, bucket: string, path: string): Promise<string> {
+    const backendLog: string[] = [];
     try {
-      // Auto-optimize if it's an image
+      // First, attempt to upload via the server-side proxy which uses high-privilege Service Role keys
+      // and auto-creates buckets as needed, supporting both images (with server WebP optimization) and videos.
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucket', bucket);
+        formData.append('path', path);
+        
+        let uid = 'anonymous';
+        // Get user ID from Supabase session directly
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          uid = session.user.id;
+        }
+        formData.append('userId', uid);
+
+        const response = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          return result.url;
+        } else {
+          const errMsg = await response.text();
+          backendLog.push(`Backend upload returned HTTP status ${response.status}: ${errMsg || 'No response body'}`);
+          console.error('[StorageService] Server-side upload failed:', errMsg);
+        }
+      } catch (backendErr: any) {
+        backendLog.push(`Backend upload threw exception: ${backendErr.message || backendErr}`);
+        console.error('[StorageService] Server-side upload exception:', backendErr);
+      }
+
+      // Fallback/Direct upload logic
+      console.warn('[StorageService] Falling back to direct client-side Supabase upload...');
       let fileToUpload = file;
       if (file.type.startsWith('image/')) {
         fileToUpload = await this.optimizeImage(file);
@@ -32,17 +68,22 @@ export const storageService = {
         .from(bucket)
         .upload(path, fileToUpload, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
 
       if (error) {
+        console.error('[StorageService] Direct client-side error:', error);
         // Handle specific bucket-not-found error
         if (error.message?.toLowerCase().includes('bucket not found')) {
-          const errMsg = `Storage bucket "${bucket}" not found. ACTION REQUIRED: Please log in to your Supabase Dashboard and create a "Public" bucket named "${bucket}" in the Storage section.`;
+          const errMsg = `Storage bucket "${bucket}" not found. ACTION REQUIRED: Please log in to your Supabase Dashboard and create a "Public" bucket named "${bucket}" in the Storage section. (Client upload fallback failed too: ${error.message})`;
+          console.error(errMsg);
+          throw new Error(errMsg);
+        } else if (error.message?.toLowerCase().includes('row-level security') || error.message?.toLowerCase().includes('policy')) {
+          const errMsg = `Row-Level Security (RLS) policy violation on bucket "${bucket}". Please check your Supabase Storage Policies. (Client upload fallback failed too: ${error.message})`;
           console.error(errMsg);
           throw new Error(errMsg);
         }
-        throw error;
+        throw new Error(`Direct upload failed: ${error.message} (Backend log: ${backendLog.join(' | ')})`);
       }
 
       // Get public URL
@@ -51,9 +92,15 @@ export const storageService = {
         .getPublicUrl(data.path);
 
       return publicUrl;
-    } catch (error) {
-      console.error('Storage upload error:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('[StorageService] Ultimate upload failure detail:', {
+        file: { name: file.name, size: file.size, type: file.type },
+        bucket,
+        path,
+        errorMsg: error.message || error,
+        backendLog
+      });
+      throw new Error(`Upload completely failed for ${file.name}. Ensure storage is configured. Error: ${error.message || error}`);
     }
   },
 

@@ -95,6 +95,55 @@ const SearchPage = () => {
   const [popularMetadata, setPopularMetadata] = useState<{ brands: string[], models: string[], cities: string[] }>({ brands: [], models: [], cities: [] });
   const ITEMS_PER_PAGE = 6;
 
+  const hasActiveFilters = 
+    !!searchQuery || 
+    !!filters.vehicleType || 
+    !!filters.brand || 
+    !!filters.model || 
+    filters.minPrice !== undefined || 
+    filters.maxPrice !== undefined || 
+    filters.minYear !== undefined || 
+    filters.maxYear !== undefined || 
+    filters.minKm !== undefined || 
+    filters.maxKm !== undefined || 
+    !!filters.fuelType || 
+    !!filters.transmission || 
+    !!filters.ownership || 
+    !!filters.city || 
+    !!filters.state || 
+    !!filters.assemblyType || 
+    !!filters.isCertified || 
+    !!filters.purpose || 
+    sortBy !== null || 
+    verifiedOnly ||
+    isAiActive;
+
+  const handleResetAllFilters = () => {
+    setSearchQuery('');
+    setFilters({
+      brand: '',
+      minPrice: undefined,
+      maxPrice: undefined,
+      vehicleType: undefined,
+      city: undefined,
+      fuelType: undefined,
+      transmission: undefined,
+      ownership: undefined,
+      assemblyType: undefined,
+      purpose: undefined,
+      state: undefined,
+      minYear: undefined,
+      maxYear: undefined,
+      minKm: undefined,
+      maxKm: undefined,
+      isCertified: undefined,
+    });
+    setSortBy(null);
+    setVerifiedOnly(false);
+    setIsAiActive(false);
+    navigate('/search', { replace: true });
+  };
+
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('recentSearches') || '[]');
     setRecentSearches(saved);
@@ -981,13 +1030,13 @@ const SearchPage = () => {
               <DialogFooter className="flex gap-2">
                 <Button 
                   variant="ghost" 
-                  className="flex-1"
+                  className="flex-1 text-red-500 hover:text-red-600 hover:bg-red-50"
                   onClick={() => {
-                    setFilters({ brand: searchQuery });
+                    handleResetAllFilters();
                     setIsFilterDialogOpen(false);
                   }}
                 >
-                  Reset
+                  Reset All Filters
                 </Button>
                 <Button 
                   className="flex-1 bg-primary hover:bg-primary/90"
@@ -1000,6 +1049,17 @@ const SearchPage = () => {
           </Dialog>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar items-center">
+          {hasActiveFilters && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="rounded-full shrink-0 h-8 text-xs font-black gap-1.5 flex items-center bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/50 hover:text-red-700 transition-colors"
+              onClick={handleResetAllFilters}
+            >
+              <X size={14} />
+              Reset All Filters
+            </Button>
+          )}
           {isAiActive && (
             <Badge className="bg-primary hover:bg-primary/90 text-white gap-1 py-1 pr-1 pl-2 rounded-full flex-shrink-0 animate-in fade-in zoom-in">
               <Sparkles size={12} className="animate-pulse" />

@@ -17,15 +17,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  auth, 
-  RecaptchaVerifier, 
-  signInWithPhoneNumber,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword
-} from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import { ConfirmationResult } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 import { locationService } from '@/services/location.service';
 import { useLocation as useAppLocation } from '@/context/LocationContext';
@@ -49,17 +42,19 @@ const LoginPage = () => {
   const [initializing, setInitializing] = useState(true);
   
   // Phone Login State
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState(searchParams.get('phone') || '');
   const [otp, setOtp] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<any | null>(null);
   
-  // Email Login State
+  // Email Login/Register State
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>('register');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
+  const recaptchaVerifier = useRef<any | null>(null);
 
   const [locationData, setLocationData] = useState<{
     latitude?: number;
@@ -103,23 +98,27 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      if (!recaptchaVerifier.current) {
-        recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          'size': 'invisible'
-        });
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneNumber })
+      });
+      
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send OTP code.');
       }
-      const verifier = recaptchaVerifier.current;
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      const result = await signInWithPhoneNumber(auth, formattedPhone, verifier);
-      setConfirmationResult(result);
+      
+      setConfirmationResult(true);
+      if (result.mode === 'fallback') {
+        setSuccess(`Local Sandbox: OTP is ${result.devOtp}. Enter below.`);
+      } else {
+        setSuccess('Verification OTP sent successfully.');
+      }
       setStep('otp');
     } catch (error: any) {
       logger.error('Login OTP Error', { data: error });
-      setError(error.message || 'Failed to send OTP.');
-      if (recaptchaVerifier.current) {
-        recaptchaVerifier.current.clear();
-        recaptchaVerifier.current = null;
-      }
+      setError(error.message || 'Failed to dispatch verification OTP.');
     } finally {
       setLoading(false);
     }
@@ -128,13 +127,31 @@ const LoginPage = () => {
   const handleVerifyOtp = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!otp || !confirmationResult) return;
+    if (!otp) return;
 
     setLoading(true);
     try {
-      await confirmationResult.confirm(otp);
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneNumber, code: otp })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Invalid OTP code. Please try again.');
+      }
+
+      // Explicitly set session on client side to trigger onAuthStateChange
+      if (result.session) {
+        const { error: setSessionErr } = await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token
+        });
+        if (setSessionErr) throw setSessionErr;
+      }
     } catch (error: any) {
-      setError('Invalid OTP code. Please try again.');
+      setError(error.message || 'Invalid OTP code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -150,9 +167,53 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (signInError) throw signInError;
     } catch (error: any) {
-      setError('Invalid email or password. Please try again.');
+      setError(error.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    if (!email || !password || !fullName) {
+      setError('Please fill in all fields including name');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          }
+        }
+      });
+      if (signUpError) throw signUpError;
+      
+      setSuccess('Account registered successfully!');
+      
+      // Attempt auto login
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (signInError) {
+        setSuccess('Account registered! Please sign in with your password.');
+        setEmailMode('login');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -169,7 +230,10 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (resetError) throw resetError;
       setSuccess('Password reset link sent to your email!');
       setTimeout(() => {
         setStep('login');
@@ -394,68 +458,155 @@ const LoginPage = () => {
                       </Button>
                     </form>
                   ) : (
-                    <form onSubmit={handleEmailLogin} className="space-y-4">
-                      <div className="space-y-2">
-                        <div className={cn(
-                          "relative flex flex-col px-5 py-2.5 bg-white border-2 rounded-3xl transition-all h-16 justify-center group",
-                          error ? "border-[#FF5A3C]" : "border-slate-100 focus-within:border-slate-300"
-                        )}>
-                          <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#A0AEC0] mb-0.5 leading-none">
-                            Email Address
-                          </label>
-                          <input 
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="name@example.com"
-                            className="bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-full placeholder:text-slate-200 leading-none h-full text-lg font-bold text-[#2D3436]"
-                            autoFocus
-                          />
-                        </div>
+                    <div className="space-y-4">
+                      {/* Email Form Toggle */}
+                      <div className="flex justify-between items-center px-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmailMode('register');
+                            setError(null);
+                            setSuccess(null);
+                          }}
+                          className={cn(
+                            "pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all",
+                            emailMode === 'register' ? "border-[#FF5A3C] text-[#FF5A3C]" : "border-transparent text-slate-400 hover:text-slate-600"
+                          )}
+                        >
+                          New User: Register
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmailMode('login');
+                            setError(null);
+                            setSuccess(null);
+                          }}
+                          className={cn(
+                            "pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all",
+                            emailMode === 'login' ? "border-[#FF5A3C] text-[#FF5A3C]" : "border-transparent text-slate-400 hover:text-slate-600"
+                          )}
+                        >
+                          Have Account: Login
+                        </button>
                       </div>
 
-                      <div className="space-y-2">
-                        <div className={cn(
-                          "relative flex flex-col px-5 py-2.5 bg-white border-2 rounded-3xl transition-all h-16 justify-center group",
-                          error ? "border-[#FF5A3C]" : "border-slate-100 focus-within:border-slate-300"
-                        )}>
-                          <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#A0AEC0] mb-0.5 leading-none">
-                            Password
-                          </label>
-                          <input 
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-full placeholder:text-slate-200 leading-none h-full text-lg font-bold text-[#2D3436]"
-                          />
-                        </div>
-                        <div className="flex justify-end">
-                          <button 
-                            type="button"
-                            onClick={() => setStep('reset-password')}
-                            className="text-[11px] font-bold text-primary hover:underline uppercase tracking-wider"
-                          >
-                            Forgot Password?
-                          </button>
-                        </div>
-                      </div>
-
-                      {error && (
-                        <p className="text-[#FF5A3C] text-[11px] font-bold pl-1">{error}</p>
-                      )}
-
-                      <Button 
-                        type="submit"
-                        disabled={loading || !email || !password}
-                        className={cn(
-                          "w-full h-16 rounded-3xl font-bold text-lg transition-all shadow-none mt-2",
-                          (email && password) ? "bg-[#FF5A3C] hover:bg-[#E64A2E] text-white" : "bg-[#E2E8F0] text-white pointer-events-none"
+                      <form onSubmit={emailMode === 'register' ? handleEmailRegister : handleEmailLogin} className="space-y-4">
+                        {emailMode === 'register' && (
+                          <div className="space-y-2">
+                            <div className={cn(
+                              "relative flex flex-col px-5 py-2.5 bg-white border-2 rounded-3xl transition-all h-16 justify-center group",
+                              error ? "border-[#FF5A3C]" : "border-slate-100 focus-within:border-slate-300"
+                            )}>
+                              <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#A0AEC0] mb-0.5 leading-none">
+                                Full Name
+                              </label>
+                              <input 
+                                type="text"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                placeholder="Your full name"
+                                className="bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-full placeholder:text-slate-200 leading-none h-full text-lg font-bold text-[#2D3436]"
+                                required
+                              />
+                            </div>
+                          </div>
                         )}
-                      >
-                        {loading ? <Loader2 className="animate-spin text-white" /> : 'Login'}
-                      </Button>
-                    </form>
+
+                        <div className="space-y-2">
+                          <div className={cn(
+                            "relative flex flex-col px-5 py-2.5 bg-white border-2 rounded-3xl transition-all h-16 justify-center group",
+                            error ? "border-[#FF5A3C]" : "border-slate-100 focus-within:border-slate-300"
+                          )}>
+                            <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#A0AEC0] mb-0.5 leading-none">
+                              Email Address
+                            </label>
+                            <input 
+                              type="email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              placeholder="name@example.com"
+                              className="bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-full placeholder:text-slate-200 leading-none h-full text-lg font-bold text-[#2D3436]"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className={cn(
+                            "relative flex flex-col px-5 py-2.5 bg-white border-2 rounded-3xl transition-all h-16 justify-center group",
+                            error ? "border-[#FF5A3C]" : "border-slate-100 focus-within:border-slate-300"
+                          )}>
+                            <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#A0AEC0] mb-0.5 leading-none">
+                              Password
+                            </label>
+                            <input 
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              placeholder="••••••••"
+                              className="bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-full placeholder:text-slate-200 leading-none h-full text-lg font-bold text-[#2D3436]"
+                            />
+                          </div>
+                          {emailMode === 'login' && (
+                            <div className="flex justify-end">
+                              <button 
+                                type="button"
+                                onClick={() => setStep('reset-password')}
+                                className="text-[11px] font-bold text-primary hover:underline uppercase tracking-wider"
+                              >
+                                Forgot Password?
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {error && (
+                          <p className="text-[#FF5A3C] text-[11px] font-bold pl-1">{error}</p>
+                        )}
+                        {success && (
+                          <p className="text-emerald-500 text-[11px] font-bold pl-1">{success}</p>
+                        )}
+
+                        <Button 
+                          type="submit"
+                          disabled={loading || !email || !password || (emailMode === 'register' && !fullName)}
+                          className={cn(
+                            "w-full h-16 rounded-3xl font-bold text-lg transition-all shadow-none mt-2",
+                            (email && password && (emailMode === 'login' || fullName)) ? "bg-[#FF5A3C] hover:bg-[#E64A2E] text-white" : "bg-[#E2E8F0] text-white pointer-events-none"
+                          )}
+                        >
+                          {loading ? <Loader2 className="animate-spin text-white" /> : (emailMode === 'register' ? 'Register Account' : 'Login')}
+                        </Button>
+                      </form>
+
+                      {/* Explicit Guidance Text */}
+                      <p className="text-center text-xs text-slate-500 mt-2 font-medium">
+                        {emailMode === 'register' ? (
+                          <>
+                            Already have an account?{' '}
+                            <button
+                              type="button"
+                              onClick={() => setEmailMode('login')}
+                              className="text-primary hover:underline font-bold"
+                            >
+                              Log In Here
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            First time here? Please{' '}
+                            <button
+                              type="button"
+                              onClick={() => setEmailMode('register')}
+                              className="text-primary hover:underline font-bold"
+                            >
+                              Register First
+                            </button>
+                          </>
+                        )}
+                      </p>
+                    </div>
                   )}
 
                   <div className="text-[11px] text-[#A0AEC0] leading-relaxed font-medium">

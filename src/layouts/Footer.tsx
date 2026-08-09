@@ -39,6 +39,7 @@ const Footer = () => {
       { name: 'About Us', path: '/about' },
       { name: 'Partner with Us', path: '/create-shop' },
       { name: 'Find Dealers', path: '/find-dealers' },
+      { name: 'Car Health Score (CIBIL)', path: '/car-health-score' },
       { name: 'Market Trends', path: '/blog/used-car-market-india' },
       { name: 'Sitemap', path: '/sitemap' },
     ],

@@ -29,6 +29,13 @@ class Logger {
         break;
       case 'error':
         console.error(formattedMessage, options?.data || '');
+        if (import.meta.env.VITE_SENTRY_DSN) {
+          import('@sentry/react').then((Sentry) => {
+            Sentry.captureException(new Error(message), {
+              extra: options?.data
+            });
+          });
+        }
         break;
       case 'debug':
         console.debug(formattedMessage, options?.data || '');

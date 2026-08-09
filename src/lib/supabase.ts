@@ -17,8 +17,35 @@ if (!isConfigured) {
 // Export the "isConfigured" flag to allow components to handle it gracefully
 export const isSupabaseConfigured = isConfigured;
 
+let isSupabaseOffline = false;
+let supabaseOfflineTime = 0;
+const OFFLINE_THRESHOLD = 30000; // 30 seconds
+
 export const supabase = isConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        fetch: (url, options) => {
+          if (isSupabaseOffline && (Date.now() - supabaseOfflineTime < OFFLINE_THRESHOLD)) {
+            return Promise.reject(new Error('Supabase is flagged offline (fast-fallback)'));
+          }
+
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), 10000); // 10s budget
+
+          return fetch(url, {
+            ...options,
+            signal: controller.signal
+          }).then(res => {
+            isSupabaseOffline = false;
+            return res;
+          }).catch(err => {
+            isSupabaseOffline = true;
+            supabaseOfflineTime = Date.now();
+            throw err;
+          }).finally(() => clearTimeout(id));
+        }
+      }
+    })
   : new Proxy({} as any, {
       get: (_, prop) => {
         if (prop === 'auth') {

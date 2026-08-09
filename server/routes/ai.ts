@@ -1,8 +1,20 @@
 import express from 'express';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import rateLimit from 'express-rate-limit';
 import { serverLogger } from '../logger';
+import { rateLimitHandler } from '../middleware/rate-limit-monitor';
 
 const router = express.Router();
+
+// Anti-abuse: Rate limit AI-powered features to prevent billing exploitation of Gemini endpoints
+const aiGenerationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // Max 30 Gemini generation queries per IP per 15 minutes
+  message: { error: "Too many AI generation requests. Please wait before asking for more insights." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler,
+});
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -26,7 +38,7 @@ const fetchImageAsBase64 = async (url: string): Promise<{ data: string; mimeType
   }
 };
 
-router.post("/vehicle-insights", async (req, res) => {
+router.post("/vehicle-insights", aiGenerationLimiter, async (req, res) => {
   const { vehicle } = req.body;
 
   if (!vehicle) {

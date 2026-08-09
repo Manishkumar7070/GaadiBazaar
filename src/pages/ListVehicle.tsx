@@ -69,6 +69,7 @@ const ListVehicle = () => {
         engine: '',
         tires: '',
       } as Record<string, string>,
+      imageTags: {} as Record<string, string>, // To track which raw image is tagged as what
     };
 
     const saved = localStorage.getItem('vehicle_form_draft');
@@ -202,11 +203,15 @@ const ListVehicle = () => {
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`;
 
+        // Optimization happens in storageService (backend or bridge)
         return await storageService.uploadFile(file, 'vehicles', filePath);
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
+      setFormData(prev => ({ 
+        ...prev, 
+        images: [...prev.images, ...uploadedUrls] 
+      }));
     } catch (error) {
       const err = error as Error;
       logger.error('Error uploading images', { data: err });
@@ -251,6 +256,21 @@ const ListVehicle = () => {
     }
   };
 
+  const handleTagImage = (imageUrl: string, category: string) => {
+    setFormData(prev => {
+      const newCategorized = { ...prev.categorizedImages, [category]: imageUrl };
+      const newImageTags = { ...prev.imageTags, [imageUrl]: category };
+      
+      // If we move it to a specific category, we might want to keep it in the general list or not
+      // For now, let's keep it in both but track the tag
+      return {
+        ...prev,
+        categorizedImages: newCategorized,
+        imageTags: newImageTags
+      };
+    });
+  };
+  
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -836,7 +856,12 @@ const ListVehicle = () => {
               </div>
 
               <div className="space-y-4">
-                <label className="text-sm font-semibold text-slate-700">Additional Images (Optional)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Additional Images & Bulk Upload</label>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[10px] font-black uppercase tracking-tighter">
+                    <Zap size={10} /> Smart Processing Enabled
+                  </div>
+                </div>
                 
                 <div 
                   className={cn(
@@ -865,47 +890,80 @@ const ListVehicle = () => {
                   
                   <div className="text-center space-y-1">
                     <p className="text-base font-bold text-slate-900">
-                      {uploading ? 'Uploading your images...' : 'Drag & drop images here'}
+                      {uploading ? 'Processing & Optimizing...' : 'Bulk Upload & Auto-Format'}
                     </p>
                     <p className="text-sm text-slate-500">
-                      or click to browse from your device
+                      Images are automatically resized and converted to WebP
                     </p>
                   </div>
                   
                   <div className="mt-4 flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    <span>JPEG, PNG</span>
+                    <span>Smart Resizing (1920px)</span>
                     <span>•</span>
-                    <span>Up to 10MB each</span>
+                    <span>WebP Conversion</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4 mt-6">
-                  {formData.images.map((img, i) => (
-                    <motion.div 
-                      key={img}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group shadow-sm bg-white"
-                    >
-                      <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
-                          }}
-                          className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors"
-                          title="Remove Image"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                          </svg>
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
+                  {formData.images.map((img, i) => {
+                    const tag = formData.imageTags[img];
+                    return (
+                      <motion.div 
+                        key={img}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="aspect-square rounded-2xl overflow-hidden border border-slate-100 relative group shadow-sm bg-white"
+                      >
+                        <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        
+                        {/* Tag Indicator */}
+                        {tag && (
+                          <div className="absolute top-2 left-2 bg-primary text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-sm">
+                            {tag}
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2 space-y-2">
+                          <select 
+                            className="w-full text-[10px] font-black uppercase bg-white rounded-lg p-1"
+                            value={tag || ''}
+                            onChange={(e) => handleTagImage(img, e.target.value)}
+                          >
+                            <option value="">Tag View</option>
+                            <option value="front">Front</option>
+                            <option value="back">Back</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                            <option value="interior">Interior</option>
+                            <option value="exterior">Exterior</option>
+                            <option value="engine">Engine</option>
+                            <option value="tires">Tires</option>
+                          </select>
+
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                images: prev.images.filter((_, idx) => idx !== i),
+                                categorizedImages: Object.fromEntries(
+                                  Object.entries(prev.categorizedImages).map(([k, v]) => [k, v === img ? '' : v])
+                                )
+                              }));
+                            }}
+                            className="bg-red-500 text-white rounded-full p-2 shadow-xl hover:bg-red-600 transition-colors"
+                            title="Remove Image"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                   
                   {uploading && (
                     <div className="aspect-square rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center">

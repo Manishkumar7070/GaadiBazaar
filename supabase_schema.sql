@@ -304,3 +304,11 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_status_city ON public.vehicles(status, c
 CREATE INDEX IF NOT EXISTS idx_vehicles_seller_priority ON public.vehicles(seller_id, priority_score DESC);
 CREATE INDEX IF NOT EXISTS idx_shops_verification ON public.shops(verification_status, rating DESC);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+
+-- High-scale Composite Indexes for 1M+ rows scale
+CREATE INDEX IF NOT EXISTS idx_vehicles_search_composite_heavy ON public.vehicles (status, vehicle_type, brand, city, price);
+CREATE INDEX IF NOT EXISTS idx_vehicles_city_price_status_heavy ON public.vehicles (city, price, status);
+CREATE INDEX IF NOT EXISTS idx_vehicles_brand_model_status_heavy ON public.vehicles (brand, model, status);
+CREATE INDEX IF NOT EXISTS idx_vehicles_featured_priority_heavy ON public.vehicles (status, is_featured, priority_score DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vehicles_listing_stats_heavy ON public.vehicles (status, vehicle_type);
+

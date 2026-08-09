@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star, BarChart3, Instagram, Smartphone, ShieldCheck } from 'lucide-react';
+import { Search, MapPin, Bell, Menu, User, Heart, Package, Settings, LogOut, PlusCircle, Handshake, X, Star, BarChart3, Instagram, Smartphone, ShieldCheck, Gauge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -258,6 +258,10 @@ const Header = () => {
           <Link to="/buyer-hub" className="text-sm font-bold text-secondary hover:text-secondary/80 transition-colors flex items-center gap-1 px-4 border-l border-slate-100">
             <Handshake size={14} /> Smart Buyer Hub
           </Link>
+          <Link to="/car-health-score" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1 px-4 border-l border-slate-100 italic">
+            <Gauge size={14} className="animate-pulse" /> Car Health Score
+            <Badge className="bg-blue-500 hover:bg-blue-600 border-none text-[8px] px-1 h-3.5 font-black flex items-center">CIBIL</Badge>
+          </Link>
         </div>
 
         <div className="hidden lg:flex flex-1 max-w-xl items-center gap-2">
@@ -453,6 +457,11 @@ const Header = () => {
                       <ShieldCheck size={20} className="text-secondary" />
                       <span className="font-bold">Smart Buyer Hub</span>
                       <Badge className="ml-auto bg-secondary text-white border-none text-[8px] px-1 h-4">NEW</Badge>
+                    </Link>
+                    <Link to="/car-health-score" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 p-4 bg-blue-50 text-blue-700 rounded-xl transition-colors border border-blue-100">
+                      <Gauge size={20} className="text-blue-500" />
+                      <span className="font-bold uppercase tracking-tight">Car Health Score</span>
+                      <Badge className="ml-auto bg-blue-600 text-white border-none text-[8.5px] px-1.5 h-4 font-black">CIBIL</Badge>
                     </Link>
                     
                     <div className="grid grid-cols-2 gap-2 p-2">

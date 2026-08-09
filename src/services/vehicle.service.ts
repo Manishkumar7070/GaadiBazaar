@@ -17,36 +17,17 @@ export const vehicleService = {
         return this.sortVehiclesByPriority(fallback, filters?.userCity);
       }
 
-      let query = supabase
-        .from('vehicles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (filters?.shopId) {
-        query = query.eq('shop_id', filters.shopId);
-      }
-      if (filters?.sellerId) {
-        query = query.eq('seller_id', filters.sellerId);
-      }
-      if (filters?.verificationStatus) {
-        query = query.eq('verification_status', filters.verificationStatus);
+      const params = new URLSearchParams();
+      if (filters?.shopId) params.append('shopId', filters.shopId);
+      if (filters?.sellerId) params.append('sellerId', filters.sellerId);
+      if (filters?.verificationStatus) params.append('verificationStatus', filters.verificationStatus);
+
+      const response = await fetch(`/api/vehicles?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`Server returned HTTP ${response.status}`);
       }
 
-      const { data, error } = await query;
-      
-      if (error) {
-        if (error.code === 'PGRST205') {
-          logger.warn('Table "vehicles" not found in Supabase. Falling back to mock data.');
-          let fallback = MOCK_VEHICLES;
-          if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
-          if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
-          if (filters?.verificationStatus) fallback = fallback.filter(v => v.verificationStatus === filters.verificationStatus);
-          
-          // Sort fallback by priority and location
-          return this.sortVehiclesByPriority(fallback, filters?.userCity);
-        }
-        throw error;
-      }
+      const data = await response.json();
 
       if (!data || data.length === 0) {
         let fallback = MOCK_VEHICLES;
@@ -83,7 +64,7 @@ export const vehicleService = {
 
       return this.sortVehiclesByPriority(vehicles, filters?.userCity);
     } catch (error) {
-      logger.error('Error fetching vehicles', { data: error });
+      logger.warn('Error fetching vehicles from custom endpoint, falling back to mock data', { data: error });
       let fallback = MOCK_VEHICLES;
       if (filters?.shopId) fallback = fallback.filter(v => v.shopId === filters.shopId);
       if (filters?.sellerId) fallback = fallback.filter(v => v.sellerId === filters.sellerId);
@@ -134,7 +115,7 @@ export const vehicleService = {
         updatedAt: data.updated_at
       } as unknown as Vehicle;
     } catch (error) {
-      logger.error('Error fetching vehicle by ID', { data: error });
+      logger.warn('Error fetching vehicle by ID, falling back to mock data', { data: error });
       return MOCK_VEHICLES.find(v => v.id === id) || null;
     }
   },

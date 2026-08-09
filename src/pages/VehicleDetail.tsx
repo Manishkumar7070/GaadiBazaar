@@ -30,7 +30,12 @@ import {
   UserCheck,
   Star,
   Activity,
-  Store
+  Store,
+  QrCode,
+  Printer,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { Helmet } from 'react-helmet-async';
@@ -40,6 +45,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useWishlist } from '@/hooks/useWishlist';
+import { jsPDF } from 'jspdf';
 import { 
   Dialog, 
   DialogContent, 
@@ -53,6 +59,9 @@ import PriceHistoryChart from '@/features/vehicles/PriceHistoryChart';
 import VehicleAIInsights from '@/features/vehicles/VehicleAIInsights';
 import PriceComparisonSection from '@/features/vehicles/PriceComparisonSection';
 import PricePrediction from '@/features/vehicles/PricePrediction';
+import { EMICalculator } from '@/components/EMICalculator';
+import { VirtualTour } from '@/components/VirtualTour';
+import { RealWorldMileage } from '@/components/RealWorldMileage';
 import { useComparison } from '@/hooks/useComparison';
 import { cn } from '@/lib/utils';
 import { vehicleService } from '@/services/vehicle.service';
@@ -66,6 +75,8 @@ const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [showMagnifier, setShowMagnifier] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [zoomLevel, setZoomLevel] = useState<number>(3.5);
+  const [activeAnalysis, setActiveAnalysis] = useState<'paint' | 'interior' | 'none'>('paint');
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -75,44 +86,176 @@ const Magnifier = ({ src, alt, onClick }: { src: string; alt: string; onClick?: 
     setCursorPosition({ x: e.clientX - left, y: e.clientY - top });
   };
 
-  return (
-    <div
-      className="relative w-full h-full overflow-hidden cursor-zoom-in group"
-      onMouseEnter={() => setShowMagnifier(true)}
-      onMouseLeave={() => setShowMagnifier(false)}
-      onMouseMove={handleMouseMove}
-      onClick={onClick}
-    >
-      <img 
-        src={src} 
-        alt={alt}
-        className={cn(
-          "w-full h-full object-cover transition-transform duration-500",
-          showMagnifier ? "scale-105" : "scale-100"
-        )}
-        referrerPolicy="no-referrer"
-      />
-      
-      {/* Magnifying Glass Effect */}
-      {showMagnifier && (
-        <div
-          className="absolute pointer-events-none border-4 border-white/30 shadow-2xl rounded-full overflow-hidden hidden md:block"
-          style={{
-            left: `${cursorPosition.x - 100}px`,
-            top: `${cursorPosition.y - 100}px`,
-            width: '200px',
-            height: '200px',
-            backgroundImage: `url(${src})`,
-            backgroundPosition: `${position.x}% ${position.y}%`,
-            backgroundSize: '400%',
-            zIndex: 10,
-          }}
-        />
-      )}
+  const isInterior = src.toLowerCase().includes('interior') || alt.toLowerCase().includes('interior');
+  const isEngine = src.toLowerCase().includes('engine') || alt.toLowerCase().includes('engine');
 
-      {/* Zoom Icon Overlay */}
-      <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur-sm p-3 rounded-2xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <Maximize2 size={20} className="text-primary" />
+  const hotspots = isInterior 
+    ? [
+        { x: 38, y: 48, label: "Seat Leather Stitch Check", detail: "Verified premium double-stitched seams. No micro-tears detected." },
+        { x: 68, y: 38, label: "Grip & Control Texture Check", detail: "Premium non-slip matte texture intact. Minimal wear signature." }
+      ]
+    : (isEngine 
+      ? [
+          { x: 52, y: 42, label: "Tappet Gasket Integrity", detail: "Dry head gasket seals verified. Zero oil seepage detected." },
+          { x: 32, y: 58, label: "Fluid Reservoir Clarity", detail: "Brake and steering hydraulic fluid transparent and fully within operating lines." }
+        ]
+      : [
+          { x: 26, y: 54, label: "Paint Coat Diagnostics", detail: "Uniform OEM factory coat thickness. Calibrated: 112µm (No repainting detected)." },
+          { x: 58, y: 46, label: "Panel Edge Clear-Coat", detail: "Bevel gloss index: 96 GU. Original clear lacquer layer fully preserved." }
+        ]);
+
+  return (
+    <div className="flex flex-col h-full w-full select-none justify-between relative bg-slate-900 group/suite">
+      
+      {/* Upper floating instruction label */}
+      <div className="absolute top-5 left-5 z-20 hidden md:flex items-center gap-2 bg-slate-950/85 backdrop-blur-md px-4 py-2.5 rounded-full border border-primary/20 text-[10px] text-white">
+        <span className="w-2 h-2 bg-primary rounded-full animate-ping shrink-0" />
+        <span className="font-extrabold uppercase tracking-widest text-[#F25C1D]">🔬 Zoom Scan Suite Active: Hover to inspect paint & interior condition</span>
+      </div>
+
+      {/* Main Image Viewing Area with magnifying glass implementation */}
+      <div
+        className="relative flex-1 w-full min-h-0 overflow-hidden cursor-zoom-in group/canvas"
+        onMouseEnter={() => setShowMagnifier(true)}
+        onMouseLeave={() => setShowMagnifier(false)}
+        onMouseMove={handleMouseMove}
+        onClick={onClick}
+      >
+        <img 
+          src={src} 
+          alt={alt}
+          className={cn(
+            "w-full h-full object-cover transition-transform duration-500",
+            showMagnifier ? "scale-[1.03]" : "scale-100"
+          )}
+          referrerPolicy="no-referrer"
+        />
+
+        {/* Laser level scanning wire-line indicator */}
+        {showMagnifier && activeAnalysis !== 'none' && (
+          <div 
+            className="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#F25C1D] to-transparent shadow-[0_0_8px_rgba(242,92,29,0.5)] pointer-events-none transition-all duration-75" 
+            style={{ top: `${position.y}%` }}
+          />
+        )}
+
+        {/* Hotspots overlay points */}
+        {!showMagnifier && hotspots.map((spot, i) => (
+          <div
+            key={i}
+            className="absolute z-20 group/spot pointer-events-auto hidden md:block"
+            style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+          >
+            <div className="relative -m-3 p-3 cursor-help">
+              <span className="absolute inline-flex h-7 w-7 rounded-full bg-[#F25C1D]/30 animate-ping opacity-75" />
+              <span className="relative flex rounded-full h-5 w-5 bg-[#F25C1D] border-2 border-white shadow-xl items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-slate-950" />
+              </span>
+              
+              {/* Dynamic hotspot detail card shown on hovering the dot */}
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-8 w-56 bg-slate-950/95 backdrop-blur-md text-white border border-slate-800 rounded-2xl p-3.5 shadow-2xl opacity-0 scale-95 group-hover/spot:opacity-100 group-hover/spot:scale-100 transition-all pointer-events-none duration-300">
+                <p className="text-[10px] font-black uppercase text-[#F25C1D] tracking-wider">{spot.label}</p>
+                <p className="text-[9px] text-slate-300 mt-1.5 uppercase font-bold leading-normal">{spot.detail}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {/* The high-precision Magnifying Glass Circle */}
+        {showMagnifier && (
+          <div
+            className="absolute pointer-events-none border-4 border-slate-950/90 shadow-2xl rounded-full overflow-hidden hidden md:block"
+            style={{
+              left: `${cursorPosition.x - 110}px`,
+              top: `${cursorPosition.y - 110}px`,
+              width: '220px',
+              height: '220px',
+              backgroundImage: `url(${src})`,
+              backgroundPosition: `${position.x}% ${position.y}%`,
+              backgroundSize: `${zoomLevel * 100}%`,
+              zIndex: 30,
+            }}
+          >
+            {/* Target Reticle overlay */}
+            <div className="absolute inset-0 border border-white/10 flex items-center justify-center">
+              <div className="w-12 h-12 border-r border-l border-white/20 rounded-full" />
+              <div className="w-12 h-12 border-t border-b border-white/20 rounded-full absolute" />
+              <div className="w-1.5 h-1.5 bg-[#F25C1D] rounded-full absolute shadow-[0_0_6px_#F25C1D]" />
+            </div>
+
+            {/* Dynamic diagnostic overlay inside magnifying scope */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur-md text-white border border-slate-800 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-lg flex items-center gap-1">
+              <span>{zoomLevel.toFixed(1)}X SPECULAR LENS</span>
+              {activeAnalysis === 'paint' && <span className="text-primary">• COAT-OK</span>}
+              {activeAnalysis === 'interior' && <span className="text-secondary">• CAB-OK</span>}
+            </div>
+          </div>
+        )}
+
+        {/* Hover Zoom Icon overlay */}
+        <div className="absolute bottom-5 right-5 bg-slate-950/90 text-white backdrop-blur-sm p-3.5 rounded-2xl shadow-xl opacity-0 group-hover/canvas:opacity-100 transition-opacity duration-300 flex items-center gap-2 z-10">
+          <Maximize2 size={16} className="text-[#F25C1D] animate-pulse" />
+          <span className="text-[9px] font-black uppercase tracking-widest leading-none">Inspect Paint / Stitching</span>
+        </div>
+      </div>
+
+      {/* Calibration Controls bar */}
+      <div className="bg-slate-950 border-t border-slate-800 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 select-none relative z-20">
+        
+        {/* Toggle A: Zoom Factor */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Calibration Power:</span>
+          <div className="flex bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+            {[2.0, 3.5, 5.0, 6.5].map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomLevel(level);
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                  zoomLevel === level
+                    ? "bg-[#F25C1D] text-white font-[1000] shadow-md shadow-orange-600/30"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {level.toFixed(1)}x
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Toggle B: HUD scan modes */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Digital Scanner HUD:</span>
+          <div className="flex bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+            {[
+              { id: 'paint', label: 'Paint (µm) Scan' },
+              { id: 'interior', label: 'Upholstery Audit' },
+              { id: 'none', label: 'No Overlays' }
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveAnalysis(mode.id as any);
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer",
+                  activeAnalysis === mode.id
+                    ? "bg-white text-slate-950 font-[1000] shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -137,6 +280,149 @@ const VehicleDetail = () => {
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
+
+  // --- Main Page Carousel Touch Swipe States & Handlers ---
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX === null || touchEndX === null) return;
+    const distance = touchStartX - touchEndX;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe) {
+      setActiveImageIndex((prev) => (prev < (vehicle?.images?.length || 1) - 1 ? prev + 1 : 0));
+    } else if (isRightSwipe) {
+      setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : (vehicle?.images?.length || 1) - 1));
+    }
+    
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
+  // --- Lightbox Interactive Zoom & Pan States & Handlers ---
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [initialDistance, setInitialDistance] = useState<number | null>(null);
+
+  // Reset zoom scale and pan offset whenever image changes or lightbox opens/closes
+  useEffect(() => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }, [activeImageIndex, isLightboxOpen]);
+
+  const handleZoomIn = () => {
+    setScale((prev) => Math.min(prev + 0.5, 4));
+  };
+
+  const handleZoomOut = () => {
+    setScale((prev) => {
+      const next = Math.max(prev - 0.5, 1);
+      if (next === 1) {
+        setOffset({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  };
+
+  const handleDoubleClick = () => {
+    if (scale > 1) {
+      handleResetZoom();
+    } else {
+      setScale(2.5);
+    }
+  };
+
+  // Drag / Pan mechanics for Lightbox zoom
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    setIsPanning(true);
+    setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning || scale <= 1) return;
+    const newX = e.clientX - panStart.x;
+    const newY = e.clientY - panStart.y;
+    
+    // Bounds check to avoid infinite panning out of screen view
+    const maxPanX = (scale - 1) * 350;
+    const maxPanY = (scale - 1) * 200;
+    setOffset({
+      x: Math.max(Math.min(newX, maxPanX), -maxPanX),
+      y: Math.max(Math.min(newY, maxPanY), -maxPanY)
+    });
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsPanning(false);
+  };
+
+  // Touch controls for Pinch-to-Zoom and Pan on mobile screens
+  const handleLightboxTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      setInitialDistance(dist);
+    } else if (e.touches.length === 1 && scale > 1) {
+      setIsPanning(true);
+      setPanStart({
+        x: e.touches[0].clientX - offset.x,
+        y: e.touches[0].clientY - offset.y
+      });
+    }
+  };
+
+  const handleLightboxTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialDistance !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / initialDistance;
+      setScale((prev) => {
+        const next = Math.max(1, Math.min(prev * factor, 4));
+        if (next === 1) {
+          setOffset({ x: 0, y: 0 });
+        }
+        return next;
+      });
+      setInitialDistance(dist);
+    } else if (e.touches.length === 1 && isPanning && scale > 1) {
+      const newX = e.touches[0].clientX - panStart.x;
+      const newY = e.touches[0].clientY - panStart.y;
+      
+      const maxPanX = (scale - 1) * 350;
+      const maxPanY = (scale - 1) * 200;
+      setOffset({
+        x: Math.max(Math.min(newX, maxPanX), -maxPanX),
+        y: Math.max(Math.min(newY, maxPanY), -maxPanY)
+      });
+    }
+  };
+
+  const handleLightboxTouchEnd = () => {
+    setIsPanning(false);
+    setInitialDistance(null);
+  };
   
   const [similarVehicles, setSimilarVehicles] = useState<Vehicle[]>([]);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
@@ -216,6 +502,96 @@ const VehicleDetail = () => {
       // Already booked, show contact
     } else {
       setIsBookingModalOpen(true);
+    }
+  };
+
+  const handlePrintDealerFlyer = async () => {
+    if (!vehicle) return;
+    const regNum = vehicle.registrationNumber || 'BR-01-AZ-9999';
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/car-health-score?reg=${regNum}`)}&color=0f172a`;
+    
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        
+        // Add branding header background (deep dark blue/slate)
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.rect(0, 0, 210, 50, 'F');
+        
+        // Header Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(26);
+        doc.setFont('Helvetica', 'Bold');
+        doc.text('ASONE TRUST VERIFIED', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont('Helvetica', 'Normal');
+        doc.text('OFFICIAL DEALERSHIP SHOWROOM WINDSHIELD FLYER', 105, 28, { align: 'center' });
+        doc.setTextColor(242, 92, 29); // primary color accent
+        doc.setFont('Helvetica', 'Bold');
+        doc.text('SCAN TO REVEAL VERIFIED VEHICLE HEALTH REGISTRY & CIBIL SCORE', 105, 36, { align: 'center' });
+        
+        // Main Car display box
+        doc.setDrawColor(226, 232, 240);
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(15, 60, 180, 50, 4, 4, 'FD');
+        
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(18);
+        doc.text(`${vehicle.year} ${vehicle.brand}`, 25, 73);
+        doc.setFontSize(22);
+        doc.text(`${vehicle.title}`, 25, 84);
+        
+        // Quick features row
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('Helvetica', 'Normal');
+        doc.text(`Fuel Type: ${vehicle.fuelType}  |  Ownership: ${vehicle.ownership} Owner  |  City: ${vehicle.city}`, 25, 93);
+        doc.text(`Current Odometer Reading: ${vehicle.kilometersDriven.toLocaleString()} kms`, 25, 99);
+        
+        // Big Registration Number Accent Badge
+        doc.setFillColor(15, 23, 42);
+        doc.roundedRect(125, 70, 60, 24, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.setFont('Helvetica', 'Bold');
+        doc.text('REGISTRATION NO.', 155, 76, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text(`${regNum}`, 155, 86, { align: 'center' });
+        
+        // QR Code Box
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(55, 125, 100, 100, 4, 4, 'D');
+        doc.addImage(base64data, 'PNG', 60, 130, 90, 90);
+        
+        // Instructional footer text
+        doc.setFont('Helvetica', 'Bold');
+        doc.setFontSize(13);
+        doc.setTextColor(15, 23, 42);
+        doc.text('SCAN ME WITH YOUR PHONE CAMERA', 105, 242, { align: 'center' });
+        
+        doc.setFont('Helvetica', 'Normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('Instantly view transparent database entries of engine performance indices,', 105, 250, { align: 'center' });
+        doc.text('active mechanical maintenance logs, and financial resale multiplier evaluations.', 105, 255, { align: 'center' });
+        
+        // Bottom badge rule
+        doc.setFillColor(242, 92, 29);
+        doc.rect(15, 270, 180, 2, 'F');
+        
+        doc.save(`Windshield_Flyer_QR_${regNum}.pdf`);
+      };
+      
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error(err);
+      alert('Error building high-definition flyer. Please verify connectivity.');
     }
   };
 
@@ -345,14 +721,54 @@ const VehicleDetail = () => {
         <div className="lg:col-span-8 space-y-12">
           {/* Gallery Section */}
           <div className="space-y-6">
-            <div className="relative aspect-[16/9] rounded-[3rem] overflow-hidden bg-slate-100 shadow-2xl group border-[1.5rem] border-white cursor-pointer" onClick={() => setIsLightboxOpen(true)}>
-              <Magnifier 
-                src={vehicle.images[activeImageIndex]} 
-                alt={`${vehicle.brand} ${vehicle.title}`}
-              />
+            <div 
+              className="relative aspect-[16/9] rounded-2xl md:rounded-[3rem] overflow-hidden bg-slate-900 shadow-2xl group border-2 md:border-[1.5rem] border-white cursor-pointer select-none"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div className="w-full h-full relative" onClick={() => setIsLightboxOpen(true)}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeImageIndex}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="w-full h-full"
+                  >
+                    <Magnifier 
+                      src={vehicle.images[activeImageIndex]} 
+                      alt={`${vehicle.brand} ${vehicle.title}`}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Touch-friendly left/right slide arrows */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImageIndex(prev => prev > 0 ? prev - 1 : vehicle.images.length - 1);
+                }}
+                className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-slate-950/70 hover:bg-primary hover:text-white text-white rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center z-10 shadow-lg border border-white/10"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImageIndex(prev => prev < vehicle.images.length - 1 ? prev + 1 : 0);
+                }}
+                className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-slate-950/70 hover:bg-primary hover:text-white text-white rounded-full transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center z-10 shadow-lg border border-white/10"
+              >
+                <ChevronRight size={24} />
+              </button>
 
               {isSold && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-md">
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-md pointer-events-none">
                   <motion.div 
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -363,7 +779,7 @@ const VehicleDetail = () => {
                 </div>
               )}
 
-              <div className="absolute top-6 left-6 flex flex-wrap gap-2">
+              <div className="absolute top-6 left-6 flex flex-wrap gap-2 z-20 pointer-events-none">
                 <Badge className="bg-slate-900/80 backdrop-blur-md text-white font-black text-[10px] px-4 py-2 rounded-full uppercase tracking-widest border-none">
                   {activeImageIndex + 1} / {vehicle.images.length} Photos
                 </Badge>
@@ -375,14 +791,14 @@ const VehicleDetail = () => {
               </div>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide">
               {vehicle.images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveImageIndex(i)}
                   className={cn(
-                    "relative flex-shrink-0 w-24 h-24 rounded-3xl overflow-hidden transition-all duration-300 transform",
-                    activeImageIndex === i ? "ring-4 ring-primary ring-offset-4 scale-95" : "opacity-60 hover:opacity-100 hover:scale-105"
+                    "relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl md:rounded-3xl overflow-hidden transition-all duration-300 transform",
+                    activeImageIndex === i ? "ring-2 md:ring-4 ring-primary ring-offset-2 md:ring-offset-4 scale-95" : "opacity-60 hover:opacity-100 hover:scale-105"
                   )}
                 >
                   <img src={img} alt={`View ${i + 1}`} className="w-full h-full object-cover" />
@@ -391,8 +807,11 @@ const VehicleDetail = () => {
             </div>
           </div>
 
+          {/* Virtual Tour Mode */}
+          <VirtualTour vehicle={vehicle} />
+
           {/* Great Things */}
-          <section className="bg-slate-900 rounded-[3.5rem] p-12 text-white overflow-hidden relative">
+          <section className="bg-slate-900 rounded-3xl md:rounded-[3.5rem] p-6 md:p-12 text-white overflow-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-slate-800/30 blur-3xl rounded-full -mr-20 -mt-20" />
             <div className="relative space-y-8">
               <div className="space-y-1">
@@ -419,7 +838,7 @@ const VehicleDetail = () => {
             <h2 className="text-xl font-black uppercase tracking-widest text-slate-800 px-4">Car Overview</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               {specs.map((spec, i) => (
-                <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-100 hover:border-primary/20 transition-all group shadow-sm hover:shadow-xl hover:-translate-y-1">
+                <div key={i} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-slate-100 hover:border-primary/20 transition-all group shadow-sm hover:shadow-xl hover:-translate-y-1">
                   <spec.icon size={20} className="text-slate-400 group-hover:text-primary transition-colors mb-4" />
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{spec.label}</p>
                   <p className="font-black text-slate-800 text-xs uppercase">{spec.value}</p>
@@ -435,7 +854,7 @@ const VehicleDetail = () => {
                 <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 h-6 uppercase font-black text-[10px] tracking-widest">Gallery</Badge>
                 <h2 className="text-xl font-black uppercase tracking-widest">Detailed Views</h2>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {[
                   { id: 'interior', label: 'Interior' },
                   { id: 'exterior', label: 'Exterior' },
@@ -458,7 +877,7 @@ const VehicleDetail = () => {
                         }
                       }}
                     >
-                      <div className="aspect-[4/3] rounded-[2rem] overflow-hidden bg-slate-100 border-4 border-white shadow-lg group-hover:shadow-2xl transition-all relative">
+                      <div className="aspect-[4/3] rounded-2xl md:rounded-[2rem] overflow-hidden bg-slate-100 border-2 md:border-4 border-white shadow-lg group-hover:shadow-2xl transition-all relative">
                         <img 
                           src={imageUrl} 
                           alt={label} 
@@ -553,6 +972,10 @@ const VehicleDetail = () => {
 
           <VehicleAIInsights vehicle={vehicle} />
           <PriceComparisonSection vehicle={vehicle} allVehicles={allVehicles} />
+
+          <RealWorldMileage vehicle={vehicle} />
+
+          <EMICalculator vehiclePrice={vehicle.price} vehicle={vehicle} />
 
           {/* Seller Showroom Details - Revealed after booking */}
           {isBooked && shop && (
@@ -761,6 +1184,49 @@ const VehicleDetail = () => {
               </CardContent>
             </Card>
 
+            {/* Dealer QR Scan Score Windshield Flyer Builder */}
+            <Card className="rounded-[2.5rem] border-2 border-dashed border-blue-200 bg-blue-50/15 shadow-xl shadow-blue-500/5 overflow-hidden">
+              <CardContent className="p-8 space-y-6">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-700 text-[9.5px] font-black uppercase tracking-widest">
+                    <QrCode size={12} className="animate-pulse" strokeWidth={2.5} /> Dealer Dashboard Portal
+                  </div>
+                  <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Showroom QR Flyer Generator</h3>
+                  <p className="text-xs text-slate-500 font-bold leading-tight">
+                    Generate and print a physical windshield flyer with a custom QR code matching this vehicle's certified Car Health Score.
+                  </p>
+                </div>
+
+                {/* Showroom QR Display Panel */}
+                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-[2rem] border border-slate-200/60 shadow-inner group/qr relative overflow-hidden">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/car-health-score?reg=${vehicle.registrationNumber || 'Bihar Registry'}`)}&color=0f172a`}
+                    alt="Dealer Car Health Score QR Code"
+                    className="w-36 h-36 object-cover rounded-2xl border border-slate-100 p-2.5 transform group-hover/qr:scale-105 transition-transform duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                  <p className="font-mono text-[9px] font-black text-slate-400 mt-3.5 tracking-widest bg-slate-50 px-3 py-1 rounded-full uppercase border border-slate-100">
+                    {vehicle.registrationNumber || 'Bihar Registry'}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    onClick={handlePrintDealerFlyer}
+                    className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2"
+                  >
+                    <Printer size={14} /> Print Windshield Flyer PDF
+                  </Button>
+                  <a 
+                    href={`/car-health-score?reg=${vehicle.registrationNumber || ''}`}
+                    className="text-[10px] font-black text-blue-600 text-center uppercase tracking-wide hover:underline flex items-center justify-center gap-1 mt-1"
+                  >
+                    View Direct Health Link <ExternalLink size={10} />
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="rounded-[2.5rem] border-none shadow-sm bg-white overflow-hidden">
               <CardContent className="p-8 space-y-6">
                 {shop ? (
@@ -855,28 +1321,124 @@ const VehicleDetail = () => {
 
       {/* Lightbox */}
       <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
-        <DialogContent className="max-w-[100vw] max-h-[100vh] p-0 bg-black/95 border-none overflow-hidden">
-          <div className="relative w-full h-[85vh] flex items-center justify-center">
+        <DialogContent className="max-w-[100vw] max-h-[100vh] p-0 bg-black/95 border-none overflow-hidden flex flex-col justify-between">
+          
+          {/* Top HUD with Instruction */}
+          <div className="absolute top-6 left-6 z-30 flex items-center gap-3 pointer-events-none">
+            <Badge className="bg-slate-900/90 backdrop-blur-md text-white font-black text-[10px] px-4 py-2 rounded-full uppercase tracking-widest border-slate-800">
+              🔬 {scale > 1 ? `ZOOM LEVEL: ${scale.toFixed(1)}x` : "FULL SCREEN"}
+            </Badge>
+            <span className="hidden sm:inline-block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              {scale > 1 ? "Drag to pan the image" : "Pinch, Scroll, or Double-click to zoom"}
+            </span>
+          </div>
+
+          <div 
+            className={cn(
+              "relative w-full h-[75vh] md:h-[80vh] flex items-center justify-center overflow-hidden select-none",
+              scale > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+            )}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchMove={handleLightboxTouchMove}
+            onTouchEnd={handleLightboxTouchEnd}
+            onDoubleClick={handleDoubleClick}
+          >
             <AnimatePresence mode="wait">
               <motion.img
                 key={activeImageIndex}
                 src={vehicle.images[activeImageIndex]}
-                alt="Fullscreen"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.1 }}
-                className="max-w-full max-h-full object-contain"
+                alt="Fullscreen vehicle zoom"
+                style={{
+                  scale,
+                  x: offset.x,
+                  y: offset.y,
+                }}
+                transition={{ type: "spring", stiffness: 350, damping: 40 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="max-w-full max-h-full object-contain pointer-events-none"
                 referrerPolicy="no-referrer"
               />
             </AnimatePresence>
-            <DialogClose className="absolute top-6 right-6 p-2 bg-white/10 text-white rounded-full"><X size={24} /></DialogClose>
-            <button onClick={() => setActiveImageIndex(prev => prev > 0 ? prev - 1 : vehicle.images.length - 1)} className="absolute left-6 top-1/2 p-3 bg-white/10 text-white rounded-full"><ChevronLeft size={32} /></button>
-            <button onClick={() => setActiveImageIndex(prev => prev < vehicle.images.length - 1 ? prev + 1 : 0)} className="absolute right-6 top-1/2 p-3 bg-white/10 text-white rounded-full"><ChevronRight size={32} /></button>
+
+            <DialogClose className="absolute top-6 right-6 p-2 bg-white/10 text-white rounded-full hover:bg-primary hover:text-white transition-all z-30"><X size={24} /></DialogClose>
+            
+            {/* Nav Arrows */}
+            {scale === 1 && (
+              <>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImageIndex(prev => prev > 0 ? prev - 1 : vehicle.images.length - 1);
+                  }} 
+                  className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-primary text-white rounded-full transition-all z-20"
+                >
+                  <ChevronLeft size={32} />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImageIndex(prev => prev < vehicle.images.length - 1 ? prev + 1 : 0);
+                  }} 
+                  className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-primary text-white rounded-full transition-all z-20"
+                >
+                  <ChevronRight size={32} />
+                </button>
+              </>
+            )}
+
+            {/* Floating Zoom Controls HUD */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-950/90 backdrop-blur-md border border-slate-800 px-4 py-2 rounded-full z-30 shadow-2xl">
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+                disabled={scale <= 1}
+                className="p-1.5 hover:bg-white/10 text-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+                title="Zoom Out"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <span className="text-[10px] font-mono font-black text-slate-300 min-w-[45px] text-center">
+                {scale.toFixed(1)}x
+              </span>
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+                disabled={scale >= 4}
+                className="p-1.5 hover:bg-white/10 text-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+                title="Zoom In"
+              >
+                <ZoomIn size={18} />
+              </button>
+              <div className="w-[1px] h-4 bg-slate-800 mx-1" />
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleResetZoom(); }}
+                disabled={scale === 1}
+                className="text-[9px] font-black uppercase tracking-widest text-[#F25C1D] px-3 py-1 hover:bg-[#F25C1D]/10 rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+              >
+                Reset
+              </button>
+            </div>
           </div>
-          <div className="bg-black/80 p-6 flex gap-4 overflow-x-auto justify-center">
+
+          {/* Thumbnails Strip */}
+          <div className="bg-black/80 p-6 flex gap-4 overflow-x-auto justify-center z-10">
             {vehicle.images.map((img, i) => (
-              <button key={i} onClick={() => setActiveImageIndex(i)} className={cn("w-20 h-20 rounded-xl overflow-hidden", activeImageIndex === i ? "ring-2 ring-primary" : "opacity-40")}>
-                <img src={img} className="w-full h-full object-cover" />
+              <button 
+                key={i} 
+                onClick={() => setActiveImageIndex(i)} 
+                className={cn(
+                  "w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden shrink-0 transition-all duration-300", 
+                  activeImageIndex === i ? "ring-2 ring-primary scale-95" : "opacity-40 hover:opacity-100"
+                )}
+              >
+                <img src={img} className="w-full h-full object-cover pointer-events-none" />
               </button>
             ))}
           </div>

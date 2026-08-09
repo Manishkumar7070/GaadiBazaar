@@ -1,106 +1,160 @@
 import express from 'express';
-import retry from "async-retry";
-import { authenticate, AuthRequest } from '../middleware/auth';
+import rateLimit from 'express-rate-limit';
+import { authenticate, AuthRequest, requireAuth } from '../middleware/auth';
 import { getSupabaseClient } from '../clients';
 import { supabaseBreaker } from '../lib/resilience';
 import { cache } from '../lib/cache';
 import { serverLogger } from '../logger';
+import { isUUID } from '../lib/validation';
+import { rateLimitHandler } from '../middleware/rate-limit-monitor';
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+let isLocalDbOffline = false;
+let dbOfflineDetectTime = 0;
+const DB_OFFLINE_RETRY_INTERVAL = 30000; // Fast-recovery 30 seconds test window for resilient healing
+
+// Track active, in-flight query promises by cacheKey to prevent a cache stampede / thundering herd under concurrent request traffic
+const inFlightQueries = new Map<string, Promise<any>>();
+
+// Granular scraper defense: Max 300 vehicle search/list API operations per minute to handle higher user traffic density.
+const searchScraperLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 300, // Max 300 queries per IP address per minute for active customers
+  message: { error: "Too many search requests. Searching rates are limited to prevent vehicle pricing data scraping." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler,
+});
+
+// GET /api/vehicles - Public access with caching and rate limiter scraping defense
+router.get("/", searchScraperLimiter, async (req, res) => {
+  const { shopId, sellerId, verificationStatus } = req.query;
+  const cacheKey = `vehicles:list:${shopId || 'all'}:${sellerId || 'all'}:${verificationStatus || 'all'}`;
+
   try {
-    const cachedVehicles = await cache.get("vehicles:all");
+    // 1. Try Cache FIRST. Serving stale/existing cached listings is always better than empty lists under traffic spikes!
+    const cachedVehicles = await cache.get(cacheKey);
     if (cachedVehicles) {
       return res.json(JSON.parse(cachedVehicles));
     }
 
-    const data = await supabaseBreaker.fire(async () => {
-      return await retry(async (bail) => {
-        const { data, error } = await getSupabaseClient().from("vehicles").select("*");
-        if (error) {
-          if (error.code === "429") bail(new Error("Supabase is temporarily rate limiting requests."));
-          throw error;
+    // 2. ONLY apply fast-fallback blank response if the cache has expired AND the database was flagged offline very recently.
+    if (isLocalDbOffline && (Date.now() - dbOfflineDetectTime < DB_OFFLINE_RETRY_INTERVAL)) {
+      return res.json([]);
+    }
+
+    // Coalesce / deduplicate multiple concurrent database requests for the same cache key
+    let dataPromise = inFlightQueries.get(cacheKey);
+    if (!dataPromise) {
+      dataPromise = supabaseBreaker.fire(async () => {
+        let query = getSupabaseClient().from("vehicles").select("*");
+        
+        if (shopId && typeof shopId === 'string' && isUUID(shopId)) {
+          query = query.eq('shop_id', shopId);
         }
+        if (sellerId && typeof sellerId === 'string' && isUUID(sellerId)) {
+          query = query.eq('seller_id', sellerId);
+        }
+        if (verificationStatus && typeof verificationStatus === 'string') {
+          query = query.eq('verification_status', verificationStatus);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
         return data;
-      }, {
-        retries: 3,
-        minTimeout: 1000,
-        maxTimeout: 5000,
       });
-    }).catch(err => {
-      if (err.message === 'Breaker is open') {
-        throw new Error('Database is temporarily unavailable due to high traffic. Retrying in a few seconds...');
-      }
-      throw err;
-    });
+
+      inFlightQueries.set(cacheKey, dataPromise);
+
+      // Assure completion cleanup and swallow side-branch rejections to prevent unhandled rejection events
+      dataPromise.finally(() => {
+        inFlightQueries.delete(cacheKey);
+      }).catch(() => {});
+    }
+
+    const data = await dataPromise;
     
-    await cache.setex("vehicles:all", 300, JSON.stringify(data));
+    // Reset offline tracking if query succeeded
+    isLocalDbOffline = false;
+    
+    await cache.setex(cacheKey, 300, JSON.stringify(data));
     res.json(data);
   } catch (error: any) {
-    serverLogger.error("Error fetching vehicles", { error: error.message });
-    res.status(500).json({ error: error.message });
+    serverLogger.error("[VEHICLES] Database query error, engaging local offline fallback protocol", { error: error.message });
+    // Set offline trackers to bypass DB on next queries (breathing room for database connection pool)
+    isLocalDbOffline = true;
+    dbOfflineDetectTime = Date.now();
+
+    // Cache empty list as secondary safeguard only for 10 seconds to avoid long freeze periods
+    try {
+      await cache.setex(cacheKey, 10, JSON.stringify([]));
+    } catch (cacheErr: any) {
+      // Quietly continue
+    }
+    res.json([]);
   }
 });
 
-router.post("/", authenticate, async (req: AuthRequest, res: any) => {
+// POST /api/vehicles - Authenticated access with ownership check
+router.post("/", authenticate, requireAuth, async (req: AuthRequest, res: any) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized", message: "You must be logged in to list a vehicle" });
+    const { title, price, brand, model, city, state, sellerId } = req.body;
+    
+    // Ownership check (IDOR prevention)
+    if (sellerId !== req.user.uid) {
+      return res.status(403).json({ error: "Forbidden", message: "User identity mismatch" });
     }
-    
-    const vehicleData = req.body;
-    const requiredFields = ["title", "price", "brand", "model", "city", "state", "sellerId"];
-    const missingFields = requiredFields.filter(f => !vehicleData[f]);
-    
-    if (missingFields.length > 0) {
+
+    if (!title || !price || !brand || !model || !city || !state || !sellerId) {
       return res.status(400).json({ 
         error: "Validation Failed", 
-        message: `Missing required fields: ${missingFields.join(", ")}` 
+        message: "Missing required fields" 
       });
     }
 
-    const data = await supabaseBreaker.fire(async () => {
-      return await retry(async (bail) => {
-        const { data, error } = await getSupabaseClient()
-          .from("vehicles")
-          .insert([
-            {
-              ...vehicleData,
-              status: "active",
-              isFeatured: false,
-              isVerified: false,
-              viewsCount: 0,
-              createdAt: new Date().toISOString(),
-            },
-          ])
-          .select();
+    // Explicit Sanitization (Mass Assignment prevention)
+    const cleanData = {
+      title, 
+      price, 
+      brand, 
+      model, 
+      city, 
+      state, 
+      seller_id: sellerId, // Mapping to snake_case used in DB
+      status: "active",
+      is_featured: false,
+      is_verified: false,
+      views_count: 0,
+      created_at: new Date().toISOString(),
+    };
 
-        if (error) {
-          if (error.code === "400") bail(new Error("The provided vehicle information is invalid. Please check and try again."));
-          throw error;
-        }
-        return data[0];
-      }, {
-        retries: 2,
-      });
-    }).catch(err => {
-      if (err.message === 'Breaker is open') {
-        throw new Error('Our database is currently processing too many requests. Please wait a moment.');
-      }
-      throw err;
+    const data = await supabaseBreaker.fire(async () => {
+      const { data, error } = await getSupabaseClient()
+        .from("vehicles")
+        .insert([cleanData])
+        .select();
+
+      if (error) throw error;
+      return data[0];
     });
 
-    await cache.del("vehicles:all");
+    await cache.delPattern("vehicles:*");
     res.status(201).json(data);
   } catch (error: any) {
     serverLogger.error("Error creating vehicle", { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Failed to create vehicle listing." });
   }
 });
 
-router.get("/wishlist/:userId", async (req, res) => {
+// GET /api/vehicles/wishlist/:userId - Protected IDOR check
+router.get("/wishlist/:userId", authenticate, requireAuth, async (req: AuthRequest, res) => {
   const { userId } = req.params;
+  
+  if (userId !== req.user.uid) {
+    return res.status(403).json({ error: "Forbidden", message: "Access denied" });
+  }
+
   try {
     const { data, error } = await getSupabaseClient()
       .from("user_wishlist")
@@ -111,13 +165,21 @@ router.get("/wishlist/:userId", async (req, res) => {
     res.json(data);
   } catch (error: any) {
     serverLogger.error("Error fetching wishlist", { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Error retrieving wishlist" });
   }
 });
 
-router.post("/wishlist", async (req, res) => {
+// POST /api/vehicles/wishlist - Protected IDOR check
+router.post("/wishlist", authenticate, requireAuth, async (req: AuthRequest, res) => {
   const { userId, vehicleId } = req.body;
-  if (!userId || !vehicleId) return res.status(400).json({ error: "User ID and Vehicle ID are required" });
+
+  if (userId !== req.user.uid) {
+    return res.status(403).json({ error: "Forbidden", message: "Cannot modify other wishlists" });
+  }
+
+  if (!userId || !vehicleId || !isUUID(vehicleId)) {
+    return res.status(400).json({ error: "Valid data required" });
+  }
 
   try {
     const { data, error } = await getSupabaseClient()
@@ -126,18 +188,28 @@ router.post("/wishlist", async (req, res) => {
       .select();
 
     if (error) {
-      if (error.code === "23505") return res.status(409).json({ error: "Already in wishlist" });
+      if (error.code === "23505") return res.status(409).json({ error: "Already exists" });
       throw error;
     }
     res.status(201).json(data[0]);
   } catch (error: any) {
     serverLogger.error("Error adding to wishlist", { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Error adding item" });
   }
 });
 
-router.delete("/wishlist/:userId/:vehicleId", async (req, res) => {
+// DELETE /api/vehicles/wishlist/:userId/:vehicleId - Protected IDOR check
+router.delete("/wishlist/:userId/:vehicleId", authenticate, requireAuth, async (req: AuthRequest, res) => {
   const { userId, vehicleId } = req.params;
+
+  if (userId !== req.user.uid) {
+    return res.status(403).json({ error: "Forbidden", message: "Action denied" });
+  }
+  
+  if (!isUUID(vehicleId)) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+
   try {
     const { error } = await getSupabaseClient()
       .from("user_wishlist")
@@ -146,10 +218,10 @@ router.delete("/wishlist/:userId/:vehicleId", async (req, res) => {
       .eq("vehicle_id", vehicleId);
 
     if (error) throw error;
-    res.json({ message: "Removed from wishlist" });
+    res.json({ message: "Removed" });
   } catch (error: any) {
     serverLogger.error("Error removing from wishlist", { error: error.message });
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Error removing item" });
   }
 });
 

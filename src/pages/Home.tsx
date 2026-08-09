@@ -18,9 +18,14 @@ import { shopService } from '@/services/shop.service';
 import { Shop } from '@/types';
 import CitySelector from '@/components/shared/CitySelector';
 import { useLocation } from '@/context/LocationContext';
-import { Helmet } from 'react-helmet-async';
+import SEO from '@/components/SEO';
+import { faqs } from '@/components/FAQSection';
 import HeroCarousel from '@/features/home/HeroCarousel';
 import { POPULAR_CITIES } from '@/constants/cities';
+import { PersonalizedSearch } from '@/features/search/PersonalizedSearch';
+
+import FAQSection from '@/components/FAQSection';
+import ComparisonGrid from '@/components/ComparisonGrid';
 
 const Home = () => {
   const { user } = useAuth();
@@ -207,34 +212,53 @@ const Home = () => {
   const [kmDriven, setKmDriven] = useState('');
   const [modelYear, setModelYear] = useState('');
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://asonedealer.com/#organization",
+        "name": "AsOneDealer",
+        "url": "https://asonedealer.com",
+        "logo": "https://asonedealer.com/logo.png",
+        "founder": {
+          "@type": "Person",
+          "name": "Maneesh Deodha"
+        },
+        "description": "AsOneDealer is India's leading AI-powered Automotive-Tech marketplace founded by Maneesh Deodha, with 10,000+ listed cars and 500+ verified dealers, offering a unique 5-year free doorstep service guarantee.",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Bangalore",
+          "addressRegion": "Karnataka",
+          "addressCountry": "India"
+        },
+        "numberOfEmployees": {
+          "@type": "QuantitativeValue",
+          "value": 500
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": faqs.map(faq => ({
+          "@type": "Question",
+          "name": faq.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.answer
+          }
+        }))
+      }
+    ]
+  };
+
   return (
     <div className="min-h-screen">
-      <Helmet>
-        <title>Buy & Sell Used Cars in {selectedCity || 'India'} | AsoneDealer</title>
-        <meta name="description" content={`Find 100% verified used cars, bikes, and commercial vehicles in ${selectedCity || 'India'}. Connect directly with certified showrooms and dealers. Best prices and free paperwork.`} />
-        <meta name="keywords" content={`used cars ${selectedCity}, second hand cars Indian, buy used cars, sell my car, certified showrooms, asonedealer, car market India`} />
-        <link rel="canonical" href="https://asonedealer.com/" />
-      </Helmet>
-
-      {/* EXCLUSIVE SERVICE BANNER */}
-      <div className="bg-[#1B301B] text-white py-3 px-4 relative overflow-hidden group">
-        <div className="container mx-auto flex flex-col md:flex-row items-center justify-center gap-2 md:gap-8 text-center md:text-left relative z-10">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🎉</span>
-            <p className="text-xs md:text-sm font-black tracking-widest uppercase text-white">
-              EXCLUSIVE: 5 YEARS FREE MECHANIC SERVICE WITH EVERY CAR
-            </p>
-          </div>
-          <p className="text-[10px] md:text-xs text-white/70 font-semibold uppercase tracking-wider">
-            Professional monthly visits to your home or office | ₹5 Lakh value included
-          </p>
-          <div className="flex gap-4">
-            <button onClick={() => navigate('/search')} className="text-[10px] font-black underline underline-offset-4 hover:text-primary transition-colors">SHOP CARS NOW</button>
-            <button onClick={() => navigate('/buyer-hub')} className="text-[10px] font-black underline underline-offset-4 hover:text-primary transition-colors">LEARN MORE</button>
-          </div>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[2000ms] ease-in-out" />
-      </div>
+      <SEO 
+        title={`Buy & Sell Used Cars in ${selectedCity || 'India'}`}
+        description={`Find 100% verified used cars, bikes, and commercial vehicles in ${selectedCity || 'India'}. Connect directly with Maneesh Deodha's verified dealer network. Best prices and 5 years free doorstep maintenance.`}
+        keywords={`used cars ${selectedCity}, second hand cars India, buy used cars, Maneesh Deodha, asonedealer, 5 year free service`}
+        schemaData={faqSchema}
+      />
 
       {/* Redesigned Hero Section */}
       <section className="relative min-h-[90vh] flex items-center pt-16 pb-20 overflow-hidden bg-[#4a148c]">
@@ -251,284 +275,58 @@ const Home = () => {
             <motion.div 
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
-              className="relative z-20 mx-auto lg:mx-0 w-full max-w-[380px]"
+              className="relative z-20 mx-auto lg:mx-0 w-full max-w-[500px] flex flex-col gap-6"
             >
-              <div className="bg-white rounded-[2rem] p-5 shadow-2xl flex flex-col gap-4">
-                {/* Heading */}
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight text-center lg:text-left">
-                  {heroTab === 'used' ? 'Find your personalized car' : 'Find best customer'}
-                </h2>
+              <PersonalizedSearch />
 
-                {/* Toggles */}
-                <div className="flex p-1 bg-slate-100 rounded-xl">
-                  <button 
-                    onClick={() => setHeroTab('used')}
-                    className={cn(
-                      "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all relative",
-                      heroTab === 'used' ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Used Car
-                    {heroTab === 'used' && (
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-2 bg-slate-900 clip-path-triangle" />
-                    )}
-                  </button>
-                  <button 
-                    onClick={() => setHeroTab('sell')}
-                    className={cn(
-                      "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all relative",
-                      heroTab === 'sell' ? "bg-slate-900 text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    List Your Vehicle
-                    {heroTab === 'sell' && (
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-2 bg-slate-900 clip-path-triangle" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Radio Buttons */}
-                {heroTab === 'used' && (
-                  <div className="flex items-center justify-center lg:justify-start gap-6">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <div className="relative">
-                        <input 
-                          type="radio" 
-                          className="sr-only" 
-                          name="searchMode" 
-                          checked={searchMode === 'budget'} 
-                          onChange={() => setSearchMode('budget')} 
-                        />
-                        <div className={cn(
-                          "w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center",
-                          searchMode === 'budget' ? "border-orange-500" : "border-slate-300 group-hover:border-slate-400"
-                        )}>
-                          {searchMode === 'budget' && <div className="w-2 h-2 rounded-full bg-orange-500" />}
-                        </div>
-                      </div>
-                      <span className={cn(
-                        "text-[9px] font-black uppercase tracking-widest",
-                        searchMode === 'budget' ? "text-orange-500" : "text-slate-500"
-                      )}>By Budget</span>
-                    </label>
-
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <div className="relative">
-                        <input 
-                          type="radio" 
-                          className="sr-only" 
-                          name="searchMode" 
-                          checked={searchMode === 'brand'} 
-                          onChange={() => setSearchMode('brand')} 
-                        />
-                        <div className={cn(
-                          "w-4 h-4 rounded-full border-2 transition-all flex items-center justify-center",
-                          searchMode === 'brand' ? "border-orange-500" : "border-slate-300 group-hover:border-slate-400"
-                        )}>
-                          {searchMode === 'brand' && <div className="w-2 h-2 rounded-full bg-orange-500" />}
-                        </div>
-                      </div>
-                      <span className={cn(
-                        "text-[9px] font-black uppercase tracking-widest",
-                        searchMode === 'brand' ? "text-orange-500" : "text-slate-500"
-                      )}>By Brand</span>
-                    </label>
+              {/* High-Converting CIBIL Score Promotion Banner */}
+              <button
+                onClick={() => navigate('/car-health-score')}
+                className="w-full text-left group relative outline-none focus:outline-none transition-transform hover:scale-[1.01] active:scale-[0.99] duration-300"
+              >
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-[2rem] blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
+                <div className="relative bg-slate-900 border border-slate-800 rounded-[2rem] p-6 flex items-center justify-between overflow-hidden shadow-2xl">
+                  {/* Neon radial accent inside */}
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl -mr-12 -mt-12 pointer-events-none" />
+                  <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div className="space-y-2 relative z-10 pr-2">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black tracking-widest uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> FREE RTO & REGISTRY CHECK
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-black text-white tracking-tight leading-tight">
+                      Check Your <span className="text-blue-400 italic">Car CIBIL Score</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium max-w-[280px] leading-relaxed">
+                      Verify RTO registry history, engine compression health & fair value instant deduction report.
+                    </p>
+                    
+                    <div className="pt-2 flex items-center gap-1 text-xs font-black text-white group-hover:text-blue-400 transition-colors uppercase tracking-widest">
+                      Launch Registry Check <ArrowRight size={14} className="group-hover:translate-x-1.5 transition-transform" />
+                    </div>
                   </div>
-                )}
 
-                {/* Selection Fields */}
-                <div className="space-y-2">
-                  {heroTab === 'used' ? (
-                    <>
-                      <div className="relative">
-                        <select 
-                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
-                          value={searchMode === 'budget' ? budgetRange : ''}
-                          onChange={(e) => setBudgetRange(e.target.value)}
-                        >
-                          <option value="">{searchMode === 'budget' ? 'Select Budget' : 'Select Brand'}</option>
-                          {searchMode === 'budget' ? (
-                            <>
-                              <option value="0-300000">Under ₹3 Lakhs</option>
-                              <option value="300000-700000">₹3L – ₹7 Lakhs</option>
-                              <option value="700000-1500000">₹7L – ₹15 Lakhs</option>
-                              <option value="1500000-10000000">Above ₹15 Lakhs</option>
-                            </>
-                          ) : (
-                            popularMetadata.brands.map(brand => (
-                              <option key={brand} value={brand}>{brand}</option>
-                            ))
-                          )}
-                        </select>
-                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Search size={16} />
-                        </div>
+                  <div className="relative shrink-0 ml-2 flex flex-col items-center justify-center pointer-events-none">
+                    {/* Interactive Gauge Badge */}
+                    <div className="w-20 h-20 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center relative">
+                      <Gauge size={36} className="text-blue-400 group-hover:rotate-12 transition-transform duration-500" />
+                      <div className="absolute -bottom-1.5 -right-1 bg-emerald-500 text-slate-950 font-black text-[9px] tracking-tighter px-2 py-0.5 rounded-full shadow border-2 border-slate-900">
+                        92/100
                       </div>
-
-                      <div className="relative">
-                        <select 
-                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
-                          value={purpose}
-                          onChange={(e) => setPurpose(e.target.value)}
-                        >
-                          <option value="">Select Purpose</option>
-                          <option value="family">Family First</option>
-                          <option value="commute">Office/Daily</option>
-                          <option value="touring">Long Drive</option>
-                          <option value="budget">Mileage King</option>
-                          <option value="offroad">Off-Roading</option>
-                        </select>
-                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Compass size={16} />
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <select 
-                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
-                          value={sellerLocation}
-                          onChange={(e) => setSellerLocation(e.target.value)}
-                        >
-                          <option value="">Select Location</option>
-                          {POPULAR_CITIES.map(city => (
-                            <option key={city.name} value={city.name}>{city.name}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <MapPin size={16} />
-                        </div>
-                      </div>
-
-                      <div className="relative">
-                        <select 
-                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
-                          value={kmDriven}
-                          onChange={(e) => setKmDriven(e.target.value)}
-                        >
-                          <option value="">Select KM Driven</option>
-                          <option value="0-10000">0 - 10,000 km</option>
-                          <option value="10000-30000">10,000 - 30,000 km</option>
-                          <option value="30000-60000">30,000 - 60,000 km</option>
-                          <option value="60000-100000">60,000 - 1,00,000 km</option>
-                          <option value="100000+">Above 1,00,000 km</option>
-                        </select>
-                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Gauge size={16} />
-                        </div>
-                      </div>
-
-                      <div className="relative">
-                        <select 
-                          className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
-                          value={modelYear}
-                          onChange={(e) => setModelYear(e.target.value)}
-                        >
-                          <option value="">Select Model Year</option>
-                          {Array.from({ length: 15 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                            <option key={year} value={year}>{year}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                          <Calendar size={16} />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="relative">
-                    <select 
-                      className="w-full h-12 px-5 bg-white border-2 border-slate-100 rounded-xl appearance-none focus:outline-none focus:border-orange-500 font-bold text-slate-700 text-xs"
-                      value={vehicleType}
-                      onChange={(e) => setVehicleType(e.target.value)}
-                    >
-                      <option value="all">All Vehicle Types</option>
-                      <option value="car">Cars</option>
-                      <option value="bike">Bikes</option>
-                      <option value="commercial">Trucks / Commercial</option>
-                    </select>
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                      <Filter size={16} />
                     </div>
                   </div>
                 </div>
-
-                {/* Search Button */}
-                <Button 
-                  onClick={() => {
-                    if (heroTab === 'sell') {
-                      const params = new URLSearchParams();
-                      if (sellerLocation) params.set('city', sellerLocation);
-                      if (kmDriven) params.set('km', kmDriven);
-                      if (modelYear) params.set('year', modelYear);
-                      if (vehicleType !== 'all') params.set('type', vehicleType);
-                      navigate(`/list-vehicle?${params.toString()}`);
-                    } else {
-                      const params = new URLSearchParams();
-                      if (searchMode === 'budget' && budgetRange) {
-                        const [min, max] = budgetRange.split('-');
-                        params.set('minPrice', min);
-                        params.set('maxPrice', max);
-                      } else if (searchMode === 'brand' && budgetRange) {
-                        params.set('q', budgetRange);
-                      }
-                      if (purpose) {
-                        params.set('purpose', purpose);
-                      }
-                      if (vehicleType !== 'all') {
-                        params.set('type', vehicleType);
-                      }
-                      navigate(`/search?${params.toString()}`);
-                    }
-                  }}
-                  className="w-full h-12 rounded-xl bg-[#ff5a3c] hover:bg-[#e64a2e] text-white font-black text-base uppercase tracking-widest shadow-xl shadow-orange-500/20 transition-all hover:scale-[1.02] active:scale-95"
-                >
-                  {heroTab === 'used' ? 'Search Now' : 'List Now'}
-                </Button>
-
-                {/* Advanced Search Link */}
-                <div className="flex justify-end pt-1">
-                  <button 
-                    onClick={() => navigate('/search')}
-                    className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] tracking-wider uppercase group"
-                  >
-                    Advanced Search
-                    <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
-                  </button>
-                </div>
-              </div>
+              </button>
             </motion.div>
 
-            {/* Right Image Content */}
+            {/* Right Column: Automatic Interactive Multi-Banner Carousel */}
             <motion.div 
-              initial={{ opacity: 0, scale: 0.8, x: 50 }}
+              initial={{ opacity: 0, scale: 0.95, x: 30 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               transition={{ delay: 0.4, type: "spring", stiffness: 50 }}
-              className="relative hidden lg:block"
+              className="relative w-full"
             >
-              <div className="absolute -inset-10 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
-              <div className="relative rounded-[3rem] overflow-hidden shadow-2xl transform rotate-1 hover:rotate-0 transition-transform duration-700 border-8 border-white/10">
-                <img 
-                  src="/familytakingdelivery.png" 
-                  alt="Family taking delivery of their new car" 
-                  className="w-full h-auto object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-900/60 via-transparent to-transparent" />
-              </div>
-              
-              {/* Floating Trust Card */}
-              <div className="absolute -bottom-8 -left-8 bg-white rounded-3xl p-6 shadow-2xl animate-bounce duration-[4000ms]">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                    <ShieldCheck size={32} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Certified Dealers</p>
-                    <p className="text-xl font-black text-slate-900">100% Reliable</p>
-                  </div>
-                </div>
-              </div>
+              <HeroCarousel />
             </motion.div>
           </div>
         </div>
@@ -691,13 +489,19 @@ const Home = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
                   onClick={() => navigate('/buyer-hub')}
-                  className="h-16 px-10 rounded-2xl bg-primary text-secondary hover:bg-primary/90 font-[950] uppercase text-xs tracking-widest shadow-xl shadow-secondary/40"
+                  className="h-16 px-8 rounded-2xl bg-primary text-secondary hover:bg-primary/90 font-[950] uppercase text-xs tracking-widest shadow-xl shadow-secondary/40"
                 >
                   Visit Smart Buyer Hub
                 </Button>
                 <Button 
+                  onClick={() => navigate('/car-health-score')}
+                  className="h-16 px-8 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 font-[950] uppercase text-xs tracking-widest shadow-xl shadow-blue-500/20"
+                >
+                  Check Car Health Score (CIBIL)
+                </Button>
+                <Button 
                   variant="outline"
-                  className="h-16 px-10 rounded-2xl border-white/20 text-white hover:bg-white/10 font-[950] uppercase text-xs tracking-widest"
+                  className="h-16 px-8 rounded-2xl border-white/40 text-white bg-transparent hover:bg-white/10 font-[950] uppercase text-xs tracking-widest transition-all"
                   onClick={() => navigate('/find-dealers')}
                 >
                   Explore Trusted Dealers
@@ -1281,6 +1085,12 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      <section className="container mx-auto px-4">
+        <ComparisonGrid />
+      </section>
+
+      <FAQSection />
     </div>
   );
 };

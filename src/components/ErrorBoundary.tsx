@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'motion/react';
@@ -24,6 +25,14 @@ class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    
+    // Dispatch unhandled react exception to Sentry for real-time alerting
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.withScope((scope) => {
+        scope.setExtra('componentStack', errorInfo.componentStack);
+        Sentry.captureException(error);
+      });
+    }
   }
 
   private handleReset = () => {

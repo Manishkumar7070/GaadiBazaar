@@ -30,6 +30,7 @@ const BlogUsedCarMarket = lazy(() => import('@/pages/BlogUsedCarMarket'));
 const SellerDashboard = lazy(() => import('@/pages/SellerDashboard'));
 const Payment = lazy(() => import('@/pages/Payment'));
 const SmartBuyerHub = lazy(() => import('@/pages/SmartBuyerHub'));
+const CarHealthScore = lazy(() => import('@/pages/CarHealthScore'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
@@ -65,6 +66,7 @@ export default function App() {
                       <Route path="/admin" element={<AdminDashboard />} />
                       <Route path="/find-dealers" element={<FindDealers />} />
                       <Route path="/buyer-hub" element={<SmartBuyerHub />} />
+                      <Route path="/car-health-score" element={<CarHealthScore />} />
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/blog/used-car-market-india" element={<BlogUsedCarMarket />} />
                     </Routes>

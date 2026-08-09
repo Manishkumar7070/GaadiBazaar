@@ -37,7 +37,7 @@ export const shopService = {
         updatedAt: s.updated_at
       })) as Shop[];
     } catch (error) {
-      logger.error('Error fetching shops', { data: error });
+      logger.warn('Error fetching shops, falling back to mock data', { data: error });
       return MOCK_DEALERS;
     }
   },
@@ -79,7 +79,7 @@ export const shopService = {
         updatedAt: data.updated_at
       } as Shop;
     } catch (error) {
-      logger.error('Error fetching user shop', { data: error });
+      logger.warn('Error fetching user shop, falling back to mock data', { data: error });
       return MOCK_DEALERS.find(s => s.ownerId === userId) || null;
     }
   },
@@ -118,7 +118,7 @@ export const shopService = {
         updatedAt: data.updated_at
       } as Shop;
     } catch (error) {
-      logger.error('Error fetching shop by ID', { data: error });
+      logger.warn('Error fetching shop by ID, falling back to mock data', { data: error });
       return MOCK_DEALERS.find(s => s.id === shopId) || null;
     }
   },
